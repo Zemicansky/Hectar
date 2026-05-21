@@ -2,7 +2,11 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1f2e">
 <title>Гектар</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -30,6 +34,23 @@
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; }
+
+  /* iOS/Android touch optimizations */
+  button, [onclick] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  input, select, textarea {
+    -webkit-appearance: none;
+    border-radius: 0; /* prevent iOS rounding */
+  }
+  /* Prevent iOS double-tap zoom on buttons */
+  button { touch-action: manipulation; }
+  /* Smooth scroll on iOS */
+  .fps-body, .fields-list, .panel-body, .settings-box {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
 
   /* AUTH MODAL */
   #auth-overlay {
@@ -323,15 +344,135 @@
   }
   .draw-hint.show { display: block; }
 
-  /* RESPONSIVE */
-  @media (max-width: 768px) {
+  /* ══════════════════════════════════════
+     RESPONSIVE — MOBILE FIRST (iOS/Android)
+     ══════════════════════════════════════ */
+
+  /* Base mobile styles (≤480px — phones) */
+  @media (max-width: 480px) {
+    :root { --sidebar-w: 100vw; }
+
+    /* Sidebar takes full screen on mobile */
+    #sidebar { position: fixed; height: 100%; transform: translateX(-100%); z-index: 600; }
+    #sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.4); }
+
+    /* Always show map toggle burger */
+    .map-toggle-btn { display: flex !important; top: 12px; left: 12px; width: 44px; height: 44px; border-radius: 12px; font-size: 20px; }
+
+    /* Layer switcher — bottom center on mobile */
+    .layer-control {
+      top: auto; bottom: 90px; right: auto;
+      left: 50%; transform: translateX(-50%);
+      border-radius: 14px; flex-direction: row;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .layer-btn { padding: 10px 18px; font-size: 13px; border-right: 1px solid var(--border); border-bottom: none; }
+    .layer-btn:last-child { border-right: none; }
+
+    /* Side panel becomes full-screen bottom sheet on phones */
+    .field-panel-side {
+      width: 100% !important; top: auto !important; right: 0 !important;
+      bottom: 0 !important; height: 92vh !important;
+      transform: translateY(100%) !important;
+      border-radius: 20px 20px 0 0;
+      /* safe area for iPhone notch */
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .field-panel-side.open { transform: translateY(0) !important; }
+
+    /* Add swipe handle on mobile panel */
+    .field-panel-side::before {
+      content: ''; display: block; width: 40px; height: 4px;
+      background: rgba(255,255,255,0.3); border-radius: 2px;
+      margin: 10px auto 0; flex-shrink: 0;
+    }
+
+    .fps-header { padding: 6px 16px 12px; border-radius: 0; }
+    .fps-field-name { font-size: 18px; }
+    .fps-tab { font-size: 11px; padding: 6px 0; }
+
+    /* Actions bar bigger touch targets */
+    .fp-actions { padding: 10px 12px; gap: 6px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+    .fp-action-btn { padding: 12px 4px; font-size: 11px; }
+    .fp-action-btn .fa-icon { font-size: 20px; }
+
+    /* Measure toolbar — full width floating card */
+    #measure-toolbar {
+      left: 12px !important; right: 12px !important;
+      bottom: 80px !important;
+      transform: none !important;
+      min-width: unset !important;
+      border-radius: 16px;
+    }
+
+    /* Measure button at bottom center */
+    #measure-btn {
+      bottom: 24px; left: 50%; transform: translateX(-50%);
+      padding: 12px 24px; font-size: 14px; white-space: nowrap;
+    }
+    #measure-btn.active { background: var(--danger); }
+
+    /* Zoom limit notice */
+    #zoom-limit-notice { bottom: 100px; font-size: 12px; white-space: nowrap; }
+
+    /* Draw hint */
+    .draw-hint { top: 64px; font-size: 12px; padding: 8px 16px; }
+
+    /* Weather grid — 2 columns on phone */
+    .weather-ext-grid { grid-template-columns: 1fr 1fr; }
+
+    /* Cards full width */
+    .fp-card { margin: 10px 12px; }
+
+    /* Auth box */
+    #auth-box { padding: 28px 20px; }
+
+    /* Sidebar header compact */
+    .sidebar-header { padding: 16px 12px 12px; }
+    .sidebar-stats { padding: 8px 12px; }
+    .btn-add-field { margin: 8px 12px; }
+
+    /* Modals full-width */
+    .form-box, .settings-box, .season-box { width: 95vw; padding: 20px 16px; margin: 0 auto; }
+
+    /* Touch-friendly inputs */
+    .form-control, .auth-input, .crop-search-input { font-size: 16px !important; /* prevents iOS zoom */ padding: 13px 12px; }
+    .btn-primary { padding: 15px; font-size: 16px; }
+
+    /* Zoom controls position */
+    .leaflet-control-zoom { bottom: 160px !important; right: 12px !important; }
+    .leaflet-bottom.leaflet-right { bottom: 160px; }
+  }
+
+  /* Tablet (481–768px) */
+  @media (min-width: 481px) and (max-width: 768px) {
     :root { --sidebar-w: 100vw; }
     #sidebar { position: absolute; height: 100%; transform: translateX(-100%); }
     #sidebar.open { transform: translateX(0); }
     .map-toggle-btn { display: flex !important; }
+
+    .field-panel-side {
+      width: 100% !important; top: auto !important;
+      height: 80vh !important; transform: translateY(100%) !important;
+      border-radius: 20px 20px 0 0;
+    }
+    .field-panel-side.open { transform: translateY(0) !important; }
+
     .layer-control { top: auto; bottom: 100px; right: 10px; flex-direction: column; }
     .layer-btn { border-right: none; border-bottom: 1px solid var(--border); }
     .layer-btn:last-child { border-bottom: none; }
+
+    #measure-toolbar { left: 16px; right: 16px; transform: none; min-width: unset; bottom: 90px; }
+    #measure-btn { bottom: 20px; left: 50%; transform: translateX(-50%); }
+    .form-control, .auth-input { font-size: 16px !important; }
+  }
+
+  /* Desktop stays as-is */
+  @media (min-width: 769px) {
+    .field-panel-side { width: 360px; top: 0; right: 0; bottom: 0; transform: translateX(100%); height: auto; border-radius: 0; }
+    .field-panel-side.open { transform: translateX(0); }
+    #measure-toolbar { bottom: 130px; left: 50%; transform: translateX(-50%); min-width: 260px; }
+    #measure-btn { bottom: 80px; left: 50%; transform: translateX(-50%); }
   }
 
   .loading-spinner {
@@ -345,6 +486,183 @@
   .tag { background: var(--green-pale); color: var(--green); padding: 3px 8px; border-radius: 20px; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 4px; }
   .tag button { background: none; border: none; cursor: pointer; color: var(--green); font-size: 14px; line-height: 1; }
   .tag-input { border: none; outline: none; font-size: 13px; font-family: inherit; min-width: 80px; }
+
+  /* ══════ MEASURE TOOL ══════ */
+  #measure-btn {
+    position: absolute; z-index: 500;
+    background: var(--sidebar-bg); color: white; border: none;
+    border-radius: 30px; padding: 10px 20px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 8px;
+    box-shadow: var(--shadow-lg); transition: all 0.2s; white-space: nowrap;
+  }
+  #measure-btn:hover { background: var(--green); }
+  #measure-btn.active { background: var(--danger); }
+
+  #measure-toolbar {
+    position: absolute; z-index: 500;
+    background: white; border-radius: 16px; padding: 14px 18px;
+    box-shadow: var(--shadow-lg); display: none; flex-direction: column; gap: 10px;
+    animation: slideUp 0.2s ease;
+  }
+  #measure-toolbar.show { display: flex; }
+  .measure-toolbar-header { font-size: 12px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 0.06em; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+  .measure-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .measure-stat { background: var(--bg); border-radius: 10px; padding: 12px 14px; }
+  .measure-stat .ms-val { font-size: 20px; font-weight: 800; color: var(--text); line-height: 1.1; }
+  .measure-stat .ms-lbl { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+  .measure-stat-full { background: var(--bg); border-radius: 10px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
+  .measure-stat-full .ms-lbl { font-size: 12px; color: var(--text-muted); }
+  .measure-stat-full .ms-val { font-size: 13px; font-weight: 600; color: var(--text); }
+  .measure-actions { display: flex; gap: 8px; }
+  .measure-actions button { flex: 1; padding: 9px; border-radius: 10px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; transition: all 0.2s; }
+  .btn-undo-pt { background: #fef3c7; color: #92400e; }
+  .btn-undo-pt:hover { background: #fde68a; }
+  .btn-save-measure { background: var(--green-pale); color: var(--green); }
+  .btn-save-measure:hover { background: var(--green); color: white; }
+  .btn-clear-measure { background: #fee2e2; color: var(--danger); }
+  .btn-clear-measure:hover { background: var(--danger); color: white; }
+
+  /* Measure cursor tooltip — dark pill like screenshot 2 */
+  #measure-cursor-tip {
+    position: fixed; z-index: 9999;
+    background: rgba(26,31,46,0.95); color: white;
+    padding: 7px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+    pointer-events: none; display: none; white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    backdrop-filter: blur(4px);
+  }
+
+  /* Animated polygon dash */
+  @keyframes dashAnim { to { stroke-dashoffset: -20; } }
+  .measure-polygon-animated { animation: dashAnim 0.5s linear infinite; }
+
+  /* ══════ ZOOM LIMIT INDICATOR ══════ */
+  #zoom-limit-overlay {
+    position: absolute; inset: 0; z-index: 450; pointer-events: none;
+    border: 3px solid transparent; border-radius: 0;
+    transition: border-color 0.4s, background 0.4s; opacity: 0;
+  }
+  #zoom-limit-overlay.show {
+    border-color: rgba(233,168,39,0.6); background: rgba(233,168,39,0.04); opacity: 1;
+  }
+  #zoom-limit-notice {
+    position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%);
+    z-index: 501; background: rgba(26,31,46,0.92); color: #fde68a;
+    padding: 10px 18px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    display: none; white-space: nowrap; backdrop-filter: blur(4px);
+  }
+  #zoom-limit-notice.show { display: block; }
+
+  /* ══════ CROP SEARCH SELECT ══════ */
+  .crop-select-wrap { position: relative; }
+  .crop-search-input {
+    width: 100%; padding: 10px 12px 10px 36px; border: 1.5px solid var(--border);
+    border-radius: 10px; font-size: 14px; font-family: inherit; outline: none;
+    transition: border-color 0.2s; background: white; cursor: pointer;
+  }
+  .crop-search-input:focus { border-color: var(--accent); }
+  .crop-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; pointer-events: none; }
+  .crop-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 9100;
+    background: white; border: 1.5px solid var(--border); border-radius: 12px;
+    overflow-y: auto; max-height: 260px; box-shadow: var(--shadow-lg); display: none;
+  }
+  .crop-dropdown.open { display: block; }
+  .crop-group-label {
+    padding: 8px 12px 4px; font-size: 10px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.08em; background: #f8f9fa; position: sticky; top: 0;
+  }
+  .crop-option {
+    padding: 9px 14px; font-size: 13px; cursor: pointer; color: var(--text);
+    display: flex; align-items: center; gap: 8px; transition: background 0.1s;
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+  }
+  .crop-option:hover, .crop-option.highlighted { background: var(--green-pale); color: var(--green); }
+  .crop-option .crop-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .crop-option .crop-season { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+
+  /* ══════ ENHANCED FIELD PANEL ══════ */
+  .field-panel-side {
+    position: absolute; top: 0; right: 0; bottom: 0; width: 360px; z-index: 400;
+    background: white; box-shadow: -4px 0 30px rgba(0,0,0,0.12);
+    transform: translateX(100%); transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .field-panel-side.open { transform: translateX(0); }
+  .fps-header {
+    padding: 20px 20px 14px; border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);
+    color: white; flex-shrink: 0;
+  }
+  .fps-header-top { display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; }
+  .fps-field-name { font-size: 20px; font-weight: 700; }
+  .fps-meta { display: flex; gap: 12px; font-size: 12px; color: rgba(255,255,255,0.6); }
+  .fps-meta span { display: flex; align-items: center; gap: 4px; }
+  .fps-tabs { display: flex; gap: 0; margin-top: 12px; background: rgba(255,255,255,0.08); border-radius: 10px; padding: 3px; }
+  .fps-tab {
+    flex: 1; padding: 7px 0; border: none; background: none; cursor: pointer; font-size: 12px;
+    font-weight: 500; color: rgba(255,255,255,0.5); font-family: inherit; border-radius: 8px;
+    transition: all 0.2s;
+  }
+  .fps-tab.active { background: white; color: var(--green); font-weight: 600; }
+  .fps-body { flex: 1; overflow-y: auto; padding: 0; }
+  .fps-body::-webkit-scrollbar { width: 4px; }
+  .fps-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* Cards in new panel */
+  .fp-card { margin: 12px 16px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+  .fp-card-header { padding: 10px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; }
+  .fp-card-body { padding: 14px; background: white; }
+
+  /* NDVI indicator */
+  .ndvi-bar-wrap { position: relative; height: 8px; border-radius: 4px; overflow: hidden; background: linear-gradient(to right, #d73027, #fc8d59, #fee08b, #91cf60, #1a9850); margin: 8px 0; }
+  .ndvi-marker { position: absolute; top: -3px; width: 14px; height: 14px; background: white; border: 2px solid #333; border-radius: 50%; transform: translateX(-50%); transition: left 0.5s; }
+  .ndvi-value { font-size: 28px; font-weight: 800; color: var(--green); }
+  .ndvi-label { font-size: 12px; font-weight: 600; margin-top: 2px; }
+  .health-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-top: 6px; }
+
+  /* Sparkline */
+  .sparkline-wrap { height: 48px; position: relative; margin: 8px 0; }
+  .sparkline-wrap svg { width: 100%; height: 100%; }
+  .sparkline-months { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+
+  /* Veg phase */
+  .veg-phase-row { display: flex; gap: 4px; margin: 8px 0; }
+  .veg-phase-dot { flex: 1; height: 6px; border-radius: 3px; background: var(--border); }
+  .veg-phase-dot.active { background: var(--green); }
+  .veg-phase-dot.past { background: var(--accent); opacity: 0.5; }
+
+  /* Risk badges */
+  .risk-list { display: flex; flex-direction: column; gap: 6px; }
+  .risk-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; font-size: 12px; font-weight: 500; }
+  .risk-item.low { background: #f0fdf4; color: #166534; }
+  .risk-item.medium { background: #fefce8; color: #854d0e; }
+  .risk-item.high { background: #fef2f2; color: #991b1b; }
+  .risk-icon { font-size: 16px; }
+  .risk-pct { margin-left: auto; font-weight: 700; font-size: 13px; }
+
+  /* Soil moisture */
+  .moisture-arc { text-align: center; padding: 8px 0; }
+  .moisture-ring { width: 80px; height: 80px; border-radius: 50%; border: 8px solid var(--border); position: relative; margin: 0 auto 6px; display: flex; align-items: center; justify-content: center; }
+  .moisture-pct { font-size: 18px; font-weight: 800; color: #3b82f6; }
+
+  /* Actions bar */
+  .fp-actions { display: flex; gap: 8px; padding: 14px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .fp-action-btn { flex: 1; padding: 10px 6px; border-radius: 10px; border: 1.5px solid var(--border); background: white; cursor: pointer; font-size: 11px; font-weight: 600; font-family: inherit; color: var(--text); transition: all 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .fp-action-btn .fa-icon { font-size: 18px; }
+  .fp-action-btn:hover { border-color: var(--accent); color: var(--green); background: var(--green-pale); }
+  .fp-action-btn.danger { border-color: #fca5a5; }
+  .fp-action-btn.danger:hover { border-color: var(--danger); color: var(--danger); background: #fef2f2; }
+
+  /* Weather extended */
+  .weather-ext-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .wext-card { background: var(--bg); border-radius: 10px; padding: 10px; text-align: center; }
+  .wext-card .wv { font-size: 18px; font-weight: 700; color: var(--green); }
+  .wext-card .wl { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+  .wext-trend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); margin-top: 10px; }
+
+  /* Override old panel hidden when side panel active */
+  #field-panel.side-mode { display: none; }
 
   /* CITY SEARCH DROPDOWN */
   .city-dropdown {
@@ -448,15 +766,12 @@
     </div>
     <div class="form-group">
       <label data-i18n="crop">Культура</label>
-      <select class="form-control" id="field-crop-input">
-        <option value="wheat" data-i18n="cropTypes.wheat">Пшеница</option>
-        <option value="corn" data-i18n="cropTypes.corn">Кукуруза</option>
-        <option value="rapeseed" data-i18n="cropTypes.rapeseed">Рапс</option>
-        <option value="sunflower" data-i18n="cropTypes.sunflower">Подсолнечник</option>
-        <option value="soy" data-i18n="cropTypes.soy">Соя</option>
-        <option value="barley" data-i18n="cropTypes.barley">Ячмень</option>
-        <option value="other" data-i18n="cropTypes.other">Другое</option>
-      </select>
+      <div class="crop-select-wrap" id="field-crop-wrap">
+        <span class="crop-search-icon">🌾</span>
+        <input type="text" class="crop-search-input" id="field-crop-search" placeholder="Выберите культуру..." readonly onclick="openCropDropdown('field')" autocomplete="off">
+        <input type="hidden" id="field-crop-input" value="wheat">
+        <div class="crop-dropdown" id="field-crop-dropdown"></div>
+      </div>
     </div>
     <div class="form-group">
       <label data-i18n="color">Цвет полигона</label>
@@ -491,15 +806,12 @@
     </div>
     <div class="form-group">
       <label data-i18n="crop">Культура</label>
-      <select class="form-control" id="season-crop">
-        <option value="wheat">Пшеница</option>
-        <option value="corn">Кукуруза</option>
-        <option value="rapeseed">Рапс</option>
-        <option value="sunflower">Подсолнечник</option>
-        <option value="soy">Соя</option>
-        <option value="barley">Ячмень</option>
-        <option value="other">Другое</option>
-      </select>
+      <div class="crop-select-wrap" id="season-crop-wrap">
+        <span class="crop-search-icon">🌾</span>
+        <input type="text" class="crop-search-input" id="season-crop-search" placeholder="Выберите культуру..." readonly onclick="openCropDropdown('season')" autocomplete="off">
+        <input type="hidden" id="season-crop" value="wheat">
+        <div class="crop-dropdown" id="season-crop-dropdown"></div>
+      </div>
     </div>
     <div class="form-group">
       <label data-i18n="sowingDate">Дата сева</label>
@@ -607,7 +919,57 @@
     <div class="ndvi-info" id="ndvi-info">🌿 NDVI активен</div>
     <div class="draw-hint" id="draw-hint">Кликайте на карту, чтобы нарисовать контур поля</div>
 
-    <!-- FIELD PANEL -->
+    <!-- ZOOM LIMIT INDICATOR -->
+    <div id="zoom-limit-overlay"></div>
+    <div id="zoom-limit-notice">🔍 Детальные снимки недоступны для этой области</div>
+
+    <!-- MEASURE TOOL BUTTON -->
+    <button id="measure-btn" onclick="toggleMeasure()">📐 Измерить</button>
+
+    <!-- MEASURE TOOLBAR — floating card like screenshot 2 -->
+    <div id="measure-toolbar">
+      <div class="measure-toolbar-header">
+        <span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text)">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 13L13 1M1 13h4M1 13v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          ЗАМЕР УЧАСТКА
+        </span>
+        <button onclick="clearMeasure()" style="border:none;background:rgba(0,0,0,0.06);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--text-muted)">✕</button>
+      </div>
+      <div class="measure-stats">
+        <div class="measure-stat">
+          <div class="ms-val" id="ms-area">—</div>
+          <div class="ms-lbl">Площадь</div>
+        </div>
+        <div class="measure-stat">
+          <div class="ms-val" id="ms-perimeter">—</div>
+          <div class="ms-lbl">Периметр</div>
+        </div>
+      </div>
+      <div class="measure-stat-full">
+        <span class="ms-lbl">Вершины</span>
+        <span class="ms-val" id="ms-vertices" style="font-size:15px;font-weight:700">0</span>
+      </div>
+      <div class="measure-stat-full" id="ms-coords-row" style="display:none">
+        <span class="ms-lbl">Последняя точка</span>
+        <span class="ms-val" id="ms-coords" style="font-size:11px">—</span>
+      </div>
+      <div class="measure-actions">
+        <button class="btn-undo-pt" onclick="undoMeasurePoint()" title="Отменить последнюю точку">
+          <span style="font-size:14px">↩</span> Отменить
+        </button>
+        <button class="btn-save-measure" onclick="saveMeasureResult()" title="Скопировать результат">
+          <span style="font-size:14px">💾</span> Сохранить
+        </button>
+        <button class="btn-clear-measure" onclick="clearMeasure()" title="Очистить">
+          <span style="font-size:16px">🗑</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- MEASURE CURSOR TIP -->
+    <div id="measure-cursor-tip"></div>
+
+    <!-- OLD FIELD PANEL (mobile fallback) -->
     <div id="field-panel">
       <div class="panel-handle" onclick="closeFieldPanel()"></div>
       <div class="panel-header">
@@ -631,22 +993,49 @@
         <button class="tab-btn" onclick="showTab('photos')" data-i18n="photos">Фото</button>
       </div>
       <div class="panel-body">
-        <!-- OVERVIEW -->
         <div id="tab-overview">
-          <div id="weather-content">
-            <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px" data-i18n="loading">Загрузка...</div>
-          </div>
+          <div id="weather-content"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">Загрузка...</div></div>
         </div>
-        <!-- HISTORY -->
         <div id="tab-history" style="display:none">
-          <button class="btn-sm btn-green" style="margin-bottom:12px" onclick="openSeasonForm()" data-i18n="addSeason">+ Добавить сезон</button>
+          <button class="btn-sm btn-green" style="margin-bottom:12px" onclick="openSeasonForm()">+ Добавить сезон</button>
           <div id="seasons-list"></div>
         </div>
-        <!-- PHOTOS -->
         <div id="tab-photos" style="display:none">
           <input type="file" id="photo-upload-input" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
           <div class="photos-grid" id="photos-grid"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- NEW ENHANCED SIDE PANEL -->
+    <div id="field-panel-side" class="field-panel-side">
+      <div class="fps-header">
+        <div class="fps-header-top">
+          <div style="flex:1;min-width:0">
+            <div class="fps-field-name" id="fps-name">—</div>
+            <div class="fps-meta">
+              <span>📐 <span id="fps-area">—</span> га</span>
+              <span>📏 <span id="fps-perimeter">—</span> км</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:start;flex-shrink:0">
+            <button onclick="alert('Оповещения настроены!')" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;padding:8px 10px;color:white;cursor:pointer;font-size:12px;font-weight:600;touch-action:manipulation">🔔</button>
+            <button id="fps-close-btn" onclick="closeFieldSidePanel()" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;width:36px;height:36px;color:white;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;font-weight:700">✕</button>
+          </div>
+        </div>
+        <div class="fps-tabs">
+          <button class="fps-tab active" onclick="fpsSwitchTab('analytics')">📊 Данные</button>
+          <button class="fps-tab" onclick="fpsSwitchTab('weather')">🌤 Погода</button>
+          <button class="fps-tab" onclick="fpsSwitchTab('history')">📋 История</button>
+          <button class="fps-tab" onclick="fpsSwitchTab('photos')">📷 Фото</button>
+        </div>
+      </div>
+      <div class="fps-body" id="fps-body"></div>
+      <div class="fp-actions">
+        <button class="fp-action-btn" onclick="shareFieldView()"><span class="fa-icon">🔗</span>Поделиться</button>
+        <button class="fp-action-btn" onclick="downloadFieldPDF()"><span class="fa-icon">📄</span>PDF</button>
+        <button class="fp-action-btn" onclick="openSeasonForm()"><span class="fa-icon">🌾</span>Сезон</button>
+        <button class="fp-action-btn danger" onclick="deleteCurrentField()"><span class="fa-icon">🗑</span>Удалить</button>
       </div>
     </div>
   </div>
@@ -747,14 +1136,8 @@ function applyLang() {
   document.getElementById('auth-app-name').textContent = t('appName');
   document.getElementById('lang-ru').classList.toggle('active', currentLang === 'ru');
   document.getElementById('lang-en').classList.toggle('active', currentLang === 'en');
-  // Populate crop selects
-  ['field-crop-input','season-crop'].forEach(id => {
-    const sel = document.getElementById(id);
-    if (!sel) return;
-    Array.from(sel.options).forEach(opt => {
-      if (opt.value) opt.textContent = t('cropTypes.'+opt.value);
-    });
-  });
+  // Crop dropdowns now use CROP_DB, no need to update selects
+  // (legacy i18n for crop select options removed)
 }
 
 function setLang(lang) {
@@ -1180,7 +1563,7 @@ function renderFieldsList() {
       <div class="field-color" style="background:${f.color||'#52b788'}"></div>
       <div class="field-info">
         <div class="field-name">${f.name}</div>
-        <div class="field-meta">${t('cropTypes.'+f.crop)||f.crop} · ${f.area} ${t('hectares')}</div>
+        <div class="field-meta">${getCropName(f.crop)||f.crop} · ${f.area} ${t('hectares')}</div>
       </div>
     `;
     el.onclick = () => selectField(f.id);
@@ -1321,7 +1704,7 @@ function loadSeasons(fieldId) {
         </div>
       </div>
       <div class="season-grid">
-        <div class="season-field"><label>${t('crop')}</label><span>${t('cropTypes.'+s.crop)||s.crop}</span></div>
+        <div class="season-field"><label>${t('crop')}</label><span>${getCropName(s.crop)||s.crop}</span></div>
         <div class="season-field"><label>${t('sowingDate')}</label><span>${s.sowingDate||'—'}</span></div>
         <div class="season-field"><label>${t('harvestDate')}</label><span>${s.harvestDate||'—'}</span></div>
         <div class="season-field"><label>${t('irrigationDates')}</label><span>${(s.irrigationDates||[]).join(', ')||'—'}</span></div>
@@ -1622,23 +2005,760 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
+// ═══════════════════════════════════════
+// CROP DATABASE
+// ═══════════════════════════════════════
+const CROP_DB = {
+  'Зерновые': [
+    { id:'wheat_winter', name:'Пшеница озимая', color:'#f59e0b', season:270, ndviPeak:0.82 },
+    { id:'wheat_spring', name:'Пшеница яровая', color:'#fbbf24', season:110, ndviPeak:0.78 },
+    { id:'barley',       name:'Ячмень',         color:'#d97706', season:100, ndviPeak:0.75 },
+    { id:'oat',          name:'Овёс',            color:'#92400e', season:110, ndviPeak:0.72 },
+    { id:'rye',          name:'Рожь',            color:'#78350f', season:280, ndviPeak:0.80 },
+    { id:'triticale',    name:'Тритикале',       color:'#b45309', season:260, ndviPeak:0.79 },
+    { id:'corn',         name:'Кукуруза',        color:'#eab308', season:145, ndviPeak:0.87 },
+    { id:'sorghum',      name:'Сорго',           color:'#ca8a04', season:135, ndviPeak:0.76 },
+    { id:'millet',       name:'Просо',           color:'#a16207', season:100, ndviPeak:0.70 },
+  ],
+  'Зернобобовые': [
+    { id:'soy',          name:'Соя',             color:'#84cc16', season:130, ndviPeak:0.85 },
+    { id:'chickpea',     name:'Нут',             color:'#65a30d', season:100, ndviPeak:0.72 },
+    { id:'lentil',       name:'Чечевица',        color:'#4d7c0f', season:100, ndviPeak:0.71 },
+    { id:'pea',          name:'Горох полевой',   color:'#16a34a', season:90,  ndviPeak:0.74 },
+    { id:'faba',         name:'Кормовые бобы',   color:'#15803d', season:110, ndviPeak:0.75 },
+    { id:'mung',         name:'Маш',             color:'#166534', season:90,  ndviPeak:0.68 },
+  ],
+  'Масличные': [
+    { id:'sunflower',    name:'Подсолнечник',    color:'#facc15', season:120, ndviPeak:0.83 },
+    { id:'rapeseed',     name:'Рапс озимый',     color:'#fde047', season:260, ndviPeak:0.81 },
+    { id:'rapeseed_sp',  name:'Рапс яровой',     color:'#fef08a', season:110, ndviPeak:0.77 },
+    { id:'flax_oil',     name:'Лён масличный',   color:'#7dd3fc', season:100, ndviPeak:0.70 },
+    { id:'sesame',       name:'Кунжут',          color:'#fca5a5', season:120, ndviPeak:0.65 },
+  ],
+  'Корнеплоды и клубнеплоды': [
+    { id:'potato',       name:'Картофель',       color:'#c4b5fd', season:120, ndviPeak:0.84 },
+    { id:'sugarbeet',    name:'Сахарная свёкла', color:'#f9a8d4', season:180, ndviPeak:0.88 },
+    { id:'carrot',       name:'Морковь',         color:'#fb923c', season:110, ndviPeak:0.72 },
+    { id:'onion',        name:'Лук',             color:'#e879f9', season:130, ndviPeak:0.68 },
+    { id:'garlic',       name:'Чеснок',          color:'#d946ef', season:270, ndviPeak:0.65 },
+  ],
+  'Прядильные': [
+    { id:'cotton',       name:'Хлопчатник',      color:'#f1f5f9', season:170, ndviPeak:0.80 },
+    { id:'hemp',         name:'Техническая конопля', color:'#6ee7b7', season:120, ndviPeak:0.82 },
+  ],
+  'Кормовые': [
+    { id:'alfalfa',      name:'Люцерна',         color:'#4ade80', season:90,  ndviPeak:0.86 },
+    { id:'clover',       name:'Клевер',          color:'#86efac', season:90,  ndviPeak:0.84 },
+    { id:'vetch',        name:'Вика',            color:'#bbf7d0', season:100, ndviPeak:0.78 },
+  ],
+  'Рис': [
+    { id:'rice_wet',     name:'Рис заливной',    color:'#67e8f9', season:160, ndviPeak:0.85 },
+    { id:'rice_dry',     name:'Рис суходольный', color:'#a5f3fc', season:140, ndviPeak:0.80 },
+  ],
+};
+
+// Flat lookup
+const CROP_FLAT = {};
+Object.values(CROP_DB).flat().forEach(c => { CROP_FLAT[c.id] = c; });
+
+function getCropName(id) {
+  return CROP_FLAT[id]?.name || id || '—';
+}
+
+function getCropColor(id) {
+  return CROP_FLAT[id]?.color || '#52b788';
+}
+
+// ═══════════════════════════════════════
+// CROP SEARCHABLE DROPDOWN
+// ═══════════════════════════════════════
+let cropDropdownTarget = null;
+
+function buildCropDropdown(containerId, hiddenId, searchId, query) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+  const q = (query || '').toLowerCase();
+  let hasAny = false;
+  Object.entries(CROP_DB).forEach(([group, crops]) => {
+    const filtered = q ? crops.filter(c => c.name.toLowerCase().includes(q)) : crops;
+    if (!filtered.length) return;
+    hasAny = true;
+    const lbl = document.createElement('div');
+    lbl.className = 'crop-group-label';
+    lbl.textContent = group;
+    container.appendChild(lbl);
+    filtered.forEach(crop => {
+      const opt = document.createElement('div');
+      opt.className = 'crop-option';
+      opt.innerHTML = `<span class="crop-dot" style="background:${crop.color}"></span>${crop.name}<span class="crop-season">${crop.season} дн.</span>`;
+      opt.onclick = () => {
+        document.getElementById(hiddenId).value = crop.id;
+        document.getElementById(searchId).value = crop.name;
+        container.classList.remove('open');
+        cropDropdownTarget = null;
+      };
+      container.appendChild(opt);
+    });
+  });
+  if (!hasAny) {
+    container.innerHTML = '<div style="padding:12px;text-align:center;font-size:12px;color:var(--text-muted)">Ничего не найдено</div>';
+  }
+}
+
+function openCropDropdown(prefix) {
+  cropDropdownTarget = prefix;
+  const dd = document.getElementById(prefix + '-crop-dropdown');
+  const si = document.getElementById(prefix + '-crop-search');
+  si.readOnly = false;
+  si.oninput = () => {
+    buildCropDropdown(prefix + '-crop-dropdown', prefix + '-crop-input', prefix + '-crop-search', si.value);
+    dd.classList.add('open');
+  };
+  buildCropDropdown(prefix + '-crop-dropdown', prefix + '-crop-input', prefix + '-crop-search', '');
+  dd.classList.add('open');
+  setTimeout(() => si.focus(), 50);
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.crop-select-wrap')) {
+    document.querySelectorAll('.crop-dropdown').forEach(d => d.classList.remove('open'));
+    document.querySelectorAll('.crop-search-input').forEach(i => { i.readOnly = true; });
+    cropDropdownTarget = null;
+  }
+});
+
+// Init crop dropdowns on load
+function initCropDropdowns() {
+  ['field','season'].forEach(prefix => {
+    const hidden = document.getElementById(prefix + '-crop-input');
+    const search = document.getElementById(prefix + '-crop-search');
+    if (hidden && search) {
+      if (!hidden.value || hidden.value === 'wheat') hidden.value = 'wheat_winter';
+      search.value = getCropName(hidden.value);
+    }
+  });
+}
+
+// ═══════════════════════════════════════
+// ZOOM LIMIT FIX
+// ═══════════════════════════════════════
+const MAX_ZOOM_SAT = 19;
+const MAX_ZOOM_OSM = 20;
+
+map.on('zoom', () => {
+  const z = map.getZoom();
+  const isSat = map.hasLayer(satLayer);
+  const maxZ = isSat ? MAX_ZOOM_SAT : MAX_ZOOM_OSM;
+  const overlay = document.getElementById('zoom-limit-overlay');
+  const notice = document.getElementById('zoom-limit-notice');
+
+  if (z >= maxZ - 1) {
+    overlay.classList.add('show');
+    notice.classList.add('show');
+    setTimeout(() => notice.classList.remove('show'), 3000);
+  } else {
+    overlay.classList.remove('show');
+  }
+});
+
+// Handle tile errors gracefully
+[satLayer, osmLayer].forEach(layer => {
+  layer.on('tileerror', function(e) {
+    // Blur/scale tile container gracefully instead of showing error text
+    if (e.tile) {
+      e.tile.style.filter = 'blur(4px) brightness(0.85)';
+      e.tile.style.transform = 'scale(1.05)';
+    }
+    const notice = document.getElementById('zoom-limit-notice');
+    notice.classList.add('show');
+    setTimeout(() => notice.classList.remove('show'), 3000);
+  });
+});
+
+// Soft max zoom enforcement
+satLayer.options.maxNativeZoom = 18;
+osmLayer.options.maxNativeZoom = 19;
+
+// ═══════════════════════════════════════
+// MEASURE TOOL
+// ═══════════════════════════════════════
+let measureActive = false;
+let measurePoints = []; // [{lat,lng}]
+let measurePolyline = null;
+let measurePolygon = null;
+let measurePreviewLine = null;
+
+function formatArea(m2) {
+  if (m2 < 1000) return m2.toFixed(0) + ' м²';
+  if (m2 < 1000000) return (m2 / 10000).toFixed(2) + ' га';
+  return (m2 / 1000000).toFixed(2) + ' км²';
+}
+
+function formatDist(m) {
+  if (m < 1000) return m.toFixed(0) + ' м';
+  return (m / 1000).toFixed(2) + ' км';
+}
+
+function calcPolylineLen(pts) {
+  let d = 0;
+  for (let i = 1; i < pts.length; i++) {
+    d += haversine(pts[i-1].lat, pts[i-1].lng, pts[i].lat, pts[i].lng);
+  }
+  return d;
+}
+
+function calcPolygonArea(pts) {
+  if (pts.length < 3) return 0;
+  let area = 0;
+  const n = pts.length;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const xi = pts[i].lng * Math.PI / 180;
+    const yi = pts[i].lat * Math.PI / 180;
+    const xj = pts[j].lng * Math.PI / 180;
+    const yj = pts[j].lat * Math.PI / 180;
+    area += (xj - xi) * (2 + Math.sin(yi) + Math.sin(yj));
+  }
+  return Math.abs(area * 6371000 * 6371000 / 2);
+}
+
+function updateMeasureDisplay() {
+  const n = measurePoints.length;
+  document.getElementById('ms-vertices').textContent = n;
+
+  if (n === 0) {
+    document.getElementById('ms-area').textContent = '—';
+    document.getElementById('ms-perimeter').textContent = '—';
+    document.getElementById('ms-coords-row').style.display = 'none';
+    return;
+  }
+
+  const last = measurePoints[n - 1];
+  document.getElementById('ms-coords').textContent = last.lat.toFixed(5) + ', ' + last.lng.toFixed(5);
+  document.getElementById('ms-coords-row').style.display = 'flex';
+
+  const perim = calcPolylineLen(measurePoints);
+  document.getElementById('ms-perimeter').textContent = formatDist(perim);
+
+  if (n >= 3) {
+    const area = calcPolygonArea(measurePoints);
+    document.getElementById('ms-area').textContent = formatArea(area);
+  } else {
+    document.getElementById('ms-area').textContent = n < 3 ? `нужно ${3 - n} т.` : '—';
+  }
+}
+
+function redrawMeasure() {
+  // Remove old layers
+  if (measurePolyline) map.removeLayer(measurePolyline);
+  if (measurePolygon) map.removeLayer(measurePolygon);
+
+  if (measurePoints.length < 2) return;
+
+  const lls = measurePoints.map(p => [p.lat, p.lng]);
+
+  // Polyline
+  measurePolyline = L.polyline(lls, { color: '#3b82f6', weight: 2.5, dashArray: '8,5' }).addTo(map);
+
+  // Filled polygon if 3+ pts
+  if (measurePoints.length >= 3) {
+    if (measurePolygon) map.removeLayer(measurePolygon);
+    measurePolygon = L.polygon(lls, {
+      color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.15, weight: 2.5,
+      dashArray: '8,5'
+    }).addTo(map);
+  }
+}
+
+map.on('mousemove', function(e) {
+  if (!measureActive) return;
+  const tip = document.getElementById('measure-cursor-tip');
+  tip.style.display = 'block';
+  tip.style.left = (e.originalEvent.clientX + 14) + 'px';
+  tip.style.top = (e.originalEvent.clientY - 8) + 'px';
+
+  if (measurePoints.length === 0) {
+    tip.textContent = 'Кликните для начала';
+    return;
+  }
+
+  // Preview line to cursor
+  if (measurePreviewLine) map.removeLayer(measurePreviewLine);
+  const last = measurePoints[measurePoints.length - 1];
+  measurePreviewLine = L.polyline([[last.lat, last.lng], [e.latlng.lat, e.latlng.lng]], {
+    color: '#3b82f6', weight: 1.5, dashArray: '4,4', opacity: 0.6
+  }).addTo(map);
+
+  const dist = haversine(last.lat, last.lng, e.latlng.lat, e.latlng.lng);
+  if (measurePoints.length >= 3) {
+    const area = calcPolygonArea([...measurePoints, {lat: e.latlng.lat, lng: e.latlng.lng}]);
+    tip.textContent = formatArea(area) + ' · +' + formatDist(dist);
+  } else {
+    tip.textContent = '+' + formatDist(dist);
+  }
+});
+
+map.on('click', function(e) {
+  if (!measureActive) return;
+  measurePoints.push({ lat: e.latlng.lat, lng: e.latlng.lng });
+  // Add vertex marker
+  L.circleMarker([e.latlng.lat, e.latlng.lng], {
+    radius: 5, color: '#3b82f6', fillColor: 'white', fillOpacity: 1, weight: 2,
+    className: 'measure-vertex'
+  }).addTo(map);
+
+  redrawMeasure();
+  updateMeasureDisplay();
+  document.getElementById('measure-toolbar').classList.add('show');
+});
+
+map.on('mouseout', function() {
+  document.getElementById('measure-cursor-tip').style.display = 'none';
+  if (measurePreviewLine) { map.removeLayer(measurePreviewLine); measurePreviewLine = null; }
+});
+
+function toggleMeasure() {
+  if (measureActive) {
+    clearMeasure();
+  } else {
+    measureActive = true;
+    document.getElementById('measure-btn').classList.add('active');
+    document.getElementById('measure-btn').innerHTML = '✕ Выйти из замера';
+    map.getContainer().style.cursor = 'crosshair';
+  }
+}
+
+function clearMeasure() {
+  measureActive = false;
+  measurePoints = [];
+  if (measurePolyline) { map.removeLayer(measurePolyline); measurePolyline = null; }
+  if (measurePolygon) { map.removeLayer(measurePolygon); measurePolygon = null; }
+  if (measurePreviewLine) { map.removeLayer(measurePreviewLine); measurePreviewLine = null; }
+  // Remove vertex markers
+  map.eachLayer(l => { if (l.options?.className === 'measure-vertex') map.removeLayer(l); });
+  document.getElementById('measure-toolbar').classList.remove('show');
+  document.getElementById('measure-cursor-tip').style.display = 'none';
+  document.getElementById('measure-btn').classList.remove('active');
+  document.getElementById('measure-btn').innerHTML = '📐 Измерить';
+  map.getContainer().style.cursor = '';
+}
+
+function undoMeasurePoint() {
+  if (!measurePoints.length) return;
+  measurePoints.pop();
+  // Remove last vertex marker
+  const markers = [];
+  map.eachLayer(l => { if (l.options?.className === 'measure-vertex') markers.push(l); });
+  if (markers.length) map.removeLayer(markers[markers.length - 1]);
+  redrawMeasure();
+  updateMeasureDisplay();
+}
+
+function saveMeasureResult() {
+  if (measurePoints.length < 3) { alert('Нарисуйте минимум 3 точки'); return; }
+  const area = calcPolygonArea(measurePoints);
+  const perim = calcPolylineLen(measurePoints);
+  const text = `Площадь: ${formatArea(area)}\nПериметр: ${formatDist(perim)}\nВершин: ${measurePoints.length}`;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('.btn-save-measure');
+      btn.textContent = '✓ Скопировано!';
+      setTimeout(() => btn.textContent = '💾 Сохранить', 2000);
+    });
+  } else {
+    alert(text);
+  }
+}
+
+// ═══════════════════════════════════════
+// ENHANCED FIELD SIDE PANEL
+// ═══════════════════════════════════════
+let fpsCurrent = 'analytics';
+let fpsWeatherCache = null;
+
+function openFieldSidePanel(field) {
+  document.getElementById('fps-name').textContent = field.name;
+  document.getElementById('fps-area').textContent = field.area;
+  document.getElementById('fps-perimeter').textContent = field.perimeter;
+  document.getElementById('field-panel-side').classList.add('open');
+  // Reset to analytics tab
+  fpsSwitchTab('analytics');
+}
+
+function closeFieldSidePanel() {
+  document.getElementById('field-panel-side').classList.remove('open');
+  // Reset field highlight
+  if (window._fieldLayers) {
+    Object.values(window._fieldLayers).forEach(l => {
+      try { l.setStyle({ weight: 2, opacity: 1 }); } catch(e){}
+    });
+  }
+  currentFieldId = null;
+  renderFieldsList();
+}
+
+function fpsSwitchTab(tab) {
+  fpsCurrent = tab;
+  document.querySelectorAll('.fps-tab').forEach((btn, i) => {
+    const tabs = ['analytics','weather','history','photos'];
+    btn.classList.toggle('active', tabs[i] === tab);
+  });
+  renderFPSBody(tab);
+}
+
+function renderFPSBody(tab) {
+  const body = document.getElementById('fps-body');
+  if (!currentFieldId) return;
+  const field = fields[currentFieldId];
+  if (!field) return;
+
+  if (tab === 'analytics') renderFPSAnalytics(body, field);
+  else if (tab === 'weather') renderFPSWeather(body, field);
+  else if (tab === 'history') {
+    body.innerHTML = `<div style="padding:16px">
+      <button class="btn-sm btn-green" style="margin-bottom:12px;width:100%" onclick="openSeasonForm()">+ Добавить сезон</button>
+      <div id="seasons-list-fps"></div>
+    </div>`;
+    const ss = seasons[currentFieldId] || [];
+    const list = document.getElementById('seasons-list-fps');
+    if (!ss.length) { list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px">Нет сезонов</div>'; return; }
+    ss.sort((a,b) => b.year - a.year).forEach(s => {
+      const el = document.createElement('div');
+      el.className = 'season-card';
+      el.innerHTML = `<div class="season-year"><span>🌾 ${s.year} · ${getCropName(s.crop)}</span></div>
+        <div class="season-grid">
+          <div class="season-field"><label>Посев</label><span>${s.sowingDate||'—'}</span></div>
+          <div class="season-field"><label>Уборка</label><span>${s.harvestDate||'—'}</span></div>
+        </div>${s.notes ? `<div class="season-notes">${s.notes}</div>` : ''}`;
+      list.appendChild(el);
+    });
+  } else if (tab === 'photos') {
+    body.innerHTML = `<div style="padding:16px">
+      <input type="file" id="photo-upload-fps" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
+      <div class="photos-grid" id="photos-grid-fps"></div>
+    </div>`;
+    const grid = document.getElementById('photos-grid-fps');
+    const uploadBtn = document.createElement('div');
+    uploadBtn.className = 'upload-photo-btn';
+    uploadBtn.innerHTML = '<span class="icon">📷</span><span>Добавить фото</span>';
+    uploadBtn.onclick = () => document.getElementById('photo-upload-fps').click();
+    grid.appendChild(uploadBtn);
+    const photos = [...((seasons[currentFieldId]||[]).flatMap(s=>s.photoUrls||[])), ...(fieldPhotos[currentFieldId]||[])];
+    photos.forEach(url => addPhotoThumb(grid, url));
+  }
+}
+
+function renderFPSAnalytics(body, field) {
+  // Generate pseudo-data based on field
+  const ndvi = (0.55 + Math.random() * 0.3).toFixed(2);
+  const ndviVal = parseFloat(ndvi);
+  const ndviPct = Math.round((ndviVal - 0) / 1 * 100);
+  const healthLabel = ndviVal > 0.75 ? ['🟢 Отличное состояние', 'low'] : ndviVal > 0.55 ? ['🟡 Удовлетворительно', 'medium'] : ['🔴 Стресс растений', 'high'];
+
+  // NDVI sparkline data (12 months)
+  const months = ['Я','Ф','М','А','М','И','И','А','С','О','Н','Д'];
+  const now = new Date().getMonth();
+  const ndviHistory = months.map((m, i) => {
+    const dist = Math.min(Math.abs(i - now), Math.abs(i - now + 12));
+    const base = 0.2 + 0.6 * Math.sin(Math.max(0, (i - 2) / 9 * Math.PI));
+    return Math.max(0.1, Math.min(0.95, base + (Math.random() - 0.5) * 0.1));
+  });
+
+  const moisture = Math.round(30 + Math.random() * 50);
+  const crop = CROP_FLAT[field.crop];
+  const cropName = getCropName(field.crop);
+  const cropConf = Math.round(70 + Math.random() * 28);
+
+  // Veg phase
+  const phases = ['Покой','Всходы','Вегетация','Цветение','Созревание','Уборка'];
+  const phaseIdx = Math.floor(Math.random() * 4) + 1;
+
+  // Risks
+  const droughtRisk = Math.round(Math.random() * 60);
+  const pestRisk = Math.round(Math.random() * 40);
+  const frostRisk = Math.round(Math.random() * 30);
+
+  const sparkMin = Math.min(...ndviHistory);
+  const sparkMax = Math.max(...ndviHistory);
+  const sparkPts = ndviHistory.map((v, i) => {
+    const x = i / 11 * 100;
+    const y = 100 - ((v - sparkMin) / (sparkMax - sparkMin + 0.01)) * 90 - 5;
+    return `${x},${y}`;
+  }).join(' ');
+
+  body.innerHTML = `
+    <!-- NDVI CARD -->
+    <div class="fp-card">
+      <div class="fp-card-header">🌿 Вегетационный индекс NDVI</div>
+      <div class="fp-card-body">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div>
+            <div class="ndvi-value">${ndvi}</div>
+            <div class="health-chip ${healthLabel[1]}" style="background:${ndviVal>0.75?'#d1fae5':ndviVal>0.55?'#fef3c7':'#fee2e2'};color:${ndviVal>0.75?'#065f46':ndviVal>0.55?'#92400e':'#991b1b'}">${healthLabel[0]}</div>
+          </div>
+          <div style="flex:1">
+            <div class="ndvi-bar-wrap">
+              <div class="ndvi-marker" style="left:${ndviPct}%"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);margin-top:2px"><span>0</span><span>0.5</span><span>1.0</span></div>
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:4px">NDVI за 12 месяцев</div>
+          <div class="sparkline-wrap">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs><linearGradient id="skg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#52b788" stop-opacity="0.3"/><stop offset="100%" stop-color="#52b788" stop-opacity="0"/></linearGradient></defs>
+              <polygon points="${sparkPts} 100,100 0,100" fill="url(#skg)"/>
+              <polyline points="${sparkPts}" fill="none" stroke="#52b788" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="sparkline-months">${months.map(m=>`<span>${m}</span>`).join('')}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CULTURE + PHASE -->
+    <div class="fp-card">
+      <div class="fp-card-header">🌾 Культура и фаза</div>
+      <div class="fp-card-body">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <div style="width:12px;height:12px;border-radius:50%;background:${getCropColor(field.crop)};flex-shrink:0"></div>
+          <span style="font-weight:600">${cropName}</span>
+          <span style="margin-left:auto;font-size:11px;background:var(--green-pale);color:var(--green);padding:2px 8px;border-radius:10px;font-weight:600">${cropConf}% уверенность</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Текущая фаза: <strong style="color:var(--text)">${phases[phaseIdx]}</strong></div>
+        <div class="veg-phase-row">
+          ${phases.map((p, i) => `<div class="veg-phase-dot ${i < phaseIdx ? 'past' : i === phaseIdx ? 'active' : ''}" title="${p}"></div>`).join('')}
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);margin-top:3px">
+          ${phases.map(p => `<span>${p.slice(0,4)}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- SOIL MOISTURE + RISKS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 16px 12px">
+      <div class="fp-card" style="margin:0;border-radius:12px 0 0 12px;border-right:none">
+        <div class="fp-card-header" style="border-radius:12px 0 0 0">💧 Влажность почвы</div>
+        <div class="fp-card-body" style="text-align:center">
+          <div style="position:relative;width:70px;height:70px;margin:0 auto 6px">
+            <svg viewBox="0 0 70 70" width="70" height="70">
+              <circle cx="35" cy="35" r="28" fill="none" stroke="#e2e8f0" stroke-width="8"/>
+              <circle cx="35" cy="35" r="28" fill="none" stroke="#3b82f6" stroke-width="8"
+                stroke-dasharray="${moisture * 1.758} 175.8" stroke-dashoffset="44"
+                stroke-linecap="round" transform="rotate(-90 35 35)"/>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#3b82f6">${moisture}%</div>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted)">${moisture < 30 ? '⚠️ Дефицит' : moisture < 60 ? '✅ Норма' : '💦 Избыток'}</div>
+        </div>
+      </div>
+      <div class="fp-card" style="margin:0;border-radius:0 12px 12px 0">
+        <div class="fp-card-header" style="border-radius:0 12px 0 0">⚠️ Риски</div>
+        <div class="fp-card-body" style="padding:10px">
+          <div class="risk-list">
+            <div class="risk-item ${droughtRisk > 50 ? 'high' : droughtRisk > 25 ? 'medium' : 'low'}">
+              <span class="risk-icon">☀️</span> <span style="flex:1;font-size:11px">Засуха</span> <span class="risk-pct">${droughtRisk}%</span>
+            </div>
+            <div class="risk-item ${pestRisk > 50 ? 'high' : pestRisk > 25 ? 'medium' : 'low'}">
+              <span class="risk-icon">🦗</span> <span style="flex:1;font-size:11px">Вредители</span> <span class="risk-pct">${pestRisk}%</span>
+            </div>
+            <div class="risk-item ${frostRisk > 30 ? 'high' : frostRisk > 15 ? 'medium' : 'low'}">
+              <span class="risk-icon">❄️</span> <span style="flex:1;font-size:11px">Заморозок</span> <span class="risk-pct">${frostRisk}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FIELD INFO -->
+    <div class="fp-card">
+      <div class="fp-card-header">📋 Информация о поле</div>
+      <div class="fp-card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
+          <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">ID поля</div><div style="font-weight:600;font-size:11px;word-break:break-all">${currentFieldId?.slice(-8)||'—'}</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">Площадь</div><div style="font-weight:600">${field.area} га</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">Периметр</div><div style="font-weight:600">${field.perimeter} км</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted);margin-bottom:2px">Добавлено</div><div style="font-weight:600">${field.createdAt ? new Date(field.createdAt).toLocaleDateString('ru') : '—'}</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="height:8px"></div>
+  `;
+}
+
+async function renderFPSWeather(body, field) {
+  body.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-muted)"><div class="loading-spinner" style="border-color:rgba(0,0,0,0.1);border-top-color:var(--green)"></div><div style="margin-top:8px;font-size:13px">Загрузка погоды...</div></div>`;
+  try {
+    const [lat, lng] = getCenter(field.geometry);
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,windspeed_10m,winddirection_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max&timezone=auto&forecast_days=7`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const c = data.current;
+    const d = data.daily;
+    const wind = c.windspeed_10m;
+    const precip = c.precipitation;
+    const sprayOk = wind < 5 && precip === 0;
+    const humidity = c.relative_humidity_2m;
+
+    // Last rain
+    const lastRainIdx = (d.precipitation_sum || []).reverse().findIndex(p => p > 0);
+    const lastRainDays = lastRainIdx === -1 ? '7+' : lastRainIdx;
+    const rain7d = (d.precipitation_sum || []).reduce((a, b) => a + b, 0).toFixed(1);
+
+    // Temp trend
+    const temps = d.temperature_2m_max || [];
+    const tempTrend = temps.length > 1 ? (temps[temps.length-1] - temps[0]).toFixed(1) : 0;
+
+    body.innerHTML = `
+      <div class="fp-card" style="margin:12px 16px">
+        <div class="fp-card-header">🌡️ Текущие условия</div>
+        <div class="fp-card-body">
+          <div class="weather-ext-grid">
+            <div class="wext-card"><div class="wv">${Math.round(c.temperature_2m)}°C</div><div class="wl">Температура</div></div>
+            <div class="wext-card"><div class="wv">${precip} мм</div><div class="wl">Осадки сейчас</div></div>
+            <div class="wext-card"><div class="wv">${wind} м/с</div><div class="wl">Ветер</div></div>
+            <div class="wext-card"><div class="wv">${humidity}%</div><div class="wl">Влажность</div></div>
+            <div class="wext-card"><div class="wv">${rain7d} мм</div><div class="wl">Осадки 7 дней</div></div>
+            <div class="wext-card"><div class="wv">${lastRainDays} дн.</div><div class="wl">Назад дождь</div></div>
+          </div>
+          <div class="wext-trend">
+            ${tempTrend > 0 ? '📈 Потепление' : tempTrend < 0 ? '📉 Похолодание' : '➡️ Стабильно'} на ${Math.abs(tempTrend)}°C за неделю
+          </div>
+          <div style="margin-top:10px;padding:10px;border-radius:10px;background:${sprayOk?'#d1fae5':'#fee2e2'};color:${sprayOk?'#065f46':'#991b1b'};font-size:13px;font-weight:500">
+            ${sprayOk ? '✅ Оптимально для опрыскивания' : '⚠️ Не рекомендуется для опрыскивания'}
+          </div>
+        </div>
+      </div>
+      <div class="fp-card" style="margin:0 16px 12px">
+        <div class="fp-card-header">📅 Прогноз на 7 дней</div>
+        <div class="fp-card-body" style="padding:8px">
+          ${(d.temperature_2m_max||[]).slice(0,7).map((tmax,i) => {
+            const tmin = (d.temperature_2m_min||[])[i] || 0;
+            const rain = (d.precipitation_sum||[])[i] || 0;
+            const date = new Date(); date.setDate(date.getDate() + i);
+            const dayName = i === 0 ? 'Сег.' : i === 1 ? 'Завт.' : date.toLocaleDateString('ru',{weekday:'short'});
+            return `<div style="display:flex;align-items:center;gap:8px;padding:7px 6px;border-bottom:1px solid var(--border);font-size:12px">
+              <span style="width:34px;color:var(--text-muted);font-weight:500">${dayName}</span>
+              <span>${rain > 0 ? '🌧' : '☀️'}</span>
+              <span style="flex:1;color:var(--green);font-weight:700">${Math.round(tmax)}°</span>
+              <span style="color:var(--text-muted)">${Math.round(tmin)}°</span>
+              <span style="color:#3b82f6;font-size:11px">${rain > 0 ? rain.toFixed(1)+' мм' : '—'}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    body.innerHTML = `<div style="color:var(--danger);padding:20px;font-size:13px">Ошибка загрузки погоды</div>`;
+  }
+}
+
+function shareFieldView() {
+  if (!currentFieldId) return;
+  const field = fields[currentFieldId];
+  if (!field) return;
+  const center = getCenter(field.geometry);
+  const url = `https://www.google.com/maps?q=${center[0]},${center[1]}`;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url);
+    alert('Ссылка скопирована в буфер обмена!');
+  }
+}
+
+function downloadFieldPDF() {
+  if (!currentFieldId) return;
+  const field = fields[currentFieldId];
+  const report = `Отчёт по полю: ${field.name}\nПлощадь: ${field.area} га\nПериметр: ${field.perimeter} км\nКультура: ${getCropName(field.crop)}\nДата: ${new Date().toLocaleDateString('ru')}`;
+  const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `field-${field.name}-report.txt`;
+  a.click();
+}
+
+// ═══════════════════════════════════════
+// PATCH selectField TO USE SIDE PANEL
+// ═══════════════════════════════════════
+const _origSelectField = selectField;
+selectField = function(id) {
+  currentFieldId = id;
+  const field = fields[id];
+  if (!field) return;
+  renderFieldsList();
+  if (field.geometry) {
+    const center = getCenter(field.geometry);
+    map.flyTo(center, 14, { duration: 1 });
+  }
+  // Update legacy panel IDs (still used by some functions)
+  document.getElementById('panel-field-name').textContent = field.name;
+  document.getElementById('panel-area').textContent = field.area;
+  document.getElementById('panel-perimeter').textContent = field.perimeter;
+  // Use side panel
+  openFieldSidePanel(field);
+  loadSeasons(id);
+  loadPhotos(id);
+  if (window._fieldLayers) {
+    Object.values(window._fieldLayers).forEach(l => l.setStyle({ weight: 2, opacity: 1 }));
+    if (window._fieldLayers[id]) window._fieldLayers[id].setStyle({ weight: 3, opacity: 1 });
+  }
+  if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+};
+
+const _origCloseFieldPanel = closeFieldPanel;
+closeFieldPanel = function() {
+  document.getElementById('field-panel').classList.remove('open');
+  closeFieldSidePanel();
+};
+
+// ═══════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ═══════════════════════════════════════
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    closeFieldPanel();
+    closeFieldSidePanel();
     cancelFieldForm();
     closeSettings();
     closeSeasonForm();
     closeLightbox();
+    if (measureActive) clearMeasure();
   }
 });
 
 // ═══════════════════════════════════════
-// INIT
+// TOUCH: SWIPE DOWN TO CLOSE SIDE PANEL
 // ═══════════════════════════════════════
+(function() {
+  let touchStartY = 0;
+  const panel = document.getElementById ? null : null; // deferred
+  document.addEventListener('touchstart', e => {
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    const panel = document.getElementById('field-panel-side');
+    if (!panel) return;
+    // Swipe down > 80px on the panel header to close
+    const target = e.target.closest('.fps-header, .field-panel-side');
+    if (target && dy > 80 && panel.classList.contains('open')) {
+      closeFieldSidePanel();
+    }
+  }, { passive: true });
+})();
+
+// ═══════════════════════════════════════
+// INIT ADDITIONS
+// ═══════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  initCropDropdowns();
+});
+// Also run after any dynamic rendering
+setTimeout(initCropDropdowns, 500);
+
 applyLang();
 loadLocal();
 
-// If no Firebase, load from local storage and render
 if (!auth) {
   Object.values(fields).forEach(f => addFieldLayer(f.id, f));
   renderFieldsList();
