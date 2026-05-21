@@ -1,0 +1,1648 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Гектар</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+<style>
+  :root {
+    --green: #2d6a4f;
+    --green-light: #40916c;
+    --green-pale: #d8f3dc;
+    --accent: #52b788;
+    --gold: #e9a827;
+    --bg: #f8f9fa;
+    --sidebar-bg: #1a1f2e;
+    --sidebar-text: #e2e8f0;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --danger: #ef4444;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.15);
+    --radius: 12px;
+    --sidebar-w: 320px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; }
+
+  /* AUTH MODAL */
+  #auth-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center; z-index: 9999;
+  }
+  #auth-overlay.hidden { display: none; }
+  #auth-box {
+    background: white; border-radius: 20px; padding: 40px; width: 360px; max-width: 95vw;
+    box-shadow: var(--shadow-lg); animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(30px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+  #auth-box .logo { text-align: center; margin-bottom: 28px; }
+  #auth-box .logo svg { width: 48px; height: 48px; }
+  #auth-box .logo h1 { font-size: 22px; font-weight: 700; color: var(--green); margin-top: 8px; }
+  #auth-box h2 { font-size: 18px; font-weight: 600; margin-bottom: 20px; text-align: center; color: var(--text); }
+  .auth-input { width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.2s; margin-bottom: 12px; }
+  .auth-input:focus { border-color: var(--accent); }
+  .btn-primary { width: 100%; padding: 13px; background: var(--green); color: white; border: none;
+    border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: var(--green-light); }
+  .auth-switch { text-align: center; margin-top: 16px; font-size: 13px; color: var(--text-muted); cursor: pointer; }
+  .auth-switch span { color: var(--green); font-weight: 500; }
+  .auth-error { background: #fef2f2; color: var(--danger); padding: 10px; border-radius: 8px;
+    font-size: 13px; margin-bottom: 12px; display: none; }
+  .auth-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0 0; color: var(--text-muted); font-size: 12px; }
+  .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .btn-guest {
+    width: 100%; padding: 12px; background: var(--bg); color: var(--text); border: 1.5px solid var(--border);
+    border-radius: 10px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit;
+    transition: all 0.2s; margin-top: 10px;
+  }
+  .btn-guest:hover { border-color: var(--accent); background: var(--green-pale); color: var(--green); }
+  .guest-notice { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 8px; }
+
+  /* LAYOUT */
+  #app { display: flex; height: 100vh; }
+
+  /* SIDEBAR */
+  #sidebar {
+    width: var(--sidebar-w); background: var(--sidebar-bg); color: var(--sidebar-text);
+    display: flex; flex-direction: column; z-index: 100; flex-shrink: 0;
+    transition: transform 0.3s ease;
+  }
+  #sidebar.collapsed { transform: translateX(-100%); position: absolute; height: 100%; }
+  .sidebar-header {
+    padding: 20px 16px 16px; border-bottom: 1px solid rgba(255,255,255,0.08);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .sidebar-logo { display: flex; align-items: center; gap: 10px; flex: 1; }
+  .sidebar-logo svg { width: 32px; height: 32px; }
+  .sidebar-logo span { font-size: 20px; font-weight: 700; color: var(--accent); }
+  .sidebar-actions { display: flex; gap: 6px; }
+  .icon-btn {
+    width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    background: rgba(255,255,255,0.08); color: var(--sidebar-text); transition: background 0.2s;
+  }
+  .icon-btn:hover { background: rgba(255,255,255,0.15); }
+
+  .sidebar-search { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .search-wrap { position: relative; }
+  .search-wrap input {
+    width: 100%; padding: 9px 12px 9px 36px; background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; color: var(--sidebar-text);
+    font-size: 13px; font-family: inherit; outline: none;
+  }
+  .search-wrap input::placeholder { color: rgba(255,255,255,0.4); }
+  .search-wrap .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.5; }
+
+  .sidebar-stats { padding: 12px 16px; display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .stat-chip {
+    flex: 1; background: rgba(255,255,255,0.06); border-radius: 8px; padding: 8px;
+    text-align: center; font-size: 11px; color: rgba(255,255,255,0.5);
+  }
+  .stat-chip strong { display: block; font-size: 15px; font-weight: 700; color: var(--accent); }
+
+  .btn-add-field {
+    margin: 12px 16px; padding: 11px; background: var(--accent); color: white; border: none;
+    border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .btn-add-field:hover { background: #3da872; }
+  .btn-add-field:active { transform: scale(0.98); }
+  .btn-add-field.drawing { background: var(--danger); }
+
+  .fields-list { flex: 1; overflow-y: auto; padding: 8px 8px 0; }
+  .fields-list::-webkit-scrollbar { width: 4px; }
+  .fields-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+  .field-item {
+    padding: 12px; border-radius: 10px; cursor: pointer; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 10px; transition: background 0.15s;
+  }
+  .field-item:hover { background: rgba(255,255,255,0.06); }
+  .field-item.active { background: rgba(82,183,136,0.15); }
+  .field-color { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+  .field-info { flex: 1; min-width: 0; }
+  .field-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .field-meta { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+
+  .no-fields {
+    text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.35); font-size: 13px; line-height: 1.6;
+  }
+  .no-fields svg { width: 48px; height: 48px; opacity: 0.3; margin-bottom: 12px; }
+
+  .sidebar-footer {
+    padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .user-info { display: flex; align-items: center; gap: 8px; }
+  .user-avatar {
+    width: 30px; height: 30px; background: var(--accent); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: white;
+  }
+  .user-email { font-size: 12px; color: rgba(255,255,255,0.5); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .footer-btns { display: flex; gap: 4px; }
+
+  /* MAP AREA */
+  #map-container { flex: 1; position: relative; }
+  #map { width: 100%; height: 100%; }
+
+  /* MAP CONTROLS */
+  .map-toggle-btn {
+    position: absolute; top: 16px; left: 16px; z-index: 500; width: 40px; height: 40px;
+    background: white; border: none; border-radius: 10px; cursor: pointer; font-size: 18px;
+    box-shadow: var(--shadow); display: none; align-items: center; justify-content: center;
+  }
+  .map-toggle-btn.show { display: flex; }
+
+  .layer-control {
+    position: absolute; top: 16px; right: 16px; z-index: 500;
+    background: white; border-radius: 12px; box-shadow: var(--shadow); overflow: hidden;
+    display: flex;
+  }
+  .layer-btn {
+    padding: 10px 14px; border: none; cursor: pointer; font-size: 12px; font-weight: 500;
+    font-family: inherit; background: white; color: var(--text-muted); transition: all 0.2s;
+    border-right: 1px solid var(--border);
+  }
+  .layer-btn:last-child { border-right: none; }
+  .layer-btn.active { background: var(--green); color: white; }
+
+  /* FIELD PANEL */
+  #field-panel {
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 400;
+    background: white; border-radius: 20px 20px 0 0; box-shadow: 0 -4px 30px rgba(0,0,0,0.12);
+    transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    max-height: 80vh; display: flex; flex-direction: column;
+  }
+  #field-panel.open { transform: translateY(0); }
+  .panel-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 0; cursor: pointer; }
+  .panel-header { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); }
+  .panel-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .panel-sub { font-size: 13px; color: var(--text-muted); display: flex; gap: 16px; flex-wrap: wrap; }
+  .panel-sub span { display: flex; align-items: center; gap: 4px; }
+  .panel-tabs { display: flex; padding: 0 20px; border-bottom: 1px solid var(--border); }
+  .tab-btn {
+    padding: 12px 16px; border: none; background: none; cursor: pointer; font-size: 13px;
+    font-weight: 500; color: var(--text-muted); font-family: inherit; position: relative;
+    transition: color 0.2s;
+  }
+  .tab-btn.active { color: var(--green); }
+  .tab-btn.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--green); border-radius: 1px; }
+  .panel-body { flex: 1; overflow-y: auto; padding: 16px 20px 24px; }
+
+  /* OVERVIEW TAB */
+  .weather-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 16px; }
+  .weather-card { background: var(--bg); border-radius: 12px; padding: 14px; text-align: center; }
+  .weather-card .val { font-size: 22px; font-weight: 700; color: var(--green); }
+  .weather-card .lbl { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .spray-badge {
+    padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 500; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .spray-badge.good { background: #d1fae5; color: #065f46; }
+  .spray-badge.bad { background: #fee2e2; color: #991b1b; }
+
+  /* HISTORY TAB */
+  .season-card { border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .season-year { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .season-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .season-field { font-size: 12px; }
+  .season-field label { color: var(--text-muted); display: block; margin-bottom: 2px; }
+  .season-field span { font-weight: 500; }
+  .season-notes { margin-top: 10px; font-size: 12px; color: var(--text-muted); font-style: italic; }
+  .btn-sm {
+    padding: 6px 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 12px;
+    font-weight: 500; font-family: inherit; transition: all 0.2s;
+  }
+  .btn-green { background: var(--green-pale); color: var(--green); }
+  .btn-green:hover { background: var(--green); color: white; }
+  .btn-danger { background: #fee2e2; color: var(--danger); }
+  .btn-danger:hover { background: var(--danger); color: white; }
+
+  /* PHOTOS TAB */
+  .photos-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+  .photo-thumb { aspect-ratio: 1; border-radius: 10px; object-fit: cover; width: 100%; cursor: pointer; transition: transform 0.2s; }
+  .photo-thumb:hover { transform: scale(1.03); }
+  .upload-photo-btn {
+    aspect-ratio: 1; border-radius: 10px; border: 2px dashed var(--border); background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; gap: 6px; color: var(--text-muted); font-size: 12px; transition: all 0.2s;
+  }
+  .upload-photo-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .upload-photo-btn .icon { font-size: 24px; }
+
+  /* FIELD FORM MODAL */
+  #field-form-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+    z-index: 8000; display: flex; align-items: center; justify-content: center;
+  }
+  #field-form-modal.hidden { display: none; }
+  .form-box {
+    background: white; border-radius: 20px; padding: 28px; width: 380px; max-width: 95vw;
+    box-shadow: var(--shadow-lg); animation: slideUp 0.3s ease;
+  }
+  .form-box h3 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .form-control {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.2s; background: white;
+  }
+  .form-control:focus { border-color: var(--accent); }
+  .color-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .color-dot {
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 3px solid transparent;
+    transition: border-color 0.2s;
+  }
+  .color-dot.active { border-color: var(--text); }
+  .form-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .form-actions button { flex: 1; }
+  .btn-cancel { padding: 12px; border: 1.5px solid var(--border); background: white; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 500; font-family: inherit; }
+  .btn-cancel:hover { background: var(--bg); }
+
+  /* SETTINGS MODAL */
+  #settings-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+    z-index: 8000; display: flex; align-items: center; justify-content: center;
+  }
+  #settings-modal.hidden { display: none; }
+  .settings-box {
+    background: white; border-radius: 20px; padding: 28px; width: 400px; max-width: 95vw;
+    box-shadow: var(--shadow-lg); animation: slideUp 0.3s ease;
+  }
+  .settings-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .settings-header h3 { font-size: 18px; font-weight: 700; }
+  .settings-section { margin-bottom: 24px; }
+  .settings-section h4 { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+  .lang-btns { display: flex; gap: 8px; }
+  .lang-btn { flex: 1; padding: 10px; border: 1.5px solid var(--border); border-radius: 10px; background: white; cursor: pointer; font-size: 14px; font-weight: 500; font-family: inherit; transition: all 0.2s; }
+  .lang-btn.active { border-color: var(--green); background: var(--green-pale); color: var(--green); }
+  .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row .lbl { font-size: 14px; }
+  .settings-row .badge { font-size: 11px; color: var(--text-muted); background: var(--bg); padding: 3px 8px; border-radius: 20px; }
+  .btn-outline { padding: 9px 16px; border: 1.5px solid var(--border); border-radius: 8px; background: white; cursor: pointer; font-size: 13px; font-weight: 500; font-family: inherit; transition: all 0.2s; }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .about-text { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .version-badge { font-size: 11px; background: var(--green-pale); color: var(--green); padding: 3px 8px; border-radius: 20px; font-weight: 600; }
+
+  /* SEASON FORM MODAL */
+  #season-form-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+    z-index: 8000; display: flex; align-items: center; justify-content: center;
+  }
+  #season-form-modal.hidden { display: none; }
+  .season-box {
+    background: white; border-radius: 20px; padding: 28px; width: 420px; max-width: 95vw;
+    box-shadow: var(--shadow-lg); animation: slideUp 0.3s ease; max-height: 90vh; overflow-y: auto;
+  }
+
+  /* NDVI LOADING */
+  .ndvi-info { position: absolute; bottom: 80px; right: 16px; z-index: 500; background: white; border-radius: 12px; padding: 10px 14px; box-shadow: var(--shadow); font-size: 12px; font-weight: 600; color: var(--green); display: none; }
+  .ndvi-info.show { display: block; }
+
+  /* PHOTO LIGHTBOX */
+  #lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 10000; display: flex; align-items: center; justify-content: center; }
+  #lightbox.hidden { display: none; }
+  #lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 12px; }
+  #lightbox-close { position: absolute; top: 20px; right: 20px; font-size: 28px; color: white; cursor: pointer; }
+
+  /* DRAW HINT */
+  .draw-hint {
+    position: absolute; top: 70px; left: 50%; transform: translateX(-50%); z-index: 500;
+    background: var(--sidebar-bg); color: white; padding: 10px 20px; border-radius: 20px;
+    font-size: 13px; font-weight: 500; display: none; white-space: nowrap;
+  }
+  .draw-hint.show { display: block; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    :root { --sidebar-w: 100vw; }
+    #sidebar { position: absolute; height: 100%; transform: translateX(-100%); }
+    #sidebar.open { transform: translateX(0); }
+    .map-toggle-btn { display: flex !important; }
+    .layer-control { top: auto; bottom: 100px; right: 10px; flex-direction: column; }
+    .layer-btn { border-right: none; border-bottom: 1px solid var(--border); }
+    .layer-btn:last-child { border-bottom: none; }
+  }
+
+  .loading-spinner {
+    display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .tag-input-wrap { display: flex; flex-wrap: wrap; gap: 6px; min-height: 40px; padding: 6px 10px;
+    border: 1.5px solid var(--border); border-radius: 10px; cursor: text; }
+  .tag { background: var(--green-pale); color: var(--green); padding: 3px 8px; border-radius: 20px; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 4px; }
+  .tag button { background: none; border: none; cursor: pointer; color: var(--green); font-size: 14px; line-height: 1; }
+  .tag-input { border: none; outline: none; font-size: 13px; font-family: inherit; min-width: 80px; }
+
+  /* CITY SEARCH DROPDOWN */
+  .city-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 9000;
+    background: #1e2535; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+    overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.4); display: none;
+  }
+  .city-dropdown.open { display: block; }
+  .city-result {
+    padding: 10px 14px; font-size: 13px; cursor: pointer; color: var(--sidebar-text);
+    border-bottom: 1px solid rgba(255,255,255,0.06); transition: background 0.15s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .city-result:last-child { border-bottom: none; }
+  .city-result:hover { background: rgba(82,183,136,0.2); }
+  .city-result .city-icon { font-size: 16px; }
+  .city-result .city-name { font-weight: 500; }
+  .city-result .city-sub { font-size: 11px; color: rgba(255,255,255,0.4); display: block; }
+  .city-searching { padding: 12px 14px; font-size: 12px; color: rgba(255,255,255,0.4); text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay">
+  <div id="auth-box">
+    <div class="logo">
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="48" height="48" rx="12" fill="#d8f3dc"/>
+        <path d="M8 36 C8 36 12 20 24 20 C36 20 40 36 40 36" stroke="#2d6a4f" stroke-width="2.5" fill="none"/>
+        <circle cx="24" cy="16" r="6" fill="#52b788"/>
+        <path d="M24 22 L24 28" stroke="#2d6a4f" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <h1 id="auth-app-name">Гектар</h1>
+    </div>
+    <h2 id="auth-title" data-i18n="login">Войти</h2>
+    <div class="auth-error" id="auth-error"></div>
+    <input type="email" class="auth-input" id="auth-email" data-i18n-placeholder="email" placeholder="Email">
+    <input type="password" class="auth-input" id="auth-password" data-i18n-placeholder="password" placeholder="Пароль">
+    <button class="btn-primary" id="auth-submit" onclick="handleAuth()">
+      <span data-i18n="login">Войти</span>
+    </button>
+    <div class="auth-switch" onclick="toggleAuthMode()">
+      <span id="auth-switch-text" data-i18n="noAccount">Нет аккаунта? Зарегистрироваться</span>
+    </div>
+    <div class="auth-divider">
+      <span>или</span>
+    </div>
+    <button class="btn-guest" onclick="loginAsGuest()">
+      👤 Войти как гость
+    </button>
+    <div class="guest-notice">Данные сохраняются только в браузере</div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settings-modal" class="hidden">
+  <div class="settings-box">
+    <div class="settings-header">
+      <h3 data-i18n="settings">Настройки</h3>
+      <button class="icon-btn" onclick="closeSettings()" style="background:#f1f5f9;color:#64748b">✕</button>
+    </div>
+    <div class="settings-section">
+      <h4>Язык / Language</h4>
+      <div class="lang-btns">
+        <button class="lang-btn" id="lang-ru" onclick="setLang('ru')">🇷🇺 Русский</button>
+        <button class="lang-btn" id="lang-en" onclick="setLang('en')">🇬🇧 English</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h4 data-i18n="layers">Слои карты</h4>
+      <div class="settings-row">
+        <span class="lbl">Гектары / Acres</span>
+        <span class="badge">скоро</span>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h4>Центр карты</h4>
+      <div class="settings-row">
+        <span class="lbl">Сохранить текущее положение</span>
+        <button class="btn-outline" onclick="saveMapCenter()">💾 Сохранить</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h4>О приложении</h4>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span class="version-badge">v1.0.0</span>
+      </div>
+      <p class="about-text" id="about-text">Гектар — бесплатный инструмент для мониторинга сельскохозяйственных полей</p>
+    </div>
+  </div>
+</div>
+
+<!-- FIELD FORM MODAL -->
+<div id="field-form-modal" class="hidden">
+  <div class="form-box">
+    <h3 id="form-title" data-i18n="addField">Добавить поле</h3>
+    <div class="form-group">
+      <label data-i18n="fieldName">Название поля</label>
+      <input type="text" class="form-control" id="field-name-input" data-i18n-placeholder="fieldName">
+    </div>
+    <div class="form-group">
+      <label data-i18n="crop">Культура</label>
+      <select class="form-control" id="field-crop-input">
+        <option value="wheat" data-i18n="cropTypes.wheat">Пшеница</option>
+        <option value="corn" data-i18n="cropTypes.corn">Кукуруза</option>
+        <option value="rapeseed" data-i18n="cropTypes.rapeseed">Рапс</option>
+        <option value="sunflower" data-i18n="cropTypes.sunflower">Подсолнечник</option>
+        <option value="soy" data-i18n="cropTypes.soy">Соя</option>
+        <option value="barley" data-i18n="cropTypes.barley">Ячмень</option>
+        <option value="other" data-i18n="cropTypes.other">Другое</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label data-i18n="color">Цвет полигона</label>
+      <div class="color-row" id="color-picker">
+        <div class="color-dot active" style="background:#52b788" data-color="#52b788" onclick="selectColor(this)"></div>
+        <div class="color-dot" style="background:#e9a827" data-color="#e9a827" onclick="selectColor(this)"></div>
+        <div class="color-dot" style="background:#ef4444" data-color="#ef4444" onclick="selectColor(this)"></div>
+        <div class="color-dot" style="background:#3b82f6" data-color="#3b82f6" onclick="selectColor(this)"></div>
+        <div class="color-dot" style="background:#8b5cf6" data-color="#8b5cf6" onclick="selectColor(this)"></div>
+        <div class="color-dot" style="background:#ec4899" data-color="#ec4899" onclick="selectColor(this)"></div>
+        <div class="color-dot" style="background:#f97316" data-color="#f97316" onclick="selectColor(this)"></div>
+        <div class="color-dot" style="background:#06b6d4" data-color="#06b6d4" onclick="selectColor(this)"></div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="cancelFieldForm()" data-i18n="cancel">Отмена</button>
+      <button class="btn-primary" onclick="saveField()" style="flex:1" data-i18n="save">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- SEASON FORM MODAL -->
+<div id="season-form-modal" class="hidden">
+  <div class="season-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h3 data-i18n="addSeason">Добавить сезон</h3>
+      <button class="icon-btn" onclick="closeSeasonForm()" style="background:#f1f5f9;color:#64748b">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Год</label>
+      <input type="number" class="form-control" id="season-year" value="2025" min="2000" max="2030">
+    </div>
+    <div class="form-group">
+      <label data-i18n="crop">Культура</label>
+      <select class="form-control" id="season-crop">
+        <option value="wheat">Пшеница</option>
+        <option value="corn">Кукуруза</option>
+        <option value="rapeseed">Рапс</option>
+        <option value="sunflower">Подсолнечник</option>
+        <option value="soy">Соя</option>
+        <option value="barley">Ячмень</option>
+        <option value="other">Другое</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label data-i18n="sowingDate">Дата сева</label>
+      <input type="date" class="form-control" id="season-sowing">
+    </div>
+    <div class="form-group">
+      <label data-i18n="harvestDate">Дата уборки</label>
+      <input type="date" class="form-control" id="season-harvest">
+    </div>
+    <div class="form-group">
+      <label data-i18n="irrigationDates">Даты полива</label>
+      <div class="tag-input-wrap" id="irrigation-tags" onclick="document.getElementById('irrigation-input').focus()">
+        <input type="date" class="tag-input" id="irrigation-input" onchange="addTag('irrigation')">
+      </div>
+    </div>
+    <div class="form-group">
+      <label data-i18n="sprayingDates">Даты опрыскивания</label>
+      <div class="tag-input-wrap" id="spraying-tags" onclick="document.getElementById('spraying-input').focus()">
+        <input type="date" class="tag-input" id="spraying-input" onchange="addTag('spraying')">
+      </div>
+    </div>
+    <div class="form-group">
+      <label data-i18n="notes">Заметки</label>
+      <textarea class="form-control" id="season-notes" rows="3" style="resize:vertical"></textarea>
+    </div>
+    <div class="form-actions">
+      <button class="btn-cancel" onclick="closeSeasonForm()" data-i18n="cancel">Отмена</button>
+      <button class="btn-primary" onclick="saveSeason()" style="flex:1" data-i18n="save">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- PHOTO LIGHTBOX -->
+<div id="lightbox" class="hidden">
+  <span id="lightbox-close" onclick="closeLightbox()">✕</span>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<!-- APP LAYOUT -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <svg viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="8" fill="#52b788" opacity="0.2"/>
+          <path d="M4 24 C4 24 8 14 16 14 C24 14 28 24 28 24" stroke="#52b788" stroke-width="2" fill="none"/>
+          <circle cx="16" cy="11" r="4" fill="#52b788"/>
+        </svg>
+        <span id="app-name-sidebar" data-i18n="appName">Гектар</span>
+      </div>
+    </div>
+    <div class="sidebar-search">
+      <div class="search-wrap" style="margin-bottom:8px">
+        <span class="search-icon">🏙</span>
+        <input type="text" id="city-search" placeholder="Найти город, село..." oninput="searchCity(this.value)" autocomplete="off">
+        <div id="city-results" class="city-dropdown"></div>
+      </div>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="field-search" data-i18n-placeholder="search" placeholder="Поиск полей..." oninput="filterFields()">
+      </div>
+    </div>
+    <div class="sidebar-stats">
+      <div class="stat-chip">
+        <strong id="stat-fields">0</strong>
+        <span data-i18n="area">Полей</span>
+      </div>
+      <div class="stat-chip">
+        <strong id="stat-area">0</strong>
+        <span data-i18n="hectares">га</span>
+      </div>
+    </div>
+    <button class="btn-add-field" id="add-field-btn" onclick="toggleDrawing()">
+      <span>＋</span>
+      <span data-i18n="addField">Добавить поле</span>
+    </button>
+    <div class="fields-list" id="fields-list">
+      <div class="no-fields" id="no-fields-hint">
+        <svg viewBox="0 0 48 48" fill="none"><rect x="8" y="8" width="32" height="32" rx="4" stroke="currentColor" stroke-width="2"/><path d="M16 24 L24 16 L32 24" stroke="currentColor" stroke-width="2"/></svg>
+        <p data-i18n="firstFieldHint">Нажмите 'Добавить поле' чтобы нарисовать первое поле</p>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div class="user-email" id="user-email-display"></div>
+      </div>
+      <div class="footer-btns">
+        <button class="icon-btn" onclick="openSettings()" title="Настройки">⚙️</button>
+        <button class="icon-btn" onclick="handleLogout()" title="Выйти">🚪</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP AREA -->
+  <div id="map-container">
+    <button class="map-toggle-btn show" onclick="toggleSidebar()">☰</button>
+    <div id="map"></div>
+    <div class="layer-control">
+      <button class="layer-btn active" id="layer-osm" data-i18n="osm" onclick="setLayer('osm')">Карта</button>
+      <button class="layer-btn" id="layer-sat" data-i18n="satellite" onclick="setLayer('satellite')">Спутник</button>
+      <button class="layer-btn" id="layer-ndvi" data-i18n="ndvi" onclick="setLayer('ndvi')">NDVI</button>
+    </div>
+    <div class="ndvi-info" id="ndvi-info">🌿 NDVI активен</div>
+    <div class="draw-hint" id="draw-hint">Кликайте на карту, чтобы нарисовать контур поля</div>
+
+    <!-- FIELD PANEL -->
+    <div id="field-panel">
+      <div class="panel-handle" onclick="closeFieldPanel()"></div>
+      <div class="panel-header">
+        <div style="display:flex;justify-content:space-between;align-items:start">
+          <div>
+            <div class="panel-title" id="panel-field-name">—</div>
+            <div class="panel-sub">
+              <span>📐 <span id="panel-area">—</span> <span data-i18n="hectares">га</span></span>
+              <span>📏 <span id="panel-perimeter">—</span> <span data-i18n="km">км</span></span>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn-sm btn-danger" onclick="deleteCurrentField()" data-i18n="deleteField">Удалить</button>
+            <button class="icon-btn" onclick="closeFieldPanel()" style="background:#f1f5f9;color:#64748b">✕</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel-tabs">
+        <button class="tab-btn active" onclick="showTab('overview')" data-i18n="overview">Обзор</button>
+        <button class="tab-btn" onclick="showTab('history')" data-i18n="history">История</button>
+        <button class="tab-btn" onclick="showTab('photos')" data-i18n="photos">Фото</button>
+      </div>
+      <div class="panel-body">
+        <!-- OVERVIEW -->
+        <div id="tab-overview">
+          <div id="weather-content">
+            <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px" data-i18n="loading">Загрузка...</div>
+          </div>
+        </div>
+        <!-- HISTORY -->
+        <div id="tab-history" style="display:none">
+          <button class="btn-sm btn-green" style="margin-bottom:12px" onclick="openSeasonForm()" data-i18n="addSeason">+ Добавить сезон</button>
+          <div id="seasons-list"></div>
+        </div>
+        <!-- PHOTOS -->
+        <div id="tab-photos" style="display:none">
+          <input type="file" id="photo-upload-input" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
+          <div class="photos-grid" id="photos-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<script>
+// ═══════════════════════════════════════
+// FIREBASE CONFIG — вставьте свои данные
+// ═══════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "ВСТАВЬ_СЮДА",
+  authDomain: "ВСТАВЬ_СЮДА",
+  projectId: "ВСТАВЬ_СЮДА",
+  storageBucket: "ВСТАВЬ_СЮДА",
+  messagingSenderId: "ВСТАВЬ_СЮДА",
+  appId: "ВСТАВЬ_СЮДА"
+};
+
+// Security Rules (вставьте в Firebase Console):
+// rules_version = '2';
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//     match /users/{userId}/{document=**} {
+//       allow read, write: if request.auth.uid == userId;
+//     }
+//   }
+// }
+
+// Cloudinary config
+const CLOUDINARY_CLOUD = "ВСТАВЬ_CLOUD_NAME";
+const CLOUDINARY_PRESET = "ВСТАВЬ_UPLOAD_PRESET";
+
+// ═══════════════════════════════════════
+// I18N
+// ═══════════════════════════════════════
+const translations = {
+  ru: {
+    appName:"Гектар",addField:"Добавить поле",search:"Поиск полей...",fieldName:"Название поля",
+    crop:"Культура",cropTypes:{wheat:"Пшеница",corn:"Кукуруза",rapeseed:"Рапс",sunflower:"Подсолнечник",soy:"Соя",barley:"Ячмень",other:"Другое"},
+    color:"Цвет полигона",save:"Сохранить",cancel:"Отмена",area:"Площадь",hectares:"га",
+    overview:"Обзор",history:"История",photos:"Фото",sowingDate:"Дата сева",harvestDate:"Дата уборки",
+    irrigationDates:"Даты полива",sprayingDates:"Даты опрыскивания",notes:"Заметки",
+    saveChanges:"Сохранить изменения",addSeason:"Добавить сезон",uploadPhoto:"Загрузить фото",
+    temperature:"Температура",precipitation:"Осадки",wind:"Ветер",
+    sprayingGood:"✓ Оптимально для опрыскивания",sprayingBad:"✗ Не рекомендуется",
+    logout:"Выйти",login:"Войти",register:"Зарегистрироваться",email:"Email",password:"Пароль",
+    noAccount:"Нет аккаунта? Зарегистрироваться",hasAccount:"Уже есть аккаунт? Войти",
+    firstFieldHint:"Нажмите 'Добавить поле' чтобы нарисовать первое поле",
+    loading:"Загрузка...",errorLoad:"Ошибка загрузки данных",
+    vegetation:"Вегетация по месяцам",accTemp:"Накопленные температуры",monthlyRain:"Осадки за месяц",
+    selectYear:"Выберите год",layers:"Слои карты",osm:"Карта",satellite:"Спутник",ndvi:"NDVI",
+    settings:"Настройки",language:"Язык",deleteField:"Удалить поле",
+    confirmDelete:"Вы уверены, что хотите удалить это поле?",
+    perimeter:"Периметр",km:"км",currentSeason:"Текущий сезон",noData:"Нет данных за этот год",
+    addPhoto:"Добавить фото",noPhotos:"Фотографий пока нет"
+  },
+  en: {
+    appName:"Hectar",addField:"Add Field",search:"Search fields...",fieldName:"Field name",
+    crop:"Crop",cropTypes:{wheat:"Wheat",corn:"Corn",rapeseed:"Rapeseed",sunflower:"Sunflower",soy:"Soybean",barley:"Barley",other:"Other"},
+    color:"Polygon color",save:"Save",cancel:"Cancel",area:"Area",hectares:"ha",
+    overview:"Overview",history:"History",photos:"Photos",sowingDate:"Sowing date",harvestDate:"Harvest date",
+    irrigationDates:"Irrigation dates",sprayingDates:"Spraying dates",notes:"Notes",
+    saveChanges:"Save changes",addSeason:"Add season",uploadPhoto:"Upload photo",
+    temperature:"Temperature",precipitation:"Precipitation",wind:"Wind",
+    sprayingGood:"✓ Optimal for spraying",sprayingBad:"✗ Not recommended",
+    logout:"Logout",login:"Login",register:"Register",email:"Email",password:"Password",
+    noAccount:"No account? Register",hasAccount:"Already have account? Login",
+    firstFieldHint:"Click 'Add Field' to draw your first field",
+    loading:"Loading...",errorLoad:"Error loading data",
+    vegetation:"Monthly vegetation",accTemp:"Accumulated temperatures",monthlyRain:"Monthly precipitation",
+    selectYear:"Select year",layers:"Map layers",osm:"Map",satellite:"Satellite",ndvi:"NDVI",
+    settings:"Settings",language:"Language",deleteField:"Delete field",
+    confirmDelete:"Are you sure you want to delete this field?",
+    perimeter:"Perimeter",km:"km",currentSeason:"Current season",noData:"No data for this year",
+    addPhoto:"Add photo",noPhotos:"No photos yet"
+  }
+};
+
+let currentLang = localStorage.getItem('lang') || 'ru';
+
+function t(key) {
+  const keys = key.split('.');
+  let result = translations[currentLang];
+  for (const k of keys) result = result?.[k];
+  return result || key;
+}
+
+function applyLang() {
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.getElementById('auth-app-name').textContent = t('appName');
+  document.getElementById('lang-ru').classList.toggle('active', currentLang === 'ru');
+  document.getElementById('lang-en').classList.toggle('active', currentLang === 'en');
+  // Populate crop selects
+  ['field-crop-input','season-crop'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    Array.from(sel.options).forEach(opt => {
+      if (opt.value) opt.textContent = t('cropTypes.'+opt.value);
+    });
+  });
+}
+
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('lang', lang);
+  applyLang();
+  renderFieldsList();
+  if (currentFieldId) renderWeather();
+}
+
+// ═══════════════════════════════════════
+// FIREBASE INIT
+// ═══════════════════════════════════════
+let app, auth, db;
+try {
+  app = firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  db = firebase.firestore();
+} catch(e) {
+  console.warn('Firebase not configured. Using local mode.');
+}
+
+let currentUser = null;
+let fields = {}; // fieldId -> field data
+let seasons = {}; // fieldId -> [seasons]
+let currentFieldId = null;
+let pendingGeometry = null;
+let isDrawing = false;
+let selectedColor = '#52b788';
+let tagData = { irrigation: [], spraying: [] };
+
+// ═══════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════
+let authMode = 'login';
+
+function toggleAuthMode() {
+  authMode = authMode === 'login' ? 'register' : 'login';
+  const title = document.getElementById('auth-title');
+  const sw = document.getElementById('auth-switch-text');
+  const btn = document.querySelector('#auth-submit span');
+  if (authMode === 'login') {
+    title.textContent = t('login'); btn.textContent = t('login'); sw.textContent = t('noAccount');
+  } else {
+    title.textContent = t('register'); btn.textContent = t('register'); sw.textContent = t('hasAccount');
+  }
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+function loginAsGuest() {
+  document.getElementById('auth-overlay').classList.add('hidden');
+  document.getElementById('user-email-display').textContent = 'Гость';
+  document.getElementById('user-avatar').textContent = '👤';
+  loadLocal();
+  Object.values(fields).forEach(f => addFieldLayer(f.id, f));
+  renderFieldsList();
+}
+
+async function handleAuth() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pw = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.style.display = 'none';
+  if (!email || !pw) { errEl.textContent = 'Заполните все поля'; errEl.style.display = 'block'; return; }
+  try {
+    if (authMode === 'login') {
+      await auth.signInWithEmailAndPassword(email, pw);
+    } else {
+      await auth.createUserWithEmailAndPassword(email, pw);
+    }
+  } catch(e) {
+    errEl.textContent = e.message; errEl.style.display = 'block';
+  }
+}
+
+function handleLogout() {
+  auth && auth.signOut();
+}
+
+// Listen to auth state
+if (auth) {
+  auth.onAuthStateChanged(async user => {
+    currentUser = user;
+    if (user) {
+      document.getElementById('auth-overlay').classList.add('hidden');
+      document.getElementById('user-email-display').textContent = user.email;
+      document.getElementById('user-avatar').textContent = user.email[0].toUpperCase();
+      await loadFields();
+    } else {
+      document.getElementById('auth-overlay').classList.remove('hidden');
+      fields = {}; seasons = {};
+      renderFieldsList();
+    }
+  });
+} else {
+  // Demo mode without Firebase
+  document.getElementById('auth-overlay').classList.add('hidden');
+  document.getElementById('user-email-display').textContent = 'demo@hectar.app';
+  document.getElementById('user-avatar').textContent = 'D';
+}
+
+// ═══════════════════════════════════════
+// MAP SETUP
+// ═══════════════════════════════════════
+const savedCenter = JSON.parse(localStorage.getItem('mapCenter') || 'null');
+// Default: Astana, Kazakhstan
+const mapCenter = savedCenter ? [savedCenter.lat, savedCenter.lng] : [51.1694, 71.4491];
+const mapZoom = savedCenter ? savedCenter.zoom : 11;
+
+const map = L.map('map', { center: mapCenter, zoom: mapZoom, zoomControl: false });
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+// ── Карта с названиями городов, границами, дорогами (CartoDB — надёжный CDN)
+const osmLayer = L.tileLayer(
+  'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  {
+    attribution: '© <a href="https://carto.com/">CARTO</a> © <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+    subdomains: 'abcd',
+    maxZoom: 20
+  }
+);
+
+// ── Спутник (Esri World Imagery)
+const satLayer = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {
+    attribution: '© Esri, Maxar, Earthstar Geographics',
+    maxZoom: 19
+  }
+);
+
+// ── Подписи поверх спутника: города, границы, дороги
+// Используем Esri Reference — официальный overlay для World Imagery, всегда работает
+const labelsLayer = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  {
+    attribution: '© Esri',
+    maxZoom: 20,
+    opacity: 1
+  }
+);
+
+// ── NDVI (NASA GIBS)
+const ndviLayer = L.tileLayer(
+  'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI_8Day/default/2024-08-01/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png',
+  { attribution: '© NASA GIBS', maxZoom: 9, opacity: 0.75 }
+);
+
+osmLayer.addTo(map);
+
+// Fallback: если CartoDB не грузит — попробовать OSM напрямую
+osmLayer.on('tileerror', function(e) {
+  console.warn('CartoDB tile error, will retry automatically');
+});
+
+// Подтверждение загрузки карты в консоли для отладки
+map.once('load', () => console.log('Map loaded ✓'));
+const drawnItems = new L.FeatureGroup();
+map.addLayer(drawnItems);
+
+const drawControl = new L.Control.Draw({
+  draw: {
+    polygon: { shapeOptions: { color: selectedColor, fillOpacity: 0.35 }, allowIntersection: false },
+    polyline: false, circle: false, marker: false, circlemarker: false, rectangle: false
+  },
+  edit: { featureGroup: drawnItems }
+});
+
+map.on(L.Draw.Event.CREATED, function(e) {
+  stopDrawing();
+  pendingGeometry = e.layer.toGeoJSON().geometry;
+  const latlngs = e.layer.getLatLngs()[0];
+  // Show form
+  document.getElementById('field-form-modal').classList.remove('hidden');
+  document.getElementById('field-name-input').value = '';
+  document.getElementById('field-name-input').focus();
+  // Temp preview layer
+  window._tempLayer = e.layer;
+  window._tempLayer.setStyle({ color: selectedColor, fillColor: selectedColor, fillOpacity: 0.35 });
+  drawnItems.addLayer(window._tempLayer);
+});
+
+function setLayer(type) {
+  // Remove all base layers safely
+  [osmLayer, satLayer, ndviLayer, labelsLayer].forEach(l => {
+    try { if (map.hasLayer(l)) map.removeLayer(l); } catch(e) {}
+  });
+  document.getElementById('ndvi-info').classList.remove('show');
+
+  if (type === 'osm') {
+    // CartoDB Voyager — полная карта: названия, границы, дороги
+    osmLayer.addTo(map);
+  } else if (type === 'satellite') {
+    // Спутник + подписи поверх
+    satLayer.addTo(map);
+    labelsLayer.addTo(map);
+  } else if (type === 'ndvi') {
+    satLayer.addTo(map);
+    ndviLayer.addTo(map);
+    labelsLayer.addTo(map);
+    document.getElementById('ndvi-info').classList.add('show');
+  }
+
+  document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('layer-' + type).classList.add('active');
+  // Keep drawn polygons on top
+  drawnItems.bringToFront();
+}
+
+// ═══════════════════════════════════════
+// DRAWING
+// ═══════════════════════════════════════
+function toggleDrawing() {
+  if (isDrawing) { stopDrawing(); } else { startDrawing(); }
+}
+
+function startDrawing() {
+  isDrawing = true;
+  const btn = document.getElementById('add-field-btn');
+  btn.classList.add('drawing');
+  btn.querySelector('span:last-child').textContent = t('cancel');
+  document.getElementById('draw-hint').classList.add('show');
+  map.addControl(drawControl);
+  new L.Draw.Polygon(map, drawControl.options.draw.polygon).enable();
+  // Collapse sidebar on mobile
+  if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+}
+
+function stopDrawing() {
+  isDrawing = false;
+  const btn = document.getElementById('add-field-btn');
+  btn.classList.remove('drawing');
+  btn.querySelector('span:last-child').textContent = t('addField');
+  document.getElementById('draw-hint').classList.remove('show');
+  try { map.removeControl(drawControl); } catch(e){}
+}
+
+// ═══════════════════════════════════════
+// COLOR PICKER
+// ═══════════════════════════════════════
+function selectColor(el) {
+  document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+  el.classList.add('active');
+  selectedColor = el.dataset.color;
+}
+
+// ═══════════════════════════════════════
+// FIELD FORM
+// ═══════════════════════════════════════
+async function saveField() {
+  const name = document.getElementById('field-name-input').value.trim();
+  if (!name) { document.getElementById('field-name-input').focus(); return; }
+  const crop = document.getElementById('field-crop-input').value;
+
+  const area = calculateArea(pendingGeometry);
+  const perimeter = calculatePerimeter(pendingGeometry);
+
+  const fieldData = { name, crop, color: selectedColor, geometry: pendingGeometry, area, perimeter, createdAt: new Date().toISOString() };
+
+  let fieldId;
+  if (db && currentUser) {
+    try {
+      const ref = await db.collection('users').doc(currentUser.uid).collection('fields').add(fieldData);
+      fieldId = ref.id;
+    } catch(e) { console.error(e); }
+  } else {
+    fieldId = 'field_' + Date.now();
+    saveLocal();
+  }
+  if (!fieldId) fieldId = 'field_' + Date.now();
+
+  fields[fieldId] = { ...fieldData, id: fieldId };
+
+  // Add permanent layer
+  if (window._tempLayer) { drawnItems.removeLayer(window._tempLayer); window._tempLayer = null; }
+  addFieldLayer(fieldId, fields[fieldId]);
+
+  document.getElementById('field-form-modal').classList.add('hidden');
+  pendingGeometry = null;
+  renderFieldsList();
+  selectField(fieldId);
+  saveLocal();
+}
+
+function cancelFieldForm() {
+  document.getElementById('field-form-modal').classList.add('hidden');
+  if (window._tempLayer) { drawnItems.removeLayer(window._tempLayer); window._tempLayer = null; }
+  pendingGeometry = null;
+}
+
+// ═══════════════════════════════════════
+// GEOMETRY CALCULATIONS
+// ═══════════════════════════════════════
+function toRad(d) { return d * Math.PI / 180; }
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function calculateArea(geom) {
+  const coords = geom.coordinates[0];
+  let area = 0;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const [x1, y1] = coords[i], [x2, y2] = coords[i+1];
+    area += toRad(x2-x1) * (2 + Math.sin(toRad(y1)) + Math.sin(toRad(y2)));
+  }
+  area = Math.abs(area * 6371000**2 / 2);
+  return (area / 10000).toFixed(2);
+}
+
+function calculatePerimeter(geom) {
+  const coords = geom.coordinates[0];
+  let p = 0;
+  for (let i = 0; i < coords.length - 1; i++) {
+    p += haversine(coords[i][1], coords[i][0], coords[i+1][1], coords[i+1][0]);
+  }
+  return (p / 1000).toFixed(2);
+}
+
+function getCenter(geom) {
+  const coords = geom.coordinates[0];
+  let lat = 0, lng = 0;
+  coords.forEach(c => { lat += c[1]; lng += c[0]; });
+  return [lat / coords.length, lng / coords.length];
+}
+
+// ═══════════════════════════════════════
+// FIELDS DATA
+// ═══════════════════════════════════════
+async function loadFields() {
+  if (db && currentUser) {
+    try {
+      const snap = await db.collection('users').doc(currentUser.uid).collection('fields').get();
+      snap.forEach(doc => { fields[doc.id] = { ...doc.data(), id: doc.id }; });
+      const sSnap = await db.collection('users').doc(currentUser.uid).collection('seasons').get();
+      sSnap.forEach(doc => {
+        const d = doc.data();
+        if (!seasons[d.fieldId]) seasons[d.fieldId] = [];
+        seasons[d.fieldId].push({ ...d, id: doc.id });
+      });
+    } catch(e) { console.error('Load error:', e); loadLocal(); }
+  } else { loadLocal(); }
+  Object.values(fields).forEach(f => addFieldLayer(f.id, f));
+  renderFieldsList();
+}
+
+function saveLocal() {
+  try { localStorage.setItem('hectar_fields', JSON.stringify(fields)); localStorage.setItem('hectar_seasons', JSON.stringify(seasons)); } catch(e){}
+}
+
+function loadLocal() {
+  try {
+    const f = localStorage.getItem('hectar_fields');
+    const s = localStorage.getItem('hectar_seasons');
+    if (f) fields = JSON.parse(f);
+    if (s) seasons = JSON.parse(s);
+  } catch(e){}
+}
+
+function addFieldLayer(id, field) {
+  if (!field.geometry) return;
+  const layer = L.geoJSON(field.geometry, {
+    style: { color: field.color || '#52b788', fillColor: field.color || '#52b788', fillOpacity: 0.35, weight: 2 }
+  });
+  layer.on('click', () => selectField(id));
+  layer._fieldId = id;
+  drawnItems.addLayer(layer);
+  // Store layer reference
+  if (!window._fieldLayers) window._fieldLayers = {};
+  window._fieldLayers[id] = layer;
+}
+
+async function deleteCurrentField() {
+  if (!currentFieldId) return;
+  if (!confirm(t('confirmDelete'))) return;
+  const id = currentFieldId;
+  // Remove layer
+  if (window._fieldLayers && window._fieldLayers[id]) {
+    drawnItems.removeLayer(window._fieldLayers[id]);
+    delete window._fieldLayers[id];
+  }
+  if (db && currentUser) {
+    try { await db.collection('users').doc(currentUser.uid).collection('fields').doc(id).delete(); } catch(e){}
+  }
+  delete fields[id];
+  delete seasons[id];
+  saveLocal();
+  closeFieldPanel();
+  renderFieldsList();
+}
+
+// ═══════════════════════════════════════
+// FIELDS LIST
+// ═══════════════════════════════════════
+function renderFieldsList() {
+  const list = document.getElementById('fields-list');
+  const hint = document.getElementById('no-fields-hint');
+  const search = document.getElementById('field-search').value.toLowerCase();
+  const allFields = Object.values(fields).filter(f => f.name.toLowerCase().includes(search));
+
+  let totalArea = 0;
+  Object.values(fields).forEach(f => totalArea += parseFloat(f.area || 0));
+  document.getElementById('stat-fields').textContent = Object.keys(fields).length;
+  document.getElementById('stat-area').textContent = totalArea.toFixed(1);
+
+  if (allFields.length === 0) {
+    hint.style.display = 'block';
+    // Clear old items
+    list.querySelectorAll('.field-item').forEach(el => el.remove());
+    return;
+  }
+  hint.style.display = 'none';
+
+  // Re-render
+  list.querySelectorAll('.field-item').forEach(el => el.remove());
+  allFields.forEach(f => {
+    const el = document.createElement('div');
+    el.className = 'field-item' + (f.id === currentFieldId ? ' active' : '');
+    el.innerHTML = `
+      <div class="field-color" style="background:${f.color||'#52b788'}"></div>
+      <div class="field-info">
+        <div class="field-name">${f.name}</div>
+        <div class="field-meta">${t('cropTypes.'+f.crop)||f.crop} · ${f.area} ${t('hectares')}</div>
+      </div>
+    `;
+    el.onclick = () => selectField(f.id);
+    list.appendChild(el);
+  });
+}
+
+function filterFields() { renderFieldsList(); }
+
+// ═══════════════════════════════════════
+// FIELD SELECTION + PANEL
+// ═══════════════════════════════════════
+function selectField(id) {
+  currentFieldId = id;
+  const field = fields[id];
+  if (!field) return;
+
+  // Update sidebar active
+  renderFieldsList();
+
+  // Fly to field
+  if (field.geometry) {
+    const center = getCenter(field.geometry);
+    map.flyTo(center, 14, { duration: 1 });
+  }
+
+  // Open panel
+  document.getElementById('panel-field-name').textContent = field.name;
+  document.getElementById('panel-area').textContent = field.area;
+  document.getElementById('panel-perimeter').textContent = field.perimeter;
+  document.getElementById('field-panel').classList.add('open');
+
+  showTab('overview');
+  loadWeather(field);
+  loadSeasons(id);
+  loadPhotos(id);
+
+  // Highlight layer
+  if (window._fieldLayers) {
+    Object.values(window._fieldLayers).forEach(l => l.setStyle({ weight: 2, opacity: 1 }));
+    if (window._fieldLayers[id]) window._fieldLayers[id].setStyle({ weight: 3, opacity: 1 });
+  }
+
+  // On mobile, close sidebar
+  if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+}
+
+function closeFieldPanel() {
+  document.getElementById('field-panel').classList.remove('open');
+  currentFieldId = null;
+  renderFieldsList();
+}
+
+// ═══════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════
+function showTab(tab) {
+  ['overview','history','photos'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t === tab ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', ['overview','history','photos'][i] === tab);
+  });
+}
+
+// ═══════════════════════════════════════
+// WEATHER (Open-Meteo)
+// ═══════════════════════════════════════
+async function loadWeather(field) {
+  if (!field.geometry) return;
+  const [lat, lng] = getCenter(field.geometry);
+  renderWeather(lat, lng);
+}
+
+async function renderWeather(lat, lng) {
+  if (!lat && currentFieldId) {
+    const f = fields[currentFieldId];
+    if (!f) return;
+    const c = getCenter(f.geometry);
+    lat = c[0]; lng = c[1];
+  }
+  const el = document.getElementById('weather-content');
+  el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">${t('loading')}</div>`;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,windspeed_10m,winddirection_10m&timezone=auto`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const c = data.current;
+    const wind = c.windspeed_10m;
+    const precip = c.precipitation;
+    const sprayOk = wind < 5 && precip === 0;
+
+    el.innerHTML = `
+      <div class="weather-grid">
+        <div class="weather-card">
+          <div class="val">${Math.round(c.temperature_2m)}°C</div>
+          <div class="lbl">${t('temperature')}</div>
+        </div>
+        <div class="weather-card">
+          <div class="val">${precip} мм</div>
+          <div class="lbl">${t('precipitation')}</div>
+        </div>
+        <div class="weather-card">
+          <div class="val">${wind}</div>
+          <div class="lbl">${t('wind')} м/с</div>
+        </div>
+      </div>
+      <div class="spray-badge ${sprayOk?'good':'bad'}">
+        <span style="font-size:18px">${sprayOk?'🌤':'🌧'}</span>
+        ${sprayOk ? t('sprayingGood') : t('sprayingBad')}
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Ветер: ${wind} м/с · Осадки: ${precip} мм</div>
+    `;
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--danger);font-size:13px;padding:12px">${t('errorLoad')}</div>`;
+  }
+}
+
+// ═══════════════════════════════════════
+// SEASONS
+// ═══════════════════════════════════════
+function loadSeasons(fieldId) {
+  const list = document.getElementById('seasons-list');
+  const ss = seasons[fieldId] || [];
+  list.innerHTML = '';
+  if (ss.length === 0) {
+    list.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:8px 0">${t('noData')}</div>`;
+    return;
+  }
+  ss.sort((a,b) => b.year - a.year).forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'season-card';
+    el.innerHTML = `
+      <div class="season-year">
+        <span>🌾 ${s.year}</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn-sm btn-danger" onclick="deleteSeason('${fieldId}','${s.id}')">🗑</button>
+        </div>
+      </div>
+      <div class="season-grid">
+        <div class="season-field"><label>${t('crop')}</label><span>${t('cropTypes.'+s.crop)||s.crop}</span></div>
+        <div class="season-field"><label>${t('sowingDate')}</label><span>${s.sowingDate||'—'}</span></div>
+        <div class="season-field"><label>${t('harvestDate')}</label><span>${s.harvestDate||'—'}</span></div>
+        <div class="season-field"><label>${t('irrigationDates')}</label><span>${(s.irrigationDates||[]).join(', ')||'—'}</span></div>
+      </div>
+      ${s.sprayingDates?.length ? `<div class="season-field" style="margin-top:8px"><label>${t('sprayingDates')}</label><span>${s.sprayingDates.join(', ')}</span></div>` : ''}
+      ${s.notes ? `<div class="season-notes">${s.notes}</div>` : ''}
+    `;
+    list.appendChild(el);
+  });
+}
+
+function openSeasonForm() {
+  tagData = { irrigation: [], spraying: [] };
+  document.getElementById('irrigation-tags').innerHTML = '<input type="date" class="tag-input" id="irrigation-input" onchange="addTag(\'irrigation\')">';
+  document.getElementById('spraying-tags').innerHTML = '<input type="date" class="tag-input" id="spraying-input" onchange="addTag(\'spraying\')">';
+  document.getElementById('season-year').value = new Date().getFullYear();
+  document.getElementById('season-sowing').value = '';
+  document.getElementById('season-harvest').value = '';
+  document.getElementById('season-notes').value = '';
+  document.getElementById('season-form-modal').classList.remove('hidden');
+}
+
+function closeSeasonForm() {
+  document.getElementById('season-form-modal').classList.add('hidden');
+}
+
+function addTag(type) {
+  const input = document.getElementById(type+'-input');
+  const val = input.value;
+  if (!val || tagData[type].includes(val)) { input.value = ''; return; }
+  tagData[type].push(val);
+  const wrap = document.getElementById(type+'-tags');
+  const tag = document.createElement('div');
+  tag.className = 'tag';
+  tag.innerHTML = `${val} <button onclick="removeTag('${type}','${val}',this)">×</button>`;
+  wrap.insertBefore(tag, input);
+  input.value = '';
+}
+
+function removeTag(type, val, btn) {
+  tagData[type] = tagData[type].filter(v => v !== val);
+  btn.parentElement.remove();
+}
+
+async function saveSeason() {
+  if (!currentFieldId) return;
+  const seasonData = {
+    fieldId: currentFieldId,
+    year: parseInt(document.getElementById('season-year').value),
+    crop: document.getElementById('season-crop').value,
+    sowingDate: document.getElementById('season-sowing').value,
+    harvestDate: document.getElementById('season-harvest').value,
+    irrigationDates: tagData.irrigation,
+    sprayingDates: tagData.spraying,
+    notes: document.getElementById('season-notes').value,
+    photoUrls: []
+  };
+  let sid;
+  if (db && currentUser) {
+    try {
+      const ref = await db.collection('users').doc(currentUser.uid).collection('seasons').add(seasonData);
+      sid = ref.id;
+    } catch(e) { console.error(e); }
+  }
+  if (!sid) sid = 'season_' + Date.now();
+  if (!seasons[currentFieldId]) seasons[currentFieldId] = [];
+  seasons[currentFieldId].push({ ...seasonData, id: sid });
+  saveLocal();
+  closeSeasonForm();
+  loadSeasons(currentFieldId);
+}
+
+async function deleteSeason(fieldId, seasonId) {
+  if (!confirm('Удалить сезон?')) return;
+  if (db && currentUser) {
+    try { await db.collection('users').doc(currentUser.uid).collection('seasons').doc(seasonId).delete(); } catch(e){}
+  }
+  if (seasons[fieldId]) seasons[fieldId] = seasons[fieldId].filter(s => s.id !== seasonId);
+  saveLocal();
+  loadSeasons(fieldId);
+}
+
+// ═══════════════════════════════════════
+// PHOTOS
+// ═══════════════════════════════════════
+function loadPhotos(fieldId) {
+  const grid = document.getElementById('photos-grid');
+  grid.innerHTML = '';
+
+  // Upload button
+  const uploadBtn = document.createElement('div');
+  uploadBtn.className = 'upload-photo-btn';
+  uploadBtn.innerHTML = `<span class="icon">📷</span><span data-i18n="addPhoto">${t('addPhoto')}</span>`;
+  uploadBtn.onclick = () => document.getElementById('photo-upload-input').click();
+  grid.appendChild(uploadBtn);
+
+  // Photos from all seasons for this field
+  const allPhotos = (seasons[fieldId] || []).flatMap(s => s.photoUrls || []);
+
+  if (allPhotos.length === 0 && fieldPhotos[fieldId]) {
+    // local photos
+  }
+
+  const photos = [...(allPhotos), ...(fieldPhotos[fieldId] || [])];
+  photos.forEach(url => addPhotoThumb(grid, url));
+
+  if (photos.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted);font-size:13px';
+    empty.textContent = t('noPhotos');
+    grid.appendChild(empty);
+  }
+}
+
+let fieldPhotos = {}; // fieldId -> [urls]
+
+function addPhotoThumb(grid, url) {
+  const img = document.createElement('img');
+  img.className = 'photo-thumb';
+  img.src = url;
+  img.loading = 'lazy';
+  img.onclick = () => openLightbox(url);
+  grid.appendChild(img);
+}
+
+async function handlePhotoUpload(e) {
+  const file = e.target.files[0];
+  if (!file || !currentFieldId) return;
+  e.target.value = '';
+
+  // Try Cloudinary
+  if (CLOUDINARY_CLOUD !== 'ВСТАВЬ_CLOUD_NAME') {
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('upload_preset', CLOUDINARY_PRESET);
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, { method: 'POST', body: fd });
+      const data = await res.json();
+      const url = data.secure_url;
+      if (!fieldPhotos[currentFieldId]) fieldPhotos[currentFieldId] = [];
+      fieldPhotos[currentFieldId].push(url);
+      saveLocal();
+      loadPhotos(currentFieldId);
+      return;
+    } catch(err) { console.warn('Cloudinary upload failed, using local'); }
+  }
+
+  // Fallback: base64 local
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const url = ev.target.result;
+    if (!fieldPhotos[currentFieldId]) fieldPhotos[currentFieldId] = [];
+    fieldPhotos[currentFieldId].push(url);
+    saveLocal();
+    loadPhotos(currentFieldId);
+  };
+  reader.readAsDataURL(file);
+}
+
+function openLightbox(url) {
+  document.getElementById('lightbox-img').src = url;
+  document.getElementById('lightbox').classList.remove('hidden');
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.add('hidden');
+}
+
+// ═══════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════
+function openSettings() {
+  document.getElementById('settings-modal').classList.remove('hidden');
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal').classList.add('hidden');
+}
+
+function saveMapCenter() {
+  const c = map.getCenter();
+  localStorage.setItem('mapCenter', JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }));
+  closeSettings();
+  // Flash feedback
+  const btn = event.target;
+  const orig = btn.textContent;
+  btn.textContent = '✓ Сохранено!';
+  setTimeout(() => btn.textContent = orig, 1500);
+}
+
+// ═══════════════════════════════════════
+// SIDEBAR TOGGLE (MOBILE)
+// ═══════════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ═══════════════════════════════════════
+// CITY SEARCH — Photon (Komoot, бесплатно, без ключа, без CORS)
+// ═══════════════════════════════════════
+let citySearchTimer = null;
+
+async function searchCity(query) {
+  const dropdown = document.getElementById('city-results');
+  query = query.trim();
+
+  if (!query) { dropdown.classList.remove('open'); return; }
+  if (query.length < 2) return;
+
+  clearTimeout(citySearchTimer);
+  dropdown.innerHTML = '<div class="city-searching">🔍 Поиск...</div>';
+  dropdown.classList.add('open');
+
+  citySearchTimer = setTimeout(async () => {
+    try {
+      const lang = currentLang === 'ru' ? 'ru' : 'en';
+      // Photon — открытый геокодер на базе OSM, без ключа, без блокировок
+      const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=7&lang=${lang}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const results = data.features || [];
+
+      if (!results.length) {
+        dropdown.innerHTML = '<div class="city-searching">Ничего не найдено</div>';
+        return;
+      }
+
+      dropdown.innerHTML = '';
+      results.forEach(r => {
+        const p = r.properties;
+        const coords = r.geometry.coordinates; // [lon, lat]
+        const el = document.createElement('div');
+        el.className = 'city-result';
+
+        const typ = p.osm_value || p.type || '';
+        let icon = '📍';
+        if (['city','metropolis'].includes(typ)) icon = '🏙';
+        else if (['town','borough'].includes(typ)) icon = '🏘';
+        else if (['village','hamlet','locality'].includes(typ)) icon = '🌾';
+        else if (['district','county','state'].includes(typ)) icon = '🗺';
+        else if (['farm','farmyard'].includes(typ)) icon = '🚜';
+
+        // Собираем красивое название
+        const name = p.name || p.city || p.state || 'Без названия';
+        const parts = [p.city, p.state, p.country].filter(Boolean);
+        const sub = parts.filter(x => x !== name).join(', ');
+
+        el.innerHTML = `
+          <span class="city-icon">${icon}</span>
+          <div>
+            <span class="city-name">${name}</span>
+            ${sub ? `<span class="city-sub">${sub}</span>` : ''}
+          </div>`;
+
+        el.onclick = () => {
+          const lat = coords[1];
+          const lon = coords[0];
+          let zoom = 13;
+          if (['city','metropolis'].includes(typ)) zoom = 12;
+          else if (['village','hamlet','farm','farmyard'].includes(typ)) zoom = 14;
+          else if (['district','county','state'].includes(typ)) zoom = 9;
+          map.flyTo([lat, lon], zoom, { duration: 1.4 });
+          document.getElementById('city-search').value = name;
+          dropdown.classList.remove('open');
+        };
+
+        dropdown.appendChild(el);
+      });
+    } catch(e) {
+      dropdown.innerHTML = '<div class="city-searching">⚠️ Ошибка. Проверьте соединение.</div>';
+      console.error('City search error:', e);
+    }
+  }, 400);
+}
+
+// Закрыть при клике вне
+document.addEventListener('click', e => {
+  if (!e.target.closest('#city-search') && !e.target.closest('#city-results')) {
+    document.getElementById('city-results')?.classList.remove('open');
+  }
+});
+
+// Enter — выбрать первый результат, Escape — закрыть
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('city-search');
+  if (!inp) return;
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const first = document.querySelector('#city-results .city-result');
+      if (first) first.click();
+    }
+    if (e.key === 'Escape') {
+      document.getElementById('city-results').classList.remove('open');
+      inp.blur();
+    }
+  });
+});
+
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeFieldPanel();
+    cancelFieldForm();
+    closeSettings();
+    closeSeasonForm();
+    closeLightbox();
+  }
+});
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+applyLang();
+loadLocal();
+
+// If no Firebase, load from local storage and render
+if (!auth) {
+  Object.values(fields).forEach(f => addFieldLayer(f.id, f));
+  renderFieldsList();
+}
+</script>
+</body>
+</html>
