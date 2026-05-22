@@ -411,8 +411,92 @@ input, select, textarea { font-family: var(--font); outline: none; }
 #measure-hint.visible { display: block; }
 
 /* ═══════════════════════════════════════
-   MODALS
+   DRAW TOOLBAR (Smart Field Drawing — replaces draw-banner)
 ═══════════════════════════════════════ */
+#draw-toolbar {
+  display: none;
+  position: fixed;
+  bottom: calc(24px + var(--safe-bottom));
+  left: 50%; transform: translateX(-50%);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  padding: 10px 14px;
+  box-shadow: var(--shadow-lg);
+  z-index: 460;
+  align-items: center;
+  gap: 10px;
+  min-width: 300px;
+  max-width: calc(100vw - 32px);
+  backdrop-filter: blur(8px);
+}
+#draw-toolbar.visible { display: flex; }
+@media (max-width: 600px) {
+  #draw-toolbar { flex-wrap: wrap; justify-content: center; bottom: calc(80px + var(--safe-bottom)); min-width: 0; width: calc(100vw - 32px); border-radius: 16px; }
+}
+#draw-status { font-size: 13px; font-weight: 600; color: var(--text-2); white-space: nowrap; flex-shrink: 0; }
+#draw-live-stats {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 700; font-family: var(--mono);
+  color: var(--green); white-space: nowrap;
+}
+.draw-stat-sep { color: var(--text-3); font-weight: 400; }
+.draw-divider { width: 1px; height: 28px; background: var(--border); flex-shrink: 0; }
+.draw-tb-btn {
+  min-height: 36px; padding: 0 12px;
+  border-radius: 10px; font-size: 12px; font-weight: 700;
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text-2); cursor: pointer; font-family: var(--font);
+  transition: all var(--transition); white-space: nowrap;
+}
+.draw-tb-btn:hover:not(:disabled) { background: var(--green-pale); color: var(--green); border-color: var(--green); }
+.draw-tb-btn.finish { background: var(--green); color: white; border-color: var(--green); }
+.draw-tb-btn.finish:hover:not(:disabled) { background: var(--green-mid); }
+.draw-tb-btn.danger { color: var(--danger); border-color: rgba(192,57,43,0.3); }
+.draw-tb-btn.danger:hover { background: #ffe8e8; border-color: var(--danger); }
+.draw-tb-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Vertex handle styles (drawn via Leaflet divIcon) */
+.vertex-handle {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: white;
+  border: 2.5px solid #4CAF50;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  cursor: grab;
+  transition: transform 0.1s, border-color 0.1s;
+  transform: translate(-50%, -50%);
+}
+.vertex-handle:hover { transform: translate(-50%, -50%) scale(1.4); border-color: var(--green-dark); background: #e8f5e9; }
+.vertex-handle.dragging { cursor: grabbing; transform: translate(-50%, -50%) scale(1.5); border-color: #2196F3; }
+.midpoint-handle {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: rgba(76,175,80,0.5);
+  border: 2px solid rgba(76,175,80,0.8);
+  cursor: crosshair;
+  transform: translate(-50%, -50%);
+  transition: transform 0.1s, background 0.1s;
+}
+.midpoint-handle:hover { transform: translate(-50%, -50%) scale(1.5); background: #4CAF50; }
+
+/* Edit mode banner */
+#edit-banner {
+  display: none;
+  position: fixed;
+  top: 72px; left: 50%; transform: translateX(-50%);
+  background: #1565c0; color: white;
+  border-radius: 12px; padding: 8px 18px;
+  font-size: 13px; font-weight: 600; z-index: 460;
+  box-shadow: var(--shadow); white-space: nowrap;
+  pointer-events: none;
+}
+#edit-banner.visible { display: block; }
+
+/* Cursor styles during draw/edit */
+.map-drawing { cursor: crosshair !important; }
+.map-editing .leaflet-container { cursor: default !important; }
+
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 1000;
   display: flex; align-items: center; justify-content: center; padding: 16px;
@@ -707,7 +791,10 @@ input, select, textarea { font-family: var(--font); outline: none; }
         </div>
 
         <div class="divider"></div>
-        <button class="btn btn-danger" id="delete-field-btn" data-i18n="deleteField">🗑 Delete Field</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" id="edit-field-btn" style="flex:1">✏️ Edit Shape</button>
+          <button class="btn btn-danger" id="delete-field-btn" style="flex:1" data-i18n="deleteField">🗑 Delete Field</button>
+        </div>
       </div>
     </div>
 
@@ -753,8 +840,23 @@ input, select, textarea { font-family: var(--font); outline: none; }
   <button class="map-ctrl-btn" id="locate-btn" aria-label="My location" title="My location">📍</button>
 </div>
 
-<!-- Draw banner -->
-<div id="draw-banner" role="status">✏️ <span data-i18n="drawHint">Click on the map to draw field boundary. Double-click to finish.</span></div>
+<!-- Edit mode banner -->
+<div id="edit-banner" role="status">✏️ Drag vertices to reshape · Tap edge to add point · Tap vertex to delete</div>
+
+<!-- Smart Draw Toolbar (replaces old draw-banner) -->
+<div id="draw-toolbar" role="toolbar" aria-label="Draw field">
+  <div id="draw-status">✏️ <span id="draw-status-text">Tap map to place first point</span></div>
+  <div class="draw-divider"></div>
+  <div id="draw-live-stats" style="display:none">
+    <span id="draw-area-live">— ha</span>
+    <span class="draw-stat-sep">·</span>
+    <span id="draw-perim-live">— m</span>
+  </div>
+  <div class="draw-divider" id="draw-stats-divider" style="display:none"></div>
+  <button class="draw-tb-btn" id="draw-undo-btn" title="Undo last point" disabled>↩ Undo</button>
+  <button class="draw-tb-btn finish" id="draw-finish-btn" title="Finish polygon" disabled>✔ Done</button>
+  <button class="draw-tb-btn danger" id="draw-cancel-btn" title="Cancel">✕ Cancel</button>
+</div>
 
 <!-- Measurement toolbar (mobile) -->
 <div id="measure-toolbar" role="toolbar" aria-label="Measurement tools">
@@ -1385,67 +1487,414 @@ async function loadBorders() {
   }
 }
 
-// ── DRAW CONTROL ──
-function setupDrawControl() {
-  drawControl = new (function() {
-    // Use a simple custom polygon draw via Leaflet click events
-    // (does not rely on leaflet.draw plugin which had mobile issues)
-  })();
+// ═══════════════════════════════════════
+// SMART DRAWING ENGINE — OneSoil-style
+// Features: live preview, vertex drag, midpoint insertion,
+//           mobile tap-to-place, two-finger zoom preserved
+// ═══════════════════════════════════════
 
-  // We implement custom draw via map click events (no leaflet.draw dependency)
-  map.on('draw:created', function(e) {
+const DRAW = {
+  // State
+  active: false,
+  points: [],           // L.LatLng[]
+  // Layers
+  polyline: null,       // live preview line
+  polygon: null,        // filled preview polygon
+  previewLine: null,    // rubber-band line from last point to cursor
+  vertexMarkers: [],    // draggable vertex handles
+  midpointMarkers: [],  // midpoint insertion handles
+  closingDot: null,     // first-point closing indicator
+  // Edit state
+  editMode: false,
+  editFieldId: null,
+  editOriginalGeometry: null,
+  // Touch state (tap vs pan detection)
+  _touchT: 0,
+  _touchX: 0,
+  _touchY: 0,
+  _touchMovedPx: 0,
+  _isTouchMove: false,
+
+  /** Start fresh drawing mode */
+  start() {
+    if (DRAW.active) { DRAW.cancel(); return; }
+    DRAW.active = true;
+    DRAW.points = [];
+    DRAW._clearLayers();
+    map.getContainer().classList.add('map-drawing');
+    document.getElementById('draw-btn').classList.add('active');
+    document.getElementById('draw-toolbar').classList.add('visible');
+    DRAW._updateToolbar();
+    // Desktop: rubber band
+    map.on('mousemove', DRAW._onMouseMove);
+    // Click (desktop)
+    map.on('click', DRAW._onMapClick);
+    // Touch (mobile)
+    map.getContainer().addEventListener('touchstart', DRAW._onTouchStart, { passive: true });
+    map.getContainer().addEventListener('touchmove', DRAW._onTouchMove, { passive: true });
+    map.getContainer().addEventListener('touchend', DRAW._onTouchEnd, { passive: false });
+    // Keyboard
+    document.addEventListener('keydown', DRAW._onKey);
+  },
+
+  /** Cancel (discard) */
+  cancel() {
+    DRAW._stop();
+    DRAW._clearLayers();
+    pendingGeometry = null;
     drawLayer.clearLayers();
-    drawLayer.addLayer(e.layer);
-    pendingGeometry = e.layer.toGeoJSON().geometry;
-    stopDrawMode();
+  },
+
+  /** Finish drawing — close polygon if ≥3 pts */
+  finish() {
+    if (DRAW.points.length < 3) { showToast('Draw at least 3 points to create a field.'); return; }
+    // Build GeoJSON
+    const coords = DRAW.points.map(p => [p.lng, p.lat]);
+    coords.push(coords[0]); // close ring
+    pendingGeometry = { type: 'Polygon', coordinates: [coords] };
+    DRAW._stop();
+    DRAW._clearLayers();
+    // Draw temporary polygon on drawLayer for visual reference
+    const latlngs = DRAW.points.map(p => [p.lat, p.lng]);
+    drawLayer.clearLayers();
+    L.polygon(latlngs, { color: pendingColor, fillColor: pendingColor, fillOpacity: 0.18, weight: 2 }).addTo(drawLayer);
     openFieldModal();
-  });
-}
+  },
 
-let drawPolygonHandler = null;
-function startDrawMode() {
-  if (isDrawing) { stopDrawMode(); return; }
-  isDrawing = true;
-  document.getElementById('draw-btn').classList.add('active');
-  document.getElementById('draw-banner').classList.add('visible');
+  /** Undo last point */
+  undo() {
+    if (!DRAW.points.length) return;
+    DRAW.points.pop();
+    DRAW._rebuild();
+    DRAW._updateToolbar();
+  },
 
-  // Use L.Draw.Polygon if available (optional dependency), otherwise our custom tool
-  try {
-    if (!drawControl._leafletDrawControl) {
-      const ldc = new L.Control.Draw({
-        draw: {
-          polygon: { allowIntersection: false, showArea: true, shapeOptions: { color: '#4CAF50', fillColor: '#4CAF50', fillOpacity: 0.2 } },
-          rectangle: false, circle: false, circlemarker: false, marker: false, polyline: false
-        },
-        edit: { featureGroup: drawLayer, remove: false }
-      });
-      drawControl._leafletDrawControl = ldc;
-      map.addControl(ldc);
-      map.once(L.Draw.Event.CREATED, function(e) {
-        drawLayer.clearLayers();
-        drawLayer.addLayer(e.layer);
-        pendingGeometry = e.layer.toGeoJSON().geometry;
-        stopDrawMode();
-        openFieldModal();
-      });
-    } else {
-      map.addControl(drawControl._leafletDrawControl);
+  /** Internal: stop listeners and reset active state */
+  _stop() {
+    DRAW.active = false;
+    map.getContainer().classList.remove('map-drawing');
+    document.getElementById('draw-btn').classList.remove('active');
+    document.getElementById('draw-toolbar').classList.remove('visible');
+    map.off('mousemove', DRAW._onMouseMove);
+    map.off('click', DRAW._onMapClick);
+    map.getContainer().removeEventListener('touchstart', DRAW._onTouchStart);
+    map.getContainer().removeEventListener('touchmove', DRAW._onTouchMove);
+    map.getContainer().removeEventListener('touchend', DRAW._onTouchEnd);
+    document.removeEventListener('keydown', DRAW._onKey);
+  },
+
+  /** Clear all visual layers */
+  _clearLayers() {
+    if (DRAW.polyline)    { map.removeLayer(DRAW.polyline); DRAW.polyline = null; }
+    if (DRAW.polygon)     { map.removeLayer(DRAW.polygon); DRAW.polygon = null; }
+    if (DRAW.previewLine) { map.removeLayer(DRAW.previewLine); DRAW.previewLine = null; }
+    if (DRAW.closingDot)  { map.removeLayer(DRAW.closingDot); DRAW.closingDot = null; }
+    DRAW.vertexMarkers.forEach(m => map.removeLayer(m));
+    DRAW.vertexMarkers = [];
+    DRAW.midpointMarkers.forEach(m => map.removeLayer(m));
+    DRAW.midpointMarkers = [];
+  },
+
+  /** Rebuild all visual layers from current points */
+  _rebuild(cursorLatLng) {
+    // Remove old draw layers (not edit layers — those are separate)
+    if (DRAW.polyline)    { map.removeLayer(DRAW.polyline); DRAW.polyline = null; }
+    if (DRAW.polygon)     { map.removeLayer(DRAW.polygon); DRAW.polygon = null; }
+    if (DRAW.previewLine) { map.removeLayer(DRAW.previewLine); DRAW.previewLine = null; }
+    if (DRAW.closingDot)  { map.removeLayer(DRAW.closingDot); DRAW.closingDot = null; }
+    DRAW.vertexMarkers.forEach(m => map.removeLayer(m));
+    DRAW.vertexMarkers = [];
+    DRAW.midpointMarkers.forEach(m => map.removeLayer(m));
+    DRAW.midpointMarkers = [];
+
+    const pts = DRAW.points;
+    if (!pts.length) return;
+
+    // First vertex (closing dot — shows when ≥2 pts, click to close)
+    const firstIcon = L.divIcon({ className: '', html: '<div class="vertex-handle" style="border-color:#4CAF50;background:#e8f5e9"></div>', iconSize: [14,14], iconAnchor: [7,7] });
+    DRAW.closingDot = L.marker(pts[0], { icon: firstIcon, zIndexOffset: 1000, interactive: pts.length >= 3 }).addTo(map);
+    if (pts.length >= 3) {
+      DRAW.closingDot.on('click', DRAW.finish.bind(DRAW));
+      DRAW.closingDot.getElement()?.style && (DRAW.closingDot.getElement().style.cursor = 'pointer');
     }
-    new L.Draw.Polygon(map, drawControl._leafletDrawControl.options.draw.polygon).enable();
-  } catch (err) {
-    console.warn('leaflet.draw not available:', err);
-    stopDrawMode();
-  }
-}
 
-function stopDrawMode() {
-  isDrawing = false;
-  document.getElementById('draw-btn').classList.remove('active');
-  document.getElementById('draw-banner').classList.remove('visible');
-  try {
-    if (drawControl._leafletDrawControl) map.removeControl(drawControl._leafletDrawControl);
-  } catch {}
-}
+    // Polygon fill (when ≥3 pts)
+    if (pts.length >= 3) {
+      DRAW.polygon = L.polygon(pts, {
+        color: pendingColor || '#4CAF50',
+        fillColor: pendingColor || '#4CAF50',
+        fillOpacity: 0.15,
+        weight: 2,
+        dashArray: '6,4',
+        interactive: false
+      }).addTo(map);
+    }
+
+    // Outline polyline
+    if (pts.length >= 2) {
+      DRAW.polyline = L.polyline(pts, {
+        color: pendingColor || '#4CAF50',
+        weight: 2.5,
+        interactive: false
+      }).addTo(map);
+    }
+
+    // Rubber band to cursor
+    if (cursorLatLng && pts.length >= 1) {
+      DRAW.previewLine = L.polyline([pts[pts.length - 1], cursorLatLng], {
+        color: pendingColor || '#4CAF50',
+        weight: 2,
+        dashArray: '5,5',
+        opacity: 0.7,
+        interactive: false
+      }).addTo(map);
+    }
+
+    // Vertex handles
+    pts.forEach((pt, idx) => {
+      if (idx === 0) return; // first point handled by closingDot
+      const icon = L.divIcon({ className: '', html: '<div class="vertex-handle"></div>', iconSize: [14,14], iconAnchor: [7,7] });
+      const m = L.marker(pt, { icon, draggable: true, zIndexOffset: 900 }).addTo(map);
+      m.on('drag', (e) => { DRAW.points[idx] = e.target.getLatLng(); DRAW._rebuild(); DRAW._updateLiveStats(); });
+      m.on('dragstart', () => map.dragging.disable());
+      m.on('dragend', () => map.dragging.enable());
+      // Tap vertex on mobile to show delete option (handled via long-press in touch handler)
+      DRAW.vertexMarkers.push(m);
+    });
+
+    DRAW._updateLiveStats();
+  },
+
+  /** Update live area/perimeter display */
+  _updateLiveStats() {
+    const pts = DRAW.points;
+    const statsEl = document.getElementById('draw-live-stats');
+    const statsDiv = document.getElementById('draw-stats-divider');
+    if (pts.length < 3) {
+      statsEl.style.display = 'none';
+      if (statsDiv) statsDiv.style.display = 'none';
+      return;
+    }
+    statsEl.style.display = 'flex';
+    if (statsDiv) statsDiv.style.display = 'block';
+    const areaM2 = calcPolygonAreaM2(pts);
+    const perim = pts.reduce((s, p, i) => i === 0 ? 0 : s + haversineMeters(pts[i-1], p), 0) + haversineMeters(pts[pts.length-1], pts[0]);
+    document.getElementById('draw-area-live').textContent = (areaM2 / 10000).toFixed(2) + ' ha';
+    document.getElementById('draw-perim-live').textContent = formatDistance(perim);
+  },
+
+  /** Update toolbar button states */
+  _updateToolbar() {
+    const n = DRAW.points.length;
+    const undoBtn = document.getElementById('draw-undo-btn');
+    const finishBtn = document.getElementById('draw-finish-btn');
+    const statusText = document.getElementById('draw-status-text');
+    undoBtn.disabled = n === 0;
+    finishBtn.disabled = n < 3;
+    if (n === 0) statusText.textContent = 'Tap map to place first point';
+    else if (n === 1) statusText.textContent = '1 point · add more';
+    else if (n === 2) statusText.textContent = '2 points · need 1 more';
+    else statusText.textContent = `${n} points · tap ✔ Done or first point to close`;
+  },
+
+  /** Desktop mouse move — rubber band */
+  _onMouseMove(e) {
+    if (!DRAW.active || !DRAW.points.length) return;
+    // Only redraw preview line (not full rebuild for performance)
+    if (DRAW.previewLine) { map.removeLayer(DRAW.previewLine); DRAW.previewLine = null; }
+    DRAW.previewLine = L.polyline([DRAW.points[DRAW.points.length - 1], e.latlng], {
+      color: pendingColor || '#4CAF50', weight: 2, dashArray: '5,5', opacity: 0.7, interactive: false
+    }).addTo(map);
+  },
+
+  /** Desktop click — add point */
+  _onMapClick(e) {
+    if (!DRAW.active) return;
+    // Ignore double-click (handled separately as finish)
+    DRAW.points.push(e.latlng);
+    DRAW._rebuild(e.latlng);
+    DRAW._updateToolbar();
+  },
+
+  // ── Touch handlers ──
+  _onTouchStart(e) {
+    if (!DRAW.active) return;
+    DRAW._isTouchMove = false;
+    if (e.touches.length === 1) {
+      DRAW._touchT = Date.now();
+      DRAW._touchX = e.touches[0].clientX;
+      DRAW._touchY = e.touches[0].clientY;
+      DRAW._touchMovedPx = 0;
+    }
+  },
+  _onTouchMove(e) {
+    if (!DRAW.active) return;
+    if (e.touches.length === 1) {
+      const dx = e.touches[0].clientX - DRAW._touchX;
+      const dy = e.touches[0].clientY - DRAW._touchY;
+      DRAW._touchMovedPx = Math.sqrt(dx*dx + dy*dy);
+      if (DRAW._touchMovedPx > 10) DRAW._isTouchMove = true;
+    } else {
+      DRAW._isTouchMove = true; // multi-touch = pinch = not a tap
+    }
+  },
+  _onTouchEnd(e) {
+    if (!DRAW.active) return;
+    // Multi-touch lifted — ignore (was pinch)
+    if (e.changedTouches.length !== 1) return;
+    // Check it was a short, non-moving tap
+    const dt = Date.now() - DRAW._touchT;
+    if (DRAW._isTouchMove || dt > 600 || DRAW._touchMovedPx > 12) return;
+    // Ignore toolbar taps
+    const el = e.target;
+    if (el.closest && (el.closest('#draw-toolbar') || el.closest('.leaflet-control') || el.closest('.vertex-handle'))) return;
+    // Convert to LatLng
+    const touch = e.changedTouches[0];
+    const rect = map.getContainer().getBoundingClientRect();
+    const latlng = map.containerPointToLatLng(L.point(touch.clientX - rect.left, touch.clientY - rect.top));
+    DRAW.points.push(latlng);
+    DRAW._rebuild();
+    DRAW._updateToolbar();
+    e.preventDefault(); // block ghost click
+  },
+
+  /** Keyboard: Backspace=undo, Enter=finish, Escape=cancel */
+  _onKey(e) {
+    if (!DRAW.active) return;
+    if (e.key === 'Backspace' || e.key === 'Delete') DRAW.undo();
+    else if (e.key === 'Enter') DRAW.finish();
+    else if (e.key === 'Escape') DRAW.cancel();
+  }
+};
+
+// ── FIELD EDIT MODE — drag existing polygon vertices ──
+const EDIT = {
+  active: false,
+  fieldId: null,
+  points: [],         // L.LatLng[]
+  polygon: null,
+  vertexMarkers: [],
+  midMarkers: [],
+
+  /** Start editing saved field */
+  start(fieldId) {
+    const field = allFields.find(f => f.id === fieldId);
+    if (!field || !field.geometry) return;
+    EDIT.fieldId = fieldId;
+    EDIT.active = true;
+    EDIT.points = field.geometry.coordinates[0].slice(0, -1).map(c => L.latLng(c[1], c[0]));
+    // Hide the static polygon
+    if (fieldPolygons[fieldId]) fieldPolygons[fieldId].setStyle({ opacity: 0.3, fillOpacity: 0.05 });
+    map.getContainer().classList.add('map-editing');
+    document.getElementById('edit-banner').classList.add('visible');
+    EDIT._rebuild();
+    if (window.innerWidth < 1024) closePanel();
+  },
+
+  /** Save edited geometry */
+  async save() {
+    if (EDIT.points.length < 3) { showToast('Need at least 3 vertices.'); return; }
+    const coords = EDIT.points.map(p => [p.lng, p.lat]);
+    coords.push(coords[0]);
+    const newGeometry = { type: 'Polygon', coordinates: [coords] };
+    const field = allFields.find(f => f.id === EDIT.fieldId);
+    if (!field) return;
+    await DataService.updateField(EDIT.fieldId, { geometry: newGeometry, area: calcAreaHa(newGeometry) });
+    field.geometry = newGeometry;
+    field.area = calcAreaHa(newGeometry);
+    EDIT._stop();
+    renderFieldsOnMap(allFields);
+    renderFieldDetail(EDIT.fieldId);
+    updateStatsBar();
+    showToast('Field shape saved!', 'success');
+  },
+
+  /** Cancel edit, restore original */
+  cancel() {
+    EDIT._stop();
+    if (fieldPolygons[EDIT.fieldId]) fieldPolygons[EDIT.fieldId].setStyle({ opacity: 1, fillOpacity: 0.18 });
+  },
+
+  _stop() {
+    EDIT.active = false;
+    EDIT._clearLayers();
+    map.getContainer().classList.remove('map-editing');
+    document.getElementById('edit-banner').classList.remove('visible');
+  },
+
+  _clearLayers() {
+    if (EDIT.polygon) { map.removeLayer(EDIT.polygon); EDIT.polygon = null; }
+    EDIT.vertexMarkers.forEach(m => map.removeLayer(m)); EDIT.vertexMarkers = [];
+    EDIT.midMarkers.forEach(m => map.removeLayer(m)); EDIT.midMarkers = [];
+  },
+
+  _rebuild() {
+    EDIT._clearLayers();
+    const pts = EDIT.points;
+    if (pts.length < 2) return;
+
+    // Editable polygon
+    EDIT.polygon = L.polygon(pts, {
+      color: allFields.find(f => f.id === EDIT.fieldId)?.color || '#4CAF50',
+      fillColor: allFields.find(f => f.id === EDIT.fieldId)?.color || '#4CAF50',
+      fillOpacity: 0.22, weight: 2.5, interactive: false
+    }).addTo(map);
+
+    // Vertex handles
+    pts.forEach((pt, idx) => {
+      const icon = L.divIcon({ className: '', html: '<div class="vertex-handle"></div>', iconSize: [14,14], iconAnchor: [7,7] });
+      const m = L.marker(pt, { icon, draggable: true, zIndexOffset: 1000 }).addTo(map);
+      m.on('drag', (e) => {
+        EDIT.points[idx] = e.target.getLatLng();
+        // Update polygon in-place without full rebuild for smoothness
+        EDIT.polygon.setLatLngs(EDIT.points);
+        EDIT._rebuildMidpoints();
+      });
+      m.on('dragstart', () => map.dragging.disable());
+      m.on('dragend', () => map.dragging.enable());
+      // Tap/click to delete vertex (need ≥4 pts to delete)
+      m.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        if (EDIT.points.length <= 3) { showToast('A polygon needs at least 3 vertices.'); return; }
+        EDIT.points.splice(idx, 1);
+        EDIT._rebuild();
+      });
+      EDIT.vertexMarkers.push(m);
+    });
+
+    EDIT._rebuildMidpoints();
+  },
+
+  /** Midpoint handles — tap to insert new vertex between two points */
+  _rebuildMidpoints() {
+    EDIT.midMarkers.forEach(m => map.removeLayer(m)); EDIT.midMarkers = [];
+    const pts = EDIT.points;
+    pts.forEach((pt, idx) => {
+      const next = pts[(idx + 1) % pts.length];
+      const mid = L.latLng((pt.lat + next.lat) / 2, (pt.lng + next.lng) / 2);
+      const icon = L.divIcon({ className: '', html: '<div class="midpoint-handle"></div>', iconSize: [9,9], iconAnchor: [4.5,4.5] });
+      const m = L.marker(mid, { icon, zIndexOffset: 800 }).addTo(map);
+      m.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        EDIT.points.splice(idx + 1, 0, mid);
+        EDIT._rebuild();
+      });
+      // Make midpoints draggable too (drag = insert + drag)
+      m.on('mousedown', () => {
+        EDIT.points.splice(idx + 1, 0, mid);
+        EDIT._rebuild();
+        // The newly added vertex marker is now at idx+1 — enable its drag
+        const newM = EDIT.vertexMarkers[idx + 1];
+        if (newM) newM.dragging.enable();
+      });
+      EDIT.midMarkers.push(m);
+    });
+  }
+};
+
+// Legacy wrappers for event listener compatibility
+function startDrawMode() { DRAW.start(); }
+function stopDrawMode() { DRAW.cancel(); }
 
 // ── NDVI TOGGLE ──
 function toggleNDVI() {
@@ -1454,6 +1903,7 @@ function toggleNDVI() {
   if (ndviVisible) { map.addLayer(ndviTileLayer); btn.classList.add('on'); btn.setAttribute('aria-checked', 'true'); }
   else { map.removeLayer(ndviTileLayer); btn.classList.remove('on'); btn.setAttribute('aria-checked', 'false'); }
 }
+
 
 // ── AREA/DISTANCE HELPERS ──
 /**
