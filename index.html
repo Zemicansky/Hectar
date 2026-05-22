@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Hectar 1.1 — Field Monitoring</title>
-<meta name="description" content="Agricultural field monitoring tool v1.1">
+<title>Hectar 1.2 — Field Monitoring</title>
+<meta name="description" content="Agricultural field monitoring tool v1.2">
 <meta name="theme-color" content="#1a2e1a">
 
 <!-- Leaflet.js -->
@@ -533,6 +533,56 @@ input, select, textarea { font-family: var(--font); outline: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ═══════════════════════════════════════
+   ISSUE 3 — STATS BAR + FIELD SEARCH + EXPORT
+═══════════════════════════════════════ */
+#fields-stats-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(135deg, var(--green-dark), var(--green));
+  border-radius: var(--radius-sm); padding: 10px 14px;
+  margin-bottom: 10px; gap: 8px;
+}
+.stat-item { display: flex; flex-direction: column; align-items: center; }
+.stat-val { font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -0.5px; line-height: 1.2; }
+.stat-lbl { font-size: 10px; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 1px; }
+.stat-divider { width: 1px; height: 32px; background: rgba(255,255,255,0.2); }
+.stat-export-btn {
+  font-size: 11px; font-weight: 700; color: #fff; background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.3); border-radius: 7px; padding: 6px 10px;
+  cursor: pointer; font-family: var(--font); transition: background var(--transition);
+  white-space: nowrap;
+}
+.stat-export-btn:hover, .stat-export-btn:active { background: rgba(255,255,255,0.3); }
+
+#field-search-wrap {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface-2); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 0 12px; height: 40px; margin-bottom: 10px;
+  transition: border-color var(--transition);
+}
+#field-search-wrap:focus-within { border-color: var(--green); }
+.field-search-icon { font-size: 14px; color: var(--text-3); flex-shrink: 0; }
+#field-search-input {
+  flex: 1; border: none; background: transparent; font-size: 13px;
+  font-family: var(--font); color: var(--text); min-width: 0;
+}
+#field-search-input::placeholder { color: var(--text-3); }
+
+/* ═══════════════════════════════════════
+   ISSUE 4 — LOCATE LOADING
+═══════════════════════════════════════ */
+#locate-loading {
+  display: none; position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.78); color: #fff; font-size: 13px; font-weight: 600;
+  padding: 10px 18px; border-radius: 24px; z-index: 9999;
+  gap: 8px; align-items: center; backdrop-filter: blur(4px);
+  white-space: nowrap; box-shadow: var(--shadow);
+}
+#locate-loading.visible { display: flex; }
+#locate-btn.locating { animation: pulse-green 1.2s ease infinite; }
+@keyframes pulse-green { 0%,100% { box-shadow: 0 0 0 0 rgba(76,175,80,0.5); } 50% { box-shadow: 0 0 0 8px rgba(76,175,80,0); } }
+
 </style>
 </head>
 <body>
@@ -544,7 +594,7 @@ input, select, textarea { font-family: var(--font); outline: none; }
       <div class="panel-logo">
         <div class="panel-logo-icon">🌾</div>
         <span class="panel-logo-text">Hectar</span>
-        <span class="panel-logo-version">v1.1</span>
+        <span class="panel-logo-version">v1.2</span>
       </div>
       <div class="panel-user-row">
         <div class="panel-user-info">
@@ -562,6 +612,27 @@ input, select, textarea { font-family: var(--font); outline: none; }
     <div class="panel-body">
       <!-- Fields List -->
       <div id="fields-list-view">
+        <!-- Stats Bar (Issue 3) -->
+        <div id="fields-stats-bar">
+          <div class="stat-item">
+            <div class="stat-val" id="stat-count">0</div>
+            <div class="stat-lbl">Fields</div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <div class="stat-val" id="stat-area">0 ha</div>
+            <div class="stat-lbl">Total Area</div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <button class="stat-export-btn" id="export-btn" title="Export GeoJSON / CSV">&#11015; Export</button>
+          </div>
+        </div>
+        <!-- Field name search (Issue 3) -->
+        <div id="field-search-wrap">
+          <span class="field-search-icon">&#128269;</span>
+          <input type="search" id="field-search-input" placeholder="Search fields..." autocomplete="off" aria-label="Search fields by name">
+        </div>
         <div class="section-header">
           <span class="section-title" data-i18n="fields">Fields</span>
           <button class="btn-add" id="add-field-btn" aria-label="Add field">
@@ -642,7 +713,7 @@ input, select, textarea { font-family: var(--font); outline: none; }
 
     <!-- Footer with version -->
     <div class="panel-footer">
-      Hectar v1.1 &nbsp;·&nbsp; <a href="#" id="changelog-link">Changelog</a>
+      Hectar v1.2 &nbsp;&middot;&nbsp; <a href="#" id="changelog-link">Changelog</a>
     </div>
   </aside>
 
@@ -705,6 +776,42 @@ input, select, textarea { font-family: var(--font); outline: none; }
 
 <!-- Toast container -->
 <div id="toast-container" aria-live="polite"></div>
+
+<!-- Custom Confirm Modal (Issue 1) -->
+<div class="modal-overlay" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div class="modal" style="max-width:340px">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:36px;margin-bottom:8px" id="confirm-icon">🗑️</div>
+      <div class="modal-title" id="confirm-title">Delete Field?</div>
+      <div style="font-size:13px;color:var(--text-2);margin-top:6px" id="confirm-msg">This action cannot be undone.</div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-secondary" id="confirm-cancel-btn" style="flex:1">Cancel</button>
+      <button class="btn btn-danger" id="confirm-ok-btn" style="flex:1">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal (Issue 3) -->
+<div class="modal-overlay" id="export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <div class="modal-title" id="export-title">Export Fields</div>
+      <button class="modal-close" id="export-modal-close" aria-label="Close">&#10005;</button>
+    </div>
+    <p style="font-size:13px;color:var(--text-2);margin-bottom:16px">Download all your field data in your preferred format.</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-primary" id="export-geojson-btn">&#127758; Export as GeoJSON</button>
+      <button class="btn btn-secondary" id="export-csv-btn">&#128202; Export as CSV</button>
+    </div>
+  </div>
+</div>
+
+<!-- Geolocation loading overlay (Issue 4) -->
+<div id="locate-loading" role="status" aria-live="polite">
+  <span class="spinner" style="border-color:rgba(255,255,255,0.3);border-top-color:#fff;width:18px;height:18px;border-width:2px;display:inline-block"></span>
+  <span>Finding location...</span>
+</div>
 
 <!-- ═══ MODALS ═══ -->
 
@@ -1466,10 +1573,13 @@ function startMeasureMode() {
   // Map cursor
   map.getContainer().style.cursor = 'crosshair';
 
-  // Listen for clicks (desktop) and touches (mobile)
+  // Desktop: Leaflet click event
   map.on('click', onMeasureClick);
-  // touchstart with L.DomEvent to prevent default pan behavior
-  L.DomEvent.addListener(map.getContainer(), 'touchend', onMeasureTouchEnd, false);
+
+  // Mobile: Use non-passive touchend so we can preventDefault to block ghost clicks
+  // but ONLY for single-finger taps (not pinch-zoom)
+  map.getContainer().addEventListener('touchstart', _onMeasureTouchStart, { passive: true });
+  map.getContainer().addEventListener('touchend', onMeasureTouchEnd, { passive: false, capture: false });
 }
 
 function stopMeasureMode() {
@@ -1478,7 +1588,8 @@ function stopMeasureMode() {
   document.getElementById('measure-side-btn').classList.remove('active');
   document.getElementById('measure-toolbar').classList.remove('visible');
   map.off('click', onMeasureClick);
-  L.DomEvent.removeListener(map.getContainer(), 'touchend', onMeasureTouchEnd);
+  map.getContainer().removeEventListener('touchstart', _onMeasureTouchStart);
+  map.getContainer().removeEventListener('touchend', onMeasureTouchEnd);
   map.getContainer().style.cursor = '';
 }
 
@@ -1490,21 +1601,51 @@ function onMeasureClick(e) {
 }
 
 /**
- * Handle mobile touchend for measurement
+ * Handle mobile touchend for measurement (Issue 2 fix)
+ * - Allows two-finger pinch-zoom (doesn't preventDefault for multi-touch)
+ * - Places point on single tap
+ * - Ignores toolbar button taps
  */
+let _measureTouchStartTime = 0;
+let _measureTouchStartPos = null;
+
+// Track touchstart to detect actual taps vs pans
+function _onMeasureTouchStart(e) {
+  if (e.touches.length === 1) {
+    _measureTouchStartTime = Date.now();
+    _measureTouchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  } else {
+    // Multi-touch: reset to avoid ghost point after pinch
+    _measureTouchStartPos = null;
+  }
+}
+
 function onMeasureTouchEnd(e) {
   if (!measureMode) return;
-  // Ignore multi-touch (pinch zoom)
-  if (e.changedTouches.length !== 1) return;
-  // Check that it wasn't a toolbar button tap (let button click events handle those)
+  // Allow multi-touch through (pinch-zoom) — do NOT preventDefault
+  if (e.changedTouches.length !== 1 || e.touches.length > 0) return;
+
+  // Check toolbar buttons
   const target = e.target || e.srcElement;
   if (target.closest && target.closest('#measure-toolbar')) return;
-  // Convert touch to latlng
+  if (target.closest && target.closest('.leaflet-control')) return;
+
+  // Detect tap vs pan: must be < 250ms and < 15px movement
+  const now = Date.now();
+  const dt = now - _measureTouchStartTime;
   const touch = e.changedTouches[0];
+  const dx = _measureTouchStartPos ? Math.abs(touch.clientX - _measureTouchStartPos.x) : 999;
+  const dy = _measureTouchStartPos ? Math.abs(touch.clientY - _measureTouchStartPos.y) : 999;
+
+  if (dt > 600 || dx > 15 || dy > 15) return; // was a pan or long-press, not a tap
+
+  // Convert touch position to map latlng
   const mapRect = map.getContainer().getBoundingClientRect();
   const point = L.point(touch.clientX - mapRect.left, touch.clientY - mapRect.top);
   const latlng = map.containerPointToLatLng(point);
   addMeasurePoint(latlng);
+
+  // Prevent ghost click firing Leaflet's click handler too
   e.preventDefault();
 }
 
@@ -1622,18 +1763,25 @@ let pendingColor = '#4CAF50';
 // FIELD MANAGEMENT
 // ═══════════════════════════════════════
 async function loadAllFields() {
-  try { allFields = await DataService.getFields(); renderFieldsList(); renderFieldsOnMap(allFields); }
+  try { allFields = await DataService.getFields(); renderFieldsList(); renderFieldsOnMap(allFields); updateStatsBar(); }
   catch (e) { showToast(t('errorNetwork'), 'error'); }
 }
 
 function renderFieldsList() {
   const container = document.getElementById('fields-list');
+  const filtered = fieldSearchQuery
+    ? allFields.filter(f => f.name.toLowerCase().includes(fieldSearchQuery))
+    : allFields;
   if (!allFields.length) {
     container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🗺️</div><div class="empty-state-text">${t('noFields')}</div></div>`;
     return;
   }
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-text">No fields match "${escapeHtml(fieldSearchQuery)}"</div></div>`;
+    return;
+  }
   container.innerHTML = '';
-  allFields.forEach(field => {
+  filtered.forEach(field => {
     const area = calcAreaHa(field.geometry);
     const card = document.createElement('div');
     card.className = 'field-card' + (field.id === selectedFieldId ? ' active' : '');
@@ -1683,16 +1831,50 @@ function renderFieldDetail(id) {
 }
 
 async function confirmDeleteField(id) {
-  if (!confirm(t('confirmDelete'))) return;
-  await DataService.deleteField(id);
-  if (selectedFieldId === id) {
-    selectedFieldId = null;
-    document.getElementById('fields-list-view').style.display = '';
-    document.getElementById('field-detail').classList.remove('visible');
-  }
-  allFields = allFields.filter(f => f.id !== id);
-  renderFieldsList(); renderFieldsOnMap(allFields);
-  showToast(t('fieldDeleted'));
+  // Issue 1 Fix: Custom modal confirmation instead of native confirm()
+  const field = allFields.find(f => f.id === id);
+  if (!field) return;
+  showConfirmModal(
+    'Delete Field?',
+    `"${escapeHtml(field.name)}" will be permanently removed. This cannot be undone.`,
+    '🗑️',
+    async () => {
+      // Issue 1 Fix: Immediately remove polygon from map before async storage call
+      if (fieldPolygons[id]) {
+        fieldsLayer.removeLayer(fieldPolygons[id]);
+        delete fieldPolygons[id];
+      }
+      await DataService.deleteField(id);
+      if (selectedFieldId === id) {
+        selectedFieldId = null;
+        document.getElementById('fields-list-view').style.display = '';
+        document.getElementById('field-detail').classList.remove('visible');
+      }
+      allFields = allFields.filter(f => f.id !== id);
+      renderFieldsList();
+      updateStatsBar();
+      // Re-render to stay consistent (no re-add of deleted field)
+      renderFieldsOnMap(allFields);
+      showToast(t('fieldDeleted'));
+    }
+  );
+}
+
+// Custom confirm modal (Issue 1)
+function showConfirmModal(title, msg, icon, onConfirm) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent = msg;
+  document.getElementById('confirm-icon').textContent = icon || '❓';
+  showModal('confirm-modal');
+  const okBtn = document.getElementById('confirm-ok-btn');
+  const cancelBtn = document.getElementById('confirm-cancel-btn');
+  // Clone to remove old listeners
+  const newOk = okBtn.cloneNode(true);
+  const newCancel = cancelBtn.cloneNode(true);
+  okBtn.parentNode.replaceChild(newOk, okBtn);
+  cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
+  newOk.addEventListener('click', () => { closeModal('confirm-modal'); onConfirm(); });
+  newCancel.addEventListener('click', () => closeModal('confirm-modal'));
 }
 
 // ─── FIELD MODAL ───
@@ -1718,10 +1900,66 @@ async function saveField() {
     allFields.push(saved);
     pendingGeometry = null; drawLayer.clearLayers();
     closeModal('field-modal'); renderFieldsList(); renderFieldsOnMap(allFields);
+    updateStatsBar();
     showToast(t('fieldSaved'), 'success');
     selectField(saved.id);
   } catch (e) { showToast(t('errorNetwork'), 'error'); }
   btn.innerHTML = t('save'); btn.disabled = false;
+}
+
+// ═══════════════════════════════════════
+// ISSUE 3 — STATS BAR + FIELD SEARCH + EXPORT
+// ═══════════════════════════════════════
+function updateStatsBar() {
+  const count = allFields.length;
+  const totalHa = allFields.reduce((sum, f) => sum + (calcAreaHa(f.geometry) || 0), 0);
+  document.getElementById('stat-count').textContent = count;
+  document.getElementById('stat-area').textContent = totalHa.toFixed(1) + ' ha';
+}
+
+let fieldSearchQuery = '';
+
+function setupFieldSearch() {
+  const input = document.getElementById('field-search-input');
+  input.addEventListener('input', () => {
+    fieldSearchQuery = input.value.trim().toLowerCase();
+    renderFieldsList();
+  });
+}
+
+function exportFields(format) {
+  if (!allFields.length) { showToast('No fields to export.', 'error'); return; }
+  let content, filename, mime;
+  if (format === 'geojson') {
+    const fc = {
+      type: 'FeatureCollection',
+      features: allFields.map(f => ({
+        type: 'Feature',
+        properties: { id: f.id, name: f.name, crop: f.crop || '', area_ha: calcAreaHa(f.geometry), color: f.color || '' },
+        geometry: f.geometry
+      }))
+    };
+    content = JSON.stringify(fc, null, 2);
+    filename = 'hectar_fields.geojson';
+    mime = 'application/geo+json';
+  } else {
+    const rows = [['id','name','crop','area_ha','color','centroid_lat','centroid_lng']];
+    allFields.forEach(f => {
+      const c = getCentroid(f.geometry);
+      rows.push([f.id, f.name, f.crop || '', calcAreaHa(f.geometry), f.color || '', c[0].toFixed(6), c[1].toFixed(6)]);
+    });
+    content = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    filename = 'hectar_fields.csv';
+    mime = 'text/csv';
+  }
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  closeModal('export-modal');
+  showToast(`Exported ${allFields.length} fields as ${format.toUpperCase()}`, 'success');
 }
 
 // ─── SEASONS ───
@@ -2095,11 +2333,86 @@ async function handleAuthSubmit() {
   }
 }
 
+// ═══════════════════════════════════════
+// ISSUE 4 — MY LOCATION (FIXED)
+// ═══════════════════════════════════════
+let locateMarker = null;
+let locateCircle = null;
+
+function locateMe() {
+  // Must be HTTPS or localhost for geolocation to work on mobile
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    showToast('Geolocation requires HTTPS. Please serve this page over HTTPS.', 'error');
+    return;
+  }
+  if (!navigator.geolocation) {
+    showToast('Geolocation is not supported by your browser.', 'error');
+    return;
+  }
+  // Show loading state
+  const btn = document.getElementById('locate-btn');
+  const loading = document.getElementById('locate-loading');
+  btn.classList.add('locating');
+  loading.classList.add('visible');
+
+  // Use high accuracy, short timeout — required for mobile Chrome/Safari
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      btn.classList.remove('locating');
+      loading.classList.remove('visible');
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const acc = pos.coords.accuracy; // metres
+
+      // Remove old markers
+      if (locateMarker) { map.removeLayer(locateMarker); locateMarker = null; }
+      if (locateCircle) { map.removeLayer(locateCircle); locateCircle = null; }
+
+      // Accuracy circle
+      if (acc < 5000) {
+        locateCircle = L.circle([lat, lng], {
+          radius: acc,
+          color: '#2980b9', fillColor: '#2980b9', fillOpacity: 0.08, weight: 1.5
+        }).addTo(map);
+      }
+
+      // Location marker
+      locateMarker = L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: '',
+          html: '<div style="width:20px;height:20px;border-radius:50%;background:#2980b9;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.35)"></div>',
+          iconSize: [20, 20], iconAnchor: [10, 10]
+        })
+      }).addTo(map);
+      locateMarker.bindPopup(`<b>You are here</b><br>Accuracy: ~${Math.round(acc)} m`).openPopup();
+
+      // Fly to location — zoom 16 on mobile, 17 on desktop
+      const zoom = window.innerWidth < 768 ? 16 : 17;
+      map.flyTo([lat, lng], zoom, { duration: 1.5 });
+    },
+    (err) => {
+      btn.classList.remove('locating');
+      loading.classList.remove('visible');
+      const msgs = {
+        1: 'Location access was denied. Please allow location in browser settings.',
+        2: 'Location unavailable. Check your GPS/network signal.',
+        3: 'Location request timed out. Try again.'
+      };
+      showToast(msgs[err.code] || 'Could not get your location.', 'error');
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 12000,       // 12 s — generous for cold GPS on mobile
+      maximumAge: 30000     // accept cached position up to 30 s old
+    }
+  );
+}
+
 async function logout() {
   if (firebaseConfigured && auth && !isGuest) { try { await auth.signOut(); } catch {} }
   isGuest = false; currentUser = null;
   fieldsLayer && fieldsLayer.clearLayers();
-  allFields = []; renderFieldsList();
+  allFields = []; renderFieldsList(); updateStatsBar();
   showModal('auth-modal'); showToast(t('loggedOut'));
 }
 
@@ -2273,14 +2586,7 @@ function setupEventListeners() {
   document.getElementById('measure-btn').addEventListener('click', startMeasureMode);
   document.getElementById('measure-side-btn').addEventListener('click', startMeasureMode);
 
-  document.getElementById('locate-btn').addEventListener('click', () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        pos => map.flyTo([pos.coords.latitude, pos.coords.longitude], 14, { duration: 1.5 }),
-        () => showToast('Location access denied.', 'error')
-      );
-    }
-  });
+  document.getElementById('locate-btn').addEventListener('click', locateMe);
 
   // Layer toggles
   document.getElementById('layer-normal-btn').addEventListener('click', setMapNormal);
@@ -2290,13 +2596,6 @@ function setupEventListeners() {
   document.getElementById('measure-undo-btn').addEventListener('click', undoMeasurePoint);
   document.getElementById('measure-finish-btn').addEventListener('click', finishMeasure);
   document.getElementById('measure-clear-btn').addEventListener('click', clearMeasure);
-
-  // Touch events on measurement buttons (touchstart to prevent ghost clicks)
-  ['measure-undo-btn','measure-finish-btn','measure-clear-btn'].forEach(id => {
-    document.getElementById(id).addEventListener('touchend', (e) => {
-      e.stopPropagation();
-    }, { passive: true });
-  });
 
   // Auth
   document.getElementById('auth-submit-btn').addEventListener('click', handleAuthSubmit);
@@ -2392,6 +2691,17 @@ function setupEventListeners() {
     });
   });
 
+  // Confirm modal close on overlay click (cancel)
+  document.getElementById('confirm-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('confirm-modal')) closeModal('confirm-modal');
+  });
+
+  // Export modal
+  document.getElementById('export-btn').addEventListener('click', () => showModal('export-modal'));
+  document.getElementById('export-modal-close').addEventListener('click', () => closeModal('export-modal'));
+  document.getElementById('export-geojson-btn').addEventListener('click', () => exportFields('geojson'));
+  document.getElementById('export-csv-btn').addEventListener('click', () => exportFields('csv'));
+
   // ESC key
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
@@ -2471,6 +2781,7 @@ async function init() {
   await loadLeafletDraw();
   initMap();
   setupSearch();
+  setupFieldSearch();
   setupEventListeners();
 
   if (firebaseConfigured) {
