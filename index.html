@@ -1327,8 +1327,6 @@ let ndviVisible = false;
 let isDrawing = false;
 let pendingGeometry = null;
 let fieldPolygons = {};
-let drawControl;
-
 /**
  * Initialize Leaflet map with optimized tile loading
  */
@@ -1392,7 +1390,6 @@ function initMap() {
   drawLayer = new L.FeatureGroup();
   map.addLayer(drawLayer);
 
-  setupDrawControl();
   loadBorders();
 }
 
