@@ -478,6 +478,118 @@ input, select, textarea {
 .ndvi-info { font-size: 12px; color: var(--text-2); line-height: 1.5; }
 
 /* ═══════════════════════════════════════
+   GEOCODER SEARCH BAR
+═══════════════════════════════════════ */
+#search-bar {
+  position: fixed;
+  top: 16px;
+  /* on mobile: centered with margins; on desktop: left of right controls */
+  left: 72px;
+  right: 72px;
+  z-index: 410;
+  max-width: 380px;
+}
+
+@media (min-width: 1024px) {
+  #search-bar {
+    left: calc(var(--panel-width) + 16px);
+    right: auto;
+    width: 340px;
+    max-width: 340px;
+  }
+}
+
+#search-input-row {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 0 12px;
+  height: 48px;
+  box-shadow: var(--shadow);
+  gap: 8px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+#search-input-row:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(76,175,80,0.12), var(--shadow);
+}
+
+#search-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  color: var(--text-3);
+  pointer-events: none;
+}
+
+#search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-family: var(--font);
+  color: var(--text);
+  min-width: 0;
+}
+#search-input::placeholder { color: var(--text-3); }
+#search-input::-webkit-search-decoration,
+#search-input::-webkit-search-cancel-button { display: none; }
+
+#search-clear {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--text-3);
+  font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--transition);
+}
+#search-clear:hover { background: var(--border); }
+
+#search-suggestions {
+  list-style: none;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  margin-top: 6px;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  display: none;
+}
+#search-suggestions.open { display: block; }
+
+#search-suggestions li {
+  padding: 11px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+  border-bottom: 1px solid var(--surface-2);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  transition: background var(--transition);
+  line-height: 1.3;
+}
+#search-suggestions li:last-child { border-bottom: none; }
+#search-suggestions li:hover,
+#search-suggestions li[aria-selected="true"] { background: var(--green-pale); }
+#search-suggestions li .sugg-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+#search-suggestions li .sugg-text { flex: 1; min-width: 0; }
+#search-suggestions li .sugg-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#search-suggestions li .sugg-type { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+
+#search-loading {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ═══════════════════════════════════════
    MAP CONTROLS (floating buttons)
 ═══════════════════════════════════════ */
 #map-controls {
@@ -1083,6 +1195,25 @@ input, select, textarea {
 <!-- Panel overlay (mobile) -->
 <div id="panel-overlay" role="button" aria-label="Close panel" tabindex="0"></div>
 
+<!-- Search bar (geocoder) -->
+<div id="search-bar" role="search" aria-label="Location search">
+  <div id="search-input-row">
+    <span id="search-icon" aria-hidden="true">🔍</span>
+    <input
+      type="search"
+      id="search-input"
+      placeholder="Search city, country, farm…"
+      autocomplete="off"
+      aria-label="Search location"
+      aria-autocomplete="list"
+      aria-controls="search-suggestions"
+      aria-expanded="false"
+    >
+    <button id="search-clear" aria-label="Clear search" style="display:none">✕</button>
+  </div>
+  <ul id="search-suggestions" role="listbox" aria-label="Suggestions"></ul>
+</div>
+
 <!-- Map Controls -->
 <div id="map-controls" role="group" aria-label="Map controls">
   <button class="map-ctrl-btn" id="draw-btn" aria-label="Draw field polygon" title="Draw field">✏️</button>
@@ -1380,6 +1511,9 @@ const translations = {
     signedIn: 'Signed in!',
     registered: 'Account created!',
     fieldNameRequired: 'Please enter a field name.',
+    searchPlaceholder: 'Search city, country, farm…',
+    searchNoResults: 'No results found',
+    searchError: 'Search unavailable. Check connection.',
   },
   ru: {
     appName: 'Hectar',
@@ -1452,6 +1586,9 @@ const translations = {
     signedIn: 'Вход выполнен!',
     registered: 'Аккаунт создан!',
     fieldNameRequired: 'Введите название поля.',
+    searchPlaceholder: 'Поиск города, страны, фермы…',
+    searchNoResults: 'Ничего не найдено',
+    searchError: 'Поиск недоступен. Проверьте соединение.',
   }
 };
 
@@ -1697,22 +1834,53 @@ function initMap() {
     center,
     zoom,
     zoomControl: false,
-    attributionControl: true
+    attributionControl: true,
+    maxZoom: 19   // hard cap — prevents "data not available" errors
   });
 
-  // OpenStreetMap base layer
-  const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
-    maxZoom: 19
-  });
+  // CartoDB Voyager: full labels, country borders, city/village names, roads
+  const cartoVoyager = L.tileLayer(
+    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    {
+      attribution: '© <a href="https://openstreetmap.org">OSM</a> contributors, © <a href="https://carto.com">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19,
+      maxNativeZoom: 19
+    }
+  );
 
-  // Satellite layer via Esri
-  satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: '© Esri, Maxar, GeoEye',
-    maxZoom: 18
-  });
+  // Satellite base (Esri) — shown when user toggles satellite mode
+  satelliteLayer = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {
+      attribution: '© Esri, Maxar, GeoEye',
+      maxZoom: 19,
+      maxNativeZoom: 18   // Esri tiles go to z18; beyond that the last level is scaled
+    }
+  );
 
-  satelliteLayer.addTo(map);
+  // Labels-only overlay for satellite mode (borders + place names on top of imagery)
+  const cartoLabels = L.tileLayer(
+    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png',
+    {
+      attribution: '',
+      subdomains: 'abcd',
+      maxZoom: 19,
+      maxNativeZoom: 19,
+      pane: 'shadowPane'
+    }
+  );
+
+  // Default view: CartoDB Voyager (borders + labels visible immediately)
+  cartoVoyager.addTo(map);
+
+  // Suppress tile-load errors silently — no console noise, no UI flash
+  map.on('tileerror', function() { /* swallow */ });
+
+  // Store references for satellite toggle logic
+  map._cartoVoyager  = cartoVoyager;
+  map._cartoLabels   = cartoLabels;
+  map._satelliteMode = false;
 
   // NDVI layer (NASA GIBS)
   ndviTileLayer = L.tileLayer(APP_CONFIG.ndviTileUrl, {
@@ -1794,20 +1962,37 @@ function stopDrawMode() {
 }
 
 /**
+ * Toggle satellite imagery base layer (with labels on top) vs CartoDB Voyager
+ */
+function toggleSatellite() {
+  const btn = document.getElementById('ndvi-btn');
+  if (!map._satelliteMode) {
+    map._cartoVoyager.remove();
+    satelliteLayer.addTo(map);
+    map._cartoLabels.addTo(map);
+    map._satelliteMode = true;
+    btn.classList.add('active');
+  } else {
+    satelliteLayer.remove();
+    map._cartoLabels.remove();
+    map._cartoVoyager.addTo(map);
+    map._satelliteMode = false;
+    btn.classList.remove('active');
+  }
+}
+
+/**
  * Toggle NDVI satellite layer
  */
 function toggleNDVI() {
   ndviVisible = !ndviVisible;
-  const btn = document.getElementById('ndvi-btn');
   const panelToggle = document.getElementById('ndvi-toggle-btn');
   if (ndviVisible) {
     map.addLayer(ndviTileLayer);
-    btn.classList.add('active');
     panelToggle.classList.add('on');
     panelToggle.setAttribute('aria-checked', 'true');
   } else {
     map.removeLayer(ndviTileLayer);
-    btn.classList.remove('active');
     panelToggle.classList.remove('on');
     panelToggle.setAttribute('aria-checked', 'false');
   }
@@ -2406,6 +2591,243 @@ function escapeHtml(str) {
 }
 
 // ═══════════════════════════════════════
+// GEOCODER / SEARCH SERVICE
+// ═══════════════════════════════════════
+let searchMarker = null;
+let searchDebounceTimer = null;
+let searchSuggestions = [];
+let activeSuggestionIdx = -1;
+
+/**
+ * Fetch suggestions from Nominatim
+ * @param {string} query
+ */
+async function fetchSuggestions(query) {
+  if (!query || query.length < 2) { hideSuggestions(); return; }
+  const list = document.getElementById('search-suggestions');
+  list.innerHTML = `<li id="search-loading"><span class="spinner" style="border-color:rgba(0,0,0,0.15);border-top-color:var(--green);width:14px;height:14px;border-width:2px"></span> Searching…</li>`;
+  list.classList.add('open');
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=6&addressdetails=1`;
+    const res = await fetch(url, {
+      headers: { 'Accept-Language': currentLang === 'ru' ? 'ru,en' : 'en' }
+    });
+    const data = await res.json();
+    searchSuggestions = data;
+    renderSuggestions(data);
+  } catch {
+    list.innerHTML = '';
+    list.classList.remove('open');
+  }
+}
+
+/**
+ * Map Nominatim type to emoji icon
+ * @param {Object} result
+ * @returns {string}
+ */
+function placeIcon(result) {
+  const cls = result.class || '';
+  const type = result.type || '';
+  if (cls === 'boundary' || type === 'administrative') return '🗺️';
+  if (cls === 'place') {
+    if (['city','town'].includes(type)) return '🏙️';
+    if (['village','hamlet'].includes(type)) return '🏘️';
+    if (['farm','farmyard'].includes(type)) return '🌾';
+    return '📍';
+  }
+  if (cls === 'landuse') return '🌿';
+  if (cls === 'natural') return '🌲';
+  if (cls === 'amenity') return '🏢';
+  return '📍';
+}
+
+/**
+ * Render suggestion list
+ * @param {Array} results
+ */
+function renderSuggestions(results) {
+  const list = document.getElementById('search-suggestions');
+  activeSuggestionIdx = -1;
+  if (!results.length) {
+    list.innerHTML = `<li style="color:var(--text-3);padding:12px 14px;font-size:13px;">No results found</li>`;
+    list.classList.add('open');
+    return;
+  }
+  list.innerHTML = '';
+  results.forEach((r, i) => {
+    const li = document.createElement('li');
+    li.setAttribute('role', 'option');
+    li.setAttribute('aria-selected', 'false');
+    li.setAttribute('id', `sugg-${i}`);
+    const displayName = r.display_name || '';
+    const parts = displayName.split(',');
+    const name = parts[0].trim();
+    const rest = parts.slice(1, 3).join(',').trim();
+    li.innerHTML = `
+      <span class="sugg-icon">${placeIcon(r)}</span>
+      <span class="sugg-text">
+        <div class="sugg-name">${escapeHtml(name)}</div>
+        ${rest ? `<div class="sugg-type">${escapeHtml(rest)}</div>` : ''}
+      </span>`;
+    li.addEventListener('mousedown', (e) => {
+      e.preventDefault(); // prevent input blur before click registers
+      flyToResult(r);
+    });
+    list.appendChild(li);
+  });
+  list.classList.add('open');
+  document.getElementById('search-input').setAttribute('aria-expanded', 'true');
+}
+
+/**
+ * Hide suggestion dropdown
+ */
+function hideSuggestions() {
+  const list = document.getElementById('search-suggestions');
+  list.classList.remove('open');
+  list.innerHTML = '';
+  activeSuggestionIdx = -1;
+  document.getElementById('search-input').setAttribute('aria-expanded', 'false');
+}
+
+/**
+ * Fly map to a Nominatim result and place a marker
+ * @param {Object} result
+ */
+function flyToResult(result) {
+  hideSuggestions();
+  document.getElementById('search-input').value = result.display_name.split(',').slice(0, 2).join(',').trim();
+  showClearBtn(true);
+
+  const lat = parseFloat(result.lat);
+  const lon = parseFloat(result.lon);
+
+  // Remove old marker
+  if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+
+  // If bounding box exists, fit to it; otherwise fly to point
+  if (result.boundingbox) {
+    const [s, n, w, e] = result.boundingbox.map(Number);
+    map.flyToBounds([[s, w], [n, e]], { duration: 1.2, maxZoom: 16 });
+  } else {
+    map.flyTo([lat, lon], 14, { duration: 1.2 });
+  }
+
+  // Custom search marker
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:32px;height:32px;border-radius:50% 50% 50% 0;
+      background:var(--green);border:3px solid white;
+      box-shadow:0 2px 8px rgba(0,0,0,0.3);
+      transform:rotate(-45deg);
+      display:flex;align-items:center;justify-content:center;
+    "></div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -36]
+  });
+
+  searchMarker = L.marker([lat, lon], { icon })
+    .addTo(map)
+    .bindPopup(
+      `<strong>${escapeHtml(result.display_name.split(',')[0])}</strong><br>
+       <span style="font-size:11px;color:#666">${escapeHtml(result.display_name.split(',').slice(1, 3).join(', '))}</span>
+       <br><a href="#" onclick="clearSearchMarker();return false;" style="font-size:11px;color:#c0392b">✕ Remove</a>`,
+      { maxWidth: 220 }
+    )
+    .openPopup();
+}
+
+/**
+ * Show or hide the clear button
+ * @param {boolean} show
+ */
+function showClearBtn(show) {
+  document.getElementById('search-clear').style.display = show ? 'flex' : 'none';
+}
+
+/**
+ * Clear search marker from map
+ */
+function clearSearchMarker() {
+  if (searchMarker) { map.closePopup(); map.removeLayer(searchMarker); searchMarker = null; }
+}
+
+/**
+ * Set up all search bar event listeners
+ */
+function setupSearch() {
+  const input = document.getElementById('search-input');
+  const clearBtn = document.getElementById('search-clear');
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    showClearBtn(q.length > 0);
+    clearTimeout(searchDebounceTimer);
+    if (!q) { hideSuggestions(); return; }
+    searchDebounceTimer = setTimeout(() => fetchSuggestions(q), 320);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const list = document.getElementById('search-suggestions');
+    const items = list.querySelectorAll('li[role="option"]');
+    if (!items.length) {
+      if (e.key === 'Enter') { fetchSuggestions(input.value.trim()); }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeSuggestionIdx = Math.min(activeSuggestionIdx + 1, items.length - 1);
+      updateActiveSuggestion(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeSuggestionIdx = Math.max(activeSuggestionIdx - 1, 0);
+      updateActiveSuggestion(items);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeSuggestionIdx >= 0 && searchSuggestions[activeSuggestionIdx]) {
+        flyToResult(searchSuggestions[activeSuggestionIdx]);
+      } else if (searchSuggestions.length) {
+        flyToResult(searchSuggestions[0]);
+      } else {
+        fetchSuggestions(input.value.trim());
+      }
+    } else if (e.key === 'Escape') {
+      hideSuggestions();
+      input.blur();
+    }
+  });
+
+  input.addEventListener('blur', () => {
+    // Delay so mousedown on suggestion fires first
+    setTimeout(hideSuggestions, 200);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    input.value = '';
+    showClearBtn(false);
+    hideSuggestions();
+    clearSearchMarker();
+    input.focus();
+  });
+}
+
+/**
+ * Update keyboard-selected suggestion
+ * @param {NodeList} items
+ */
+function updateActiveSuggestion(items) {
+  items.forEach((li, i) => {
+    const active = i === activeSuggestionIdx;
+    li.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  if (activeSuggestionIdx >= 0) items[activeSuggestionIdx].scrollIntoView({ block: 'nearest' });
+}
+
+// ═══════════════════════════════════════
 // EVENT LISTENERS SETUP
 // ═══════════════════════════════════════
 function setupEventListeners() {
@@ -2426,7 +2848,7 @@ function setupEventListeners() {
     startDrawMode();
   });
 
-  document.getElementById('ndvi-btn').addEventListener('click', toggleNDVI);
+  document.getElementById('ndvi-btn').addEventListener('click', toggleSatellite);
 
   document.getElementById('locate-btn').addEventListener('click', () => {
     if (navigator.geolocation) {
@@ -2578,6 +3000,7 @@ function setupEventListeners() {
 async function init() {
   applyI18n();
   initMap();
+  setupSearch();
   setupEventListeners();
 
   // Firebase init (if configured)
