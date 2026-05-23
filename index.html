@@ -248,6 +248,7 @@
   }
   .map-control-top > * { pointer-events: all; }
 
+  #screen-map.draw-active .map-control-top,
   #screen-map.draw-active #layer-switcher,
   #screen-map.draw-active #btn-geolocate,
   #screen-map.draw-active #btn-add-field-map {
@@ -360,16 +361,24 @@
   }
   #draw-mode-ui.active { display: block; }
 
-  .draw-top-bar {
+  .draw-top-section {
     position: absolute;
     top: 16px;
     left: 16px;
     right: 16px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 8px;
     pointer-events: all;
     z-index: 2;
+  }
+
+  .draw-top-bar {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
   }
   .draw-close-btn {
     width: 44px; height: 44px;
@@ -388,26 +397,32 @@
     display: flex;
     overflow: hidden;
     border: 1px solid var(--border);
+    min-width: 0;
+    width: 100%;
   }
   .draw-mode-pill button {
-    padding: 10px 20px;
+    flex: 1;
+    min-width: 0;
+    padding: 10px 8px;
     border: none;
     background: transparent;
     color: var(--text2);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    display: flex; align-items: center; gap: 6px;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
     transition: all 0.2s;
+  }
+  .draw-mode-pill button span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .draw-mode-pill button.active { color: #fff; }
   .draw-mode-pill button svg { width: 16px; height: 16px; }
 
   .draw-hint-inner {
-    position: absolute;
-    top: 72px;
-    left: 50%;
-    transform: translateX(-50%);
+    align-self: center;
     background: rgba(15,25,35,0.92);
     backdrop-filter: blur(12px);
     border: 1px solid var(--border);
@@ -416,11 +431,10 @@
     font-size: 13px;
     color: var(--text2);
     white-space: nowrap;
-    max-width: calc(100% - 32px);
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     pointer-events: none;
-    z-index: 1;
     display: none;
   }
   .draw-hint-inner.visible { display: block; }
@@ -1372,25 +1386,24 @@
 
     <!-- Режим рисования -->
     <div id="draw-mode-ui">
-      <div class="draw-top-bar">
-        <button class="draw-close-btn" onclick="cancelDrawMode()">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-        <div class="draw-mode-pill">
-          <button id="draw-select-btn" onclick="setDrawModeSelect()">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path d="M6 2L3 6v14l3 2 6-4 7 4 3-2V6l-3-4H6z"/></svg>
-            <span data-i18n="select">Выбрать</span>
+      <div class="draw-top-section">
+        <div class="draw-top-bar">
+          <button type="button" class="draw-close-btn" onclick="cancelDrawMode()" aria-label="Close">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
-          <button id="draw-draw-btn" class="active" onclick="setDrawModeDraw()">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            <span data-i18n="draw">Нарисовать</span>
-          </button>
+          <div class="draw-mode-pill">
+            <button type="button" id="draw-select-btn" onclick="setDrawModeSelect()">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path d="M6 2L3 6v14l3 2 6-4 7 4 3-2V6l-3-4H6z"/></svg>
+              <span data-i18n="select">Select</span>
+            </button>
+            <button type="button" id="draw-draw-btn" class="active" onclick="setDrawModeDraw()">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              <span data-i18n="draw">Draw</span>
+            </button>
+          </div>
         </div>
-        <div class="map-icon-btn" onclick="openSearchModal()">
-          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        </div>
+        <div id="draw-hint" class="draw-hint-inner visible" data-i18n="drawHint">Tap on map to add points</div>
       </div>
-      <div id="draw-hint" class="draw-hint-inner visible" data-i18n="drawHint">Tap on map to add points</div>
       <div class="draw-toolbar">
         <button type="button" id="btn-cancel-draw" class="draw-toolbar-btn" onclick="cancelDrawMode()" title="">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -1574,14 +1587,7 @@
       <div class="modal-form-group">
         <label class="modal-label" data-i18n="crop">Культура</label>
         <select class="modal-select" id="new-field-crop">
-          <option value="" data-i18n="noCrop">Без культуры</option>
-          <option value="Пшеница">Пшеница / Wheat</option>
-          <option value="Кукуруза">Кукуруза / Corn</option>
-          <option value="Подсолнух">Подсолнух / Sunflower</option>
-          <option value="Ячмень">Ячмень / Barley</option>
-          <option value="Рапс">Рапс / Rapeseed</option>
-          <option value="Соя">Соя / Soybean</option>
-          <option value="Другое">Другое / Other</option>
+          <option value="" data-i18n="noCrop">No crop</option>
         </select>
       </div>
       <div class="modal-form-group">
@@ -1699,8 +1705,75 @@
 // ════════════════════════════════════════════════════
 const APP_VERSION = '1.0.0';
 const STORAGE_PREFIX = 'hectar';
+const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
+const DEFAULT_MAP_ZOOM = 11;
 const COUNTRIES_GEOJSON_URL = 'https://geojson.xyz/naturalearth-3.3.0/ne_110m_admin_0_countries.geojson';
 const CITIES_GEOJSON_URL = 'https://geojson.xyz/naturalearth-3.3.0/ne_110m_populated_places.geojson';
+
+const TILE_OPTS = {
+  maxZoom: 18,
+  maxNativeZoom: 17,
+  minZoom: 3,
+  updateWhenIdle: true,
+  updateWhenZooming: false,
+  keepBuffer: 2,
+  crossOrigin: 'anonymous'
+};
+
+const CROPS = [
+  { id: 'wheat', ru: 'Пшеница', en: 'Wheat' },
+  { id: 'corn', ru: 'Кукуруза', en: 'Corn' },
+  { id: 'sunflower', ru: 'Подсолнух', en: 'Sunflower' },
+  { id: 'barley', ru: 'Ячмень', en: 'Barley' },
+  { id: 'rapeseed', ru: 'Рапс', en: 'Rapeseed' },
+  { id: 'soybean', ru: 'Соя', en: 'Soybean' },
+  { id: 'rice', ru: 'Рис', en: 'Rice' },
+  { id: 'oats', ru: 'Овёс', en: 'Oats' },
+  { id: 'rye', ru: 'Рожь', en: 'Rye' },
+  { id: 'buckwheat', ru: 'Гречиха', en: 'Buckwheat' },
+  { id: 'millet', ru: 'Просо', en: 'Millet' },
+  { id: 'sorghum', ru: 'Сорго', en: 'Sorghum' },
+  { id: 'peas', ru: 'Горох', en: 'Peas' },
+  { id: 'lentils', ru: 'Чечевица', en: 'Lentils' },
+  { id: 'chickpea', ru: 'Нут', en: 'Chickpea' },
+  { id: 'flax', ru: 'Лён', en: 'Flax' },
+  { id: 'sugar_beet', ru: 'Сахарная свёкла', en: 'Sugar beet' },
+  { id: 'potato', ru: 'Картофель', en: 'Potato' },
+  { id: 'cotton', ru: 'Хлопок', en: 'Cotton' },
+  { id: 'alfalfa', ru: 'Люцерна', en: 'Alfalfa' },
+  { id: 'mustard', ru: 'Горчица', en: 'Mustard' },
+  { id: 'other', ru: 'Другое', en: 'Other' }
+];
+
+function cropLabel(c) { return lang === 'ru' ? c.ru : c.en; }
+
+function resolveCropId(stored) {
+  if (!stored) return '';
+  const byId = CROPS.find(c => c.id === stored);
+  if (byId) return byId.id;
+  const byName = CROPS.find(c => c.ru === stored || c.en === stored);
+  return byName ? byName.id : stored;
+}
+
+function cropDisplayName(stored) {
+  if (!stored) return '';
+  const id = resolveCropId(stored);
+  const c = CROPS.find(x => x.id === id);
+  return c ? cropLabel(c) : stored;
+}
+
+function populateCropSelect(selectEl, selectedValue) {
+  if (!selectEl) return;
+  const selected = resolveCropId(selectedValue || '');
+  selectEl.innerHTML = `<option value="">${t('noCrop')}</option>`;
+  CROPS.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = cropLabel(c);
+    if (c.id === selected) opt.selected = true;
+    selectEl.appendChild(opt);
+  });
+}
 
 // ════════════════════════════════════════════════════
 // ИНТЕРНАЦИОНАЛИЗАЦИЯ (i18n)
@@ -1839,6 +1912,7 @@ function setLang(l) {
   renderFieldsList();
   renderNotesList();
   renderProfile();
+  populateCropSelect(document.getElementById('new-field-crop'));
   if (activeTab === 'weather') loadWeather();
   updateDrawArea();
 }
@@ -1942,35 +2016,37 @@ let selectedNewFieldColor = FIELD_COLORS[0];
 // Инициализация карты
 function initMap() {
   map = L.map('map', {
-    center: [51.5, 35.0],
-    zoom: 13,
+    center: DEFAULT_MAP_CENTER,
+    zoom: DEFAULT_MAP_ZOOM,
     zoomControl: false,
-    attributionControl: false
+    attributionControl: false,
+    fadeAnimation: false,
+    zoomAnimation: true,
+    preferCanvas: true
   });
 
-  // Спутниковый слой Esri
   satelliteLayer = L.tileLayer(
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    { maxZoom: 19 }
+    { ...TILE_OPTS, detectRetina: false }
   );
 
-  // Слой OSM
   osmLayer = L.tileLayer(
-    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    { maxZoom: 19 }
+    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    { ...TILE_OPTS, subdomains: 'abcd', detectRetina: false }
   );
 
   satelliteLayer.addTo(map);
 
-  // Границы стран и подписи
   loadMapGeoLayers();
 
-  // Загрузить сохранённые поля на карту
   loadFields().forEach(field => addFieldToMap(field));
 
-  // Обработчик клика по карте при рисовании
   map.on('click', onMapClick);
-  map.on('zoomend moveend', updateMapLabels);
+  let labelTimer;
+  map.on('zoomend moveend', () => {
+    clearTimeout(labelTimer);
+    labelTimer = setTimeout(updateMapLabels, 200);
+  });
 }
 
 // Загрузка GeoJSON границ и населённых пунктов
@@ -1980,24 +2056,24 @@ async function loadMapGeoLayers() {
   cityLabelsLayer = L.layerGroup().addTo(map);
 
   try {
-    const [countriesRes, citiesRes] = await Promise.all([
-      fetch(COUNTRIES_GEOJSON_URL),
-      fetch(CITIES_GEOJSON_URL)
-    ]);
+    const countriesRes = await fetch(COUNTRIES_GEOJSON_URL);
     countriesGeoData = await countriesRes.json();
-    citiesGeoData = await citiesRes.json();
 
     L.geoJSON(countriesGeoData, {
       style: {
-        color: 'rgba(255,255,255,0.45)',
+        color: 'rgba(255,255,255,0.35)',
         weight: 1,
-        fillColor: 'transparent',
         fillOpacity: 0
       },
       interactive: false
     }).addTo(countriesLayer);
 
     updateMapLabels();
+
+    fetch(CITIES_GEOJSON_URL)
+      .then(r => r.json())
+      .then(data => { citiesGeoData = data; updateMapLabels(); })
+      .catch(() => {});
   } catch (e) {
     console.warn('GeoJSON load failed', e);
   }
@@ -2227,7 +2303,7 @@ function addFieldToMap(field) {
       .setLatLng([field.center[0], field.center[1]])
       .setContent(`
         <div class="popup-name">${field.name}</div>
-        <div class="popup-row">${field.crop || t('noCrop')}</div>
+        <div class="popup-row">${field.crop ? cropDisplayName(field.crop) : t('noCrop')}</div>
         <div class="popup-row">${field.area} ${t('ha')} · ${field.perimeter} ${t('km')}</div>
       `)
       .openOn(map);
@@ -2378,6 +2454,7 @@ function finishDrawing() {
   // Цвет по умолчанию
   selectedNewFieldColor = FIELD_COLORS[fields.length % FIELD_COLORS.length];
   renderColorPicker('new-field-colors', selectedNewFieldColor, (c) => { selectedNewFieldColor = c; });
+  populateCropSelect(document.getElementById('new-field-crop'));
 
   openModal('modal-save-field');
   setDrawModeActive(false);
@@ -2456,7 +2533,7 @@ function renderFieldsList() {
       <div class="field-card-info">
         <div class="field-card-name">${field.name}</div>
         <div class="field-card-area">${field.area} ${t('ha')}</div>
-        <div class="field-card-crop">${field.crop || t('noCrop')}</div>
+        <div class="field-card-crop">${field.crop ? cropDisplayName(field.crop) : t('noCrop')}</div>
       </div>
       <div class="field-card-meta">
         <span class="field-card-date">${field.createdAt}</span>
@@ -2541,7 +2618,7 @@ function openFieldDetail(fieldId) {
 }
 
 function renderFieldDetailHTML(field) {
-  const cropOptions = ['Пшеница','Кукуруза','Подсолнух','Ячмень','Рапс','Соя','Другое'];
+  const fieldCropId = resolveCropId(field.crop);
   const eventTypeLabel = { sowing: t('sowing'), harvest: t('harvest'), watering: t('watering'), spraying: t('spraying') };
 
   const seasonHTML = (field.season || []).map(ev => `
@@ -2584,7 +2661,7 @@ function renderFieldDetailHTML(field) {
       </div>
       <div class="stat-card">
         <div class="stat-label">${t('crop')}</div>
-        <div class="stat-value" style="font-size:16px;">${field.crop || '—'}</div>
+        <div class="stat-value" style="font-size:16px;">${field.crop ? cropDisplayName(field.crop) : '—'}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">${t('created')}</div>
@@ -2597,11 +2674,11 @@ function renderFieldDetailHTML(field) {
 
     <div class="section-title">${t('crop')}</div>
     <div class="crop-grid" id="detail-crop-grid">
-      ${cropOptions.map(c => `
-        <div class="crop-chip ${field.crop === c ? 'selected' : ''}"
-          onclick="updateFieldCrop('${field.id}', '${c}', this)">${c}</div>
+      ${CROPS.map(c => `
+        <div class="crop-chip ${fieldCropId === c.id ? 'selected' : ''}"
+          onclick="updateFieldCrop('${field.id}', '${c.id}', this)">${cropLabel(c)}</div>
       `).join('')}
-      <div class="crop-chip ${!field.crop ? 'selected' : ''}"
+      <div class="crop-chip ${!fieldCropId ? 'selected' : ''}"
         onclick="updateFieldCrop('${field.id}', '', this)">${t('noCrop')}</div>
     </div>
 
@@ -2867,7 +2944,7 @@ function renderNotesList() {
       </div>
       <div class="note-info">
         <div class="note-field-name">${ev.fieldName}</div>
-        <div class="note-meta">${eventTypeLabel[ev.type] || ev.type}${ev.fieldCrop ? ' — ' + ev.fieldCrop : ''} · ${ev.fieldArea} ${t('ha')}</div>
+        <div class="note-meta">${eventTypeLabel[ev.type] || ev.type}${ev.fieldCrop ? ' — ' + cropDisplayName(ev.fieldCrop) : ''} · ${ev.fieldArea} ${t('ha')}</div>
         ${ev.note ? `<div class="note-meta" style="margin-top:2px;color:var(--text3)">${ev.note}</div>` : ''}
       </div>
       <div class="note-date">${dateStr}</div>
@@ -3154,6 +3231,7 @@ window.addEventListener('load', () => {
   resetUiState();
 
   renderColorPicker('new-field-colors', FIELD_COLORS[0], (c) => { selectedNewFieldColor = c; });
+  populateCropSelect(document.getElementById('new-field-crop'));
 
   const searchInput = document.getElementById('search-input');
   if (searchInput) {
