@@ -2,8 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Hectar — мониторинг полей</title>
+
+<!-- PWA: полноэкранный режим на iOS -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hectar">
+
+<!-- PWA: полноэкранный режим на Android -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f1923">
+
+<!-- Иконка для экрана домой (можно заменить на свою) -->
+<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f33f.png">
+<link rel="manifest" href="data:application/json,{%22name%22:%22Hectar%22,%22short_name%22:%22Hectar%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%230f1923%22,%22theme_color%22:%22%230f1923%22}">
 
 <!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -58,6 +71,9 @@
     background: var(--bg);
     color: var(--text);
     font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    /* Убрать bounce-скролл на iOS */
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* ══════════════════════════════════════
@@ -67,10 +83,14 @@
     width: 100%;
     max-width: 430px;
     height: 100vh;
+    /* PWA: учитываем safe area сверху (вырез/Dynamic Island) */
+    padding-top: env(safe-area-inset-top, 0px);
+    box-sizing: border-box;
     margin: 0 auto;
     position: relative;
     overflow: hidden;
     background: var(--bg);
+    overscroll-behavior: none;
   }
 
   /* ══════════════════════════════════════
