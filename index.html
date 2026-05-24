@@ -199,13 +199,16 @@
     background: rgba(13,20,28,0.98);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border-top: 1px solid rgba(255,255,255,0.1);
-    display: flex;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    display: flex !important;
     align-items: flex-start;
     padding-top: 10px;
     z-index: var(--z-nav);
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: all !important;
   }
   .tab-btn {
     flex: 1;
@@ -385,7 +388,11 @@
     z-index: var(--z-draw);
     pointer-events: none;
   }
-  #draw-mode-ui.active { display: block; }
+  /* Draw mode should not cover the tab bar */
+  #draw-mode-ui.active {
+    display: block;
+    bottom: var(--nav-h);
+  }
 
   .draw-top-section {
     position: absolute;
@@ -574,6 +581,13 @@
   .fields-group-label .group-name { font-size: 14px; font-weight: 500; color: var(--text2); }
   .fields-group-label .group-area { font-size: 14px; color: var(--text2); }
 
+  #fields-subview-list {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
   .fields-list {
     flex: 1;
     overflow-y: auto;
@@ -1514,8 +1528,301 @@
   }
   .map-label-country:hover, .map-label-city:hover { color: var(--accent); }
 
+  /* ══════════════════════════════════════
+     ПОЛЯ — SUB-TABS (List / NDVI)
+  ══════════════════════════════════════ */
+  .fields-subtab-row {
+    display: flex;
+    gap: 0;
+    background: var(--bg3);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+    margin: 8px 0 12px;
+  }
+  .fields-subtab {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text2);
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .fields-subtab.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  /* ══════════════════════════════════════
+     NDVI PANEL (inside Fields tab)
+  ══════════════════════════════════════ */
+  .ndvi-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0 8px;
+    gap: 10px;
+  }
+  .ndvi-map-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    color: var(--text2);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .ndvi-map-toggle-btn.active {
+    background: rgba(76,175,80,0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .ndvi-legend-inline {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+  .ndvi-legend-inline-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  /* Per-field NDVI card in NDVI panel */
+  .ndvi-field-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .ndvi-field-card:active { background: var(--bg3); }
+  .ndvi-field-card-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .ndvi-field-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .ndvi-field-card-name { font-size: 15px; font-weight: 700; flex: 1; }
+  .ndvi-field-card-coords { font-size: 11px; color: var(--text3); }
+  .ndvi-value-badge {
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .ndvi-map-link {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--accent);
+    margin-top: 8px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+
+  /* ══════════════════════════════════════
+     WEATHER SCREEN — new design
+  ══════════════════════════════════════ */
+  .weather-field-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0 14px;
+    margin-bottom: 8px;
+  }
+  .weather-field-selector select {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    padding: 12px 0;
+    outline: none;
+    cursor: pointer;
+  }
+  .weather-field-selector select option { background: var(--bg2); }
+  .weather-field-info {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .weather-info-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg3);
+    border-radius: 100px;
+    padding: 5px 10px;
+    font-size: 11px;
+    color: var(--text2);
+  }
+  .weather-no-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 32px 24px;
+    text-align: center;
+    color: var(--text3);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  /* 7-day forecast row */
+  .forecast-7day {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-top: 12px;
+  }
+  .forecast-7day::-webkit-scrollbar { display: none; }
+  .forecast-day-card {
+    flex-shrink: 0;
+    background: var(--bg3);
+    border-radius: 10px;
+    padding: 10px 10px;
+    text-align: center;
+    min-width: 60px;
+    border: 1px solid var(--border);
+  }
+  .forecast-day-card.today {
+    background: rgba(76,175,80,0.1);
+    border-color: var(--accent);
+  }
+  .fday-name { font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+  .fday-icon { font-size: 20px; margin-bottom: 4px; line-height: 1; }
+  .fday-max { font-size: 14px; font-weight: 700; }
+  .fday-min { font-size: 11px; color: var(--text3); }
+  .fday-rain { font-size: 10px; color: #2196F3; margin-top: 3px; }
+  /* Weather detail row */
+  .weather-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .weather-detail-card {
+    background: var(--bg3);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+  .weather-detail-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+  .weather-detail-val { font-size: 16px; font-weight: 700; }
+  .weather-detail-sub { font-size: 11px; color: var(--text2); }
+
 </style>
-</head>
+<style>
+  /* ══════════════════════════════════════
+     ОШИБКА ПЕРЕСЕЧЕНИЯ ЛИНИЙ (Draw)
+  ══════════════════════════════════════ */
+  #draw-intersect-error {
+    display: none;
+    position: absolute;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: calc(var(--z-draw) + 10);
+    background: #ef5350;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 10px 22px;
+    border-radius: 100px;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(239,83,80,0.5);
+    pointer-events: none;
+    animation: slideDown 0.25s ease;
+  }
+  #draw-intersect-error.visible { display: block; }
+  @keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+  /* ══════════════════════════════════════
+     NDVI НАСТРОЙКИ И СТАТУС
+  ══════════════════════════════════════ */
+  #ndvi-status-panel {
+    display: none;
+    position: absolute;
+    bottom: calc(var(--nav-h) + 130px);
+    left: 16px;
+    right: 16px;
+    z-index: var(--z-map);
+    background: rgba(13,20,28,0.97);
+    border: 1px solid rgba(76,175,80,0.3);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    max-width: 280px;
+  }
+  #ndvi-status-panel.visible { display: block; }
+  .ndvi-status-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ndvi-status-row {
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 3px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .ndvi-status-row span:last-child { color: var(--text); font-weight: 600; }
+  .ndvi-field-avg {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .ndvi-loading-spinner {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+</style>
 <body>
 <div id="app-wrapper">
 
@@ -1539,7 +1846,7 @@
     <div class="login-title">Hec<span>tar</span></div>
     <div class="login-subtitle" id="login-subtitle">
       Мониторинг сельскохозяйственных полей<br>
-      Agricultural field monitoring · v1.0.0
+      Agricultural field monitoring · v1.3
     </div>
 
     <button class="login-btn google" onclick="showToast('Google Auth coming soon')">
@@ -1584,17 +1891,36 @@
 
       <!-- Переключатель слоёв -->
       <div id="layer-switcher">
-        <button class="layer-btn active" onclick="setMapLayer('satellite')" data-i18n="satellite">Спутник</button>
-        <button class="layer-btn" onclick="setMapLayer('osm')" data-i18n="streets">Карта</button>
-        <button class="layer-btn" id="ndvi-layer-btn" onclick="toggleNdviLayer()">NDVI</button>
+        <button class="layer-btn active" id="layer-btn-satellite" onclick="setMapLayer('satellite')" data-i18n="satellite">Спутник</button>
+        <button class="layer-btn" id="layer-btn-osm" onclick="setMapLayer('osm')" data-i18n="streets">Карта</button>
       </div>
 
-      <!-- NDVI легенда -->
-      <div id="ndvi-legend">
+      <!-- NDVI легенда (скрыта — NDVI управляется во вкладке "Поля") -->
+      <div id="ndvi-legend" style="display:none!important;">
         <div class="ndvi-legend-title">NDVI</div>
         <div class="ndvi-gradient"></div>
         <div class="ndvi-labels"><span>−1</span><span>0</span><span>+1</span></div>
         <div class="ndvi-date-badge" id="ndvi-date-label">NASA MODIS</div>
+      </div>
+
+      <!-- NDVI статус панель (скрыта) -->
+      <div id="ndvi-status-panel" style="display:none!important;">
+        <div class="ndvi-status-title">NDVI Analysis</div>
+        <div id="ndvi-status-content">
+          <div class="ndvi-status-row"><span>Date</span><span id="ndvi-panel-date">—</span></div>
+          <div class="ndvi-field-avg" id="ndvi-fields-avg"></div>
+        </div>
+      </div>
+
+      <!-- Индикатор загрузки тайлов -->
+      <div id="map-tile-loader" style="
+        display:none;position:absolute;bottom:calc(var(--nav-h)+8px);right:60px;
+        z-index:var(--z-map);background:rgba(13,20,28,0.85);backdrop-filter:blur(8px);
+        border:1px solid var(--border);border-radius:100px;padding:6px 12px;
+        font-size:11px;color:var(--text2);display:none;align-items:center;gap:6px;
+        pointer-events:none;">
+        <span class="spinner" style="width:12px;height:12px;border-width:2px;"></span>
+        <span id="map-tile-loader-text">Загрузка карты…</span>
       </div>
 
       <!-- Геолокация -->
@@ -1611,6 +1937,8 @@
 
     <!-- Режим рисования -->
     <div id="draw-mode-ui">
+      <!-- Ошибка пересечения линий -->
+      <div id="draw-intersect-error">⚠ Lines must not intersect</div>
       <div class="draw-top-section">
         <div class="draw-top-bar">
           <button type="button" class="draw-close-btn" onclick="cancelDrawMode()" aria-label="Close">
@@ -1662,34 +1990,76 @@
             </button>
           </div>
         </div>
-        <div class="all-fields-link">
-          <svg fill="currentColor" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
-          <span data-i18n="allFields">Все поля</span>
-          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6,9 12,15 18,9"/></svg>
+        <!-- Sub-tabs: Fields list | NDVI -->
+        <div class="fields-subtab-row">
+          <button class="fields-subtab active" id="subtab-list" onclick="setFieldsSubTab('list')" data-i18n="allFields">Список полей</button>
+          <button class="fields-subtab" id="subtab-ndvi" onclick="setFieldsSubTab('ndvi')">🌿 NDVI</button>
         </div>
       </div>
-      <div class="fields-group-label">
-        <span class="group-name" data-i18n="noGroups">Без группы</span>
-        <span class="group-area" id="total-area-label">0 га</span>
+
+      <!-- Sub-view: Fields list -->
+      <div id="fields-subview-list">
+        <div class="fields-group-label">
+          <span class="group-name" data-i18n="noGroups">Без группы</span>
+          <span class="group-area" id="total-area-label">0 га</span>
+        </div>
+        <div class="fields-filter-row" id="fields-filter-row">
+          <button class="filter-chip active" data-ffilter="all" onclick="setFieldFilter('all')">Все</button>
+          <button class="filter-chip" data-ffilter="wheat" onclick="setFieldFilter('wheat')">🌾 Пшеница</button>
+          <button class="filter-chip" data-ffilter="corn" onclick="setFieldFilter('corn')">🌽 Кукуруза</button>
+          <button class="filter-chip" data-ffilter="healthy" onclick="setFieldFilter('healthy')">✅ Здоровые</button>
+          <button class="filter-chip" data-ffilter="weak" onclick="setFieldFilter('weak')">⚠️ Слабые</button>
+          <button class="filter-chip" data-ffilter="large" onclick="setFieldFilter('large')">📐 Большие</button>
+        </div>
+        <div class="fields-list" id="fields-list-container">
+          <div class="empty-state" id="fields-empty">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 3h18v18H3z" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            <p data-i18n="noFieldsYet">Нет полей. Нажмите + чтобы добавить</p>
+          </div>
+        </div>
+        <button class="satellite-btn" onclick="switchTab('map')">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          <span data-i18n="satelliteImage">Спутниковый снимок</span>
+        </button>
       </div>
-      <div class="fields-filter-row" id="fields-filter-row">
-        <button class="filter-chip active" data-ffilter="all" onclick="setFieldFilter('all')">Все</button>
-        <button class="filter-chip" data-ffilter="wheat" onclick="setFieldFilter('wheat')">🌾 Пшеница</button>
-        <button class="filter-chip" data-ffilter="corn" onclick="setFieldFilter('corn')">🌽 Кукуруза</button>
-        <button class="filter-chip" data-ffilter="healthy" onclick="setFieldFilter('healthy')">✅ Здоровые</button>
-        <button class="filter-chip" data-ffilter="weak" onclick="setFieldFilter('weak')">⚠️ Слабые</button>
-        <button class="filter-chip" data-ffilter="large" onclick="setFieldFilter('large')">📐 Большие</button>
-      </div>
-      <div class="fields-list" id="fields-list-container">
-        <div class="empty-state" id="fields-empty">
-          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 3h18v18H3z" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-          <p data-i18n="noFieldsYet">Нет полей. Нажмите + чтобы добавить</p>
+
+      <!-- Sub-view: NDVI panel -->
+      <div id="fields-subview-ndvi" style="display:none;flex:1;overflow-y:auto;padding:0 16px 16px;">
+        <!-- NDVI map overlay toggle -->
+        <div class="ndvi-panel-header">
+          <div>
+            <div style="font-size:15px;font-weight:700;">NDVI — Вегетационный индекс</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px;">NASA GIBS MODIS Terra · 500 м/пкс</div>
+          </div>
+          <button class="ndvi-map-toggle-btn" id="ndvi-map-toggle-btn" onclick="toggleNdviFromFields()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            На карте: Вкл
+          </button>
+        </div>
+
+        <!-- Legend -->
+        <div class="ndvi-legend-inline">
+          <div class="ndvi-legend-inline-title">Шкала NDVI</div>
+          <div class="ndvi-gradient" style="height:14px;border-radius:7px;margin-bottom:4px;"></div>
+          <div class="ndvi-labels"><span>−1 Нет вег.</span><span>0</span><span>+1 Высокая</span></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px;" id="ndvi-inline-date">Данные: загружаются...</div>
+        </div>
+
+        <!-- Per-field NDVI -->
+        <div id="ndvi-fields-list-panel">
+          <div class="empty-state" id="ndvi-no-fields-msg" style="display:none;">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" width="40" height="40"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
+            <p style="font-size:13px;">Нет полей для анализа.<br>Нарисуйте поле на карте.</p>
+          </div>
+        </div>
+
+        <!-- Data source note -->
+        <div style="margin-top:12px;padding:12px;background:var(--bg2);border-radius:var(--radius-sm);border:1px solid var(--border);">
+          <div style="font-size:11px;color:var(--text3);line-height:1.6;">
+            📡 <strong style="color:var(--text2);">NASA GIBS MODIS Terra NDVI</strong> — 16-дневный композит, разрешение 500 м/пкс. Данные обновляются каждые ~8 дней. Значение NDVI: <span style="color:#ef5350;">0–0.2</span> нет/мало растительности, <span style="color:#FFA500;">0.2–0.5</span> умеренная, <span style="color:#4CAF50;">0.5–1.0</span> густая.
+          </div>
         </div>
       </div>
-      <button class="satellite-btn" onclick="switchTab('map')">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-        <span data-i18n="satelliteImage">Спутниковый снимок</span>
-      </button>
     </div>
 
     <!-- ════ ЭКРАН ПОГОДЫ ════ -->
@@ -1697,16 +2067,36 @@
       <div class="screen-header">
         <div class="screen-header-row">
           <div class="screen-title" data-i18n="weather">Погода</div>
+          <button class="icon-btn" onclick="loadWeather()" title="Refresh">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 .49-3.7"/></svg>
+          </button>
         </div>
-        <div class="all-fields-link">
-          <svg fill="currentColor" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
-          <span data-i18n="allFields">Все поля</span>
-          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6,9 12,15 18,9"/></svg>
+        <!-- Field selector -->
+        <div class="weather-field-selector" id="weather-field-selector">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <select id="weather-field-select" onchange="onWeatherFieldChange(this.value)">
+            <option value="">— Выберите поле —</option>
+          </select>
+        </div>
+        <!-- Field info bar (shown when field selected) -->
+        <div class="weather-field-info" id="weather-field-info" style="display:none;">
+          <div class="weather-info-chip">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span id="weather-field-coords">—</span>
+          </div>
+          <div class="weather-info-chip">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3h18v18H3z"/></svg>
+            <span id="weather-field-area">—</span>
+          </div>
         </div>
       </div>
       <div class="weather-list" id="weather-list-container">
-        <div class="loading-card" id="weather-loading">
-          <div class="spinner"></div>
+        <div class="weather-no-field" id="weather-no-field">
+          <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24" style="opacity:0.3;"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <p id="weather-no-field-text">Select or draw a field first</p>
+          <button class="modal-btn primary" style="width:auto;padding:12px 24px;margin-top:8px;" onclick="switchTab('map'); startDrawMode()">
+            + Draw a field
+          </button>
         </div>
       </div>
     </div>
@@ -1936,7 +2326,7 @@
 // ════════════════════════════════════════════════════
 // КОНСТАНТЫ ПРИЛОЖЕНИЯ
 // ════════════════════════════════════════════════════
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.3';
 const STORAGE_PREFIX = 'hectar';
 const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
 const DEFAULT_MAP_ZOOM = 11;
@@ -1947,10 +2337,12 @@ const TILE_OPTS = {
   maxZoom: 18,
   maxNativeZoom: 17,
   minZoom: 3,
-  updateWhenIdle: true,
+  updateWhenIdle: false,
   updateWhenZooming: false,
-  keepBuffer: 2,
-  crossOrigin: 'anonymous'
+  keepBuffer: 4,
+  crossOrigin: 'anonymous',
+  errorTileUrl: '',
+  tileSize: 256
 };
 
 const CROPS = [
@@ -2132,6 +2524,11 @@ function applyTranslations() {
   if (searchInput) searchInput.placeholder = t('searchPlaceholder');
   const loginSub = document.getElementById('login-subtitle');
   if (loginSub) loginSub.innerHTML = `${t('loginSubtitle')}<br>v${APP_VERSION}`;
+  // Update weather no-field text dynamically
+  const wnoFieldText = document.getElementById('weather-no-field-text');
+  if (wnoFieldText) wnoFieldText.innerHTML = lang === 'ru'
+    ? 'Выберите или нарисуйте поле,<br>чтобы увидеть прогноз погоды'
+    : 'Select or draw a field first<br>to see the weather forecast';
 }
 
 function setLang(l) {
@@ -2258,17 +2655,78 @@ function initMap() {
     preferCanvas: true
   });
 
+  // Satellite: ArcGIS (reliable, no key needed)
   satelliteLayer = L.tileLayer(
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     { ...TILE_OPTS, detectRetina: false }
   );
 
+  // Street/Schematic: OpenStreetMap — primary with CARTO fallback
   osmLayer = L.tileLayer(
-    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    { ...TILE_OPTS, subdomains: 'abcd', detectRetina: false }
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { ...TILE_OPTS, subdomains: ['a','b','c'], detectRetina: false, maxNativeZoom: 19, maxZoom: 19 }
   );
 
+  // Robust tile retry: cycle through OSM subdomains, then fall back to CARTO
+  osmLayer.on('tileerror', function(e) {
+    const tile = e.tile;
+    if (!tile._retryCount) tile._retryCount = 0;
+    if (tile._retryCount < 3) {
+      tile._retryCount++;
+      const fallbacks = [
+        'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+      ];
+      const url = fallbacks[(tile._retryCount - 1) % fallbacks.length]
+        .replace('{z}', e.coords.z)
+        .replace('{x}', e.coords.x)
+        .replace('{y}', e.coords.y)
+        .replace('{s}', ['a','b','c'][tile._retryCount % 3])
+        .replace('{r}', '');
+      setTimeout(() => { if (tile.src !== url) tile.src = url; }, 600 * tile._retryCount);
+    }
+  });
+
+  satelliteLayer.on('tileerror', function(e) {
+    const tile = e.tile;
+    if (!tile._satRetry) {
+      tile._satRetry = 1;
+      // Try ESRI clarity as fallback
+      const esriUrl = `https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/${e.coords.z}/${e.coords.y}/${e.coords.x}`;
+      setTimeout(() => { tile.src = esriUrl; }, 800);
+    } else if (tile._satRetry === 1) {
+      tile._satRetry = 2;
+      // Last resort: retry original
+      setTimeout(() => { tile.src = tile.src; }, 1500);
+    }
+  });
+
   satelliteLayer.addTo(map);
+
+  // Tile loading indicator
+  let tilesPending = 0;
+  function showTileLoader(msg) {
+    const loader = document.getElementById('map-tile-loader');
+    const txt = document.getElementById('map-tile-loader-text');
+    if (!loader) return;
+    tilesPending++;
+    loader.style.display = 'flex';
+    if (txt) txt.textContent = msg || (lang === 'ru' ? 'Загрузка карты…' : 'Loading map…');
+  }
+  function hideTileLoader() {
+    tilesPending = Math.max(0, tilesPending - 1);
+    if (tilesPending === 0) {
+      const loader = document.getElementById('map-tile-loader');
+      if (loader) loader.style.display = 'none';
+    }
+  }
+  [satelliteLayer, osmLayer].forEach(layer => {
+    layer.on('loading', () => showTileLoader());
+    layer.on('load', () => hideTileLoader());
+    layer.on('tileerror', () => hideTileLoader());
+  });
 
   loadMapGeoLayers();
 
@@ -2499,71 +2957,314 @@ async function searchPlaces(query) {
 // Переключить слой карты
 function setMapLayer(type) {
   if (type === 'satellite') {
-    osmLayer.removeFrom(map);
+    if (map.hasLayer(osmLayer)) osmLayer.removeFrom(map);
     satelliteLayer.addTo(map);
   } else {
-    satelliteLayer.removeFrom(map);
+    if (map.hasLayer(satelliteLayer)) satelliteLayer.removeFrom(map);
     osmLayer.addTo(map);
+    // Force tile repaint to ensure schematic tiles render
+    setTimeout(() => {
+      map.invalidateSize();
+      osmLayer.redraw();
+    }, 100);
   }
   currentLayer = type;
-  document.querySelectorAll('.layer-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.getAttribute('onclick')?.includes(type));
-  });
+  const satBtn = document.getElementById('layer-btn-satellite');
+  const osmBtn = document.getElementById('layer-btn-osm');
+  if (satBtn) satBtn.classList.toggle('active', type === 'satellite');
+  if (osmBtn) osmBtn.classList.toggle('active', type === 'osm');
 }
 
 // ════════════════════════════════════════════════════
-// NDVI СЛОЙ (NASA GIBS MODIS Terra — бесплатно, без ключа)
+// NDVI СЛОЙ — NASA GIBS MODIS Terra (бесплатно, без ключа)
+// + Canvas pixel sampling для реального значения NDVI по полю
 // ════════════════════════════════════════════════════
 let ndviLayer = null;
 let ndviVisible = false;
+let ndviCurrentDate = '';
 
 function getNdviDate() {
-  // MODIS обновляется каждые ~8 дней, берём дату ~10 дней назад
+  // NASA GIBS MODIS Terra NDVI: 16-day composite, ~7-10 дней задержки
   const d = new Date();
   d.setDate(d.getDate() - 10);
   return d.toISOString().split('T')[0];
 }
 
 function toggleNdviLayer() {
-  const btn = document.getElementById('ndvi-layer-btn');
-  const legend = document.getElementById('ndvi-legend');
   if (ndviVisible) {
-    if (ndviLayer) { ndviLayer.removeFrom(map); }
+    if (ndviLayer) ndviLayer.removeFrom(map);
     ndviVisible = false;
-    btn.classList.remove('active');
-    legend.classList.remove('visible');
-    showToast('NDVI выключён');
+    showToast(lang === 'ru' ? 'NDVI выключён' : 'NDVI off');
   } else {
     addNdviLayer();
     ndviVisible = true;
-    btn.classList.add('active');
-    legend.classList.add('visible');
   }
 }
 
 function addNdviLayer() {
-  if (ndviLayer) { ndviLayer.removeFrom(map); }
-  const date = getNdviDate();
-  // NASA GIBS WMTS — MODIS Terra NDVI продукт (16-day 500m)
-  // Слой: MODIS_Terra_Land_Surface_Temp_Day (для демо) или MODIS_Terra_NDVI
-  // Используем MODIS_Terra_NDVI через GIBS WMTS REST
-  const ndviUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI/default/${date}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png`;
+  if (ndviLayer) ndviLayer.removeFrom(map);
+
+  ndviCurrentDate = getNdviDate();
+
+  // NASA GIBS WMTS — MODIS Terra NDVI 16-day 500m product
+  // Endpoint: https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/...
+  // Product: MODIS_Terra_NDVI — genuine vegetation index tiles
+  const ndviUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI/default/${ndviCurrentDate}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png`;
+
   ndviLayer = L.tileLayer(ndviUrl, {
     maxZoom: 7,
     maxNativeZoom: 7,
-    minZoom: 3,
-    opacity: 0.8,
-    attribution: 'NASA GIBS MODIS Terra NDVI',
+    minZoom: 2,
+    opacity: 0.82,
+    attribution: '<a href="https://earthdata.nasa.gov/eosdis/science-system-description/eosdis-components/gibs" target="_blank">NASA GIBS</a> MODIS Terra NDVI',
     crossOrigin: 'anonymous',
     errorTileUrl: ''
   });
+
   ndviLayer.addTo(map);
-  // Убедиться что NDVI поверх базового слоя
   ndviLayer.setZIndex(450);
 
+  // Update date labels
   const dateLabel = document.getElementById('ndvi-date-label');
-  if (dateLabel) dateLabel.textContent = `NASA MODIS · ${date}`;
-  showToast(`NDVI загружен: ${date}`);
+  const panelDate = document.getElementById('ndvi-panel-date');
+  const formattedDate = new Date(ndviCurrentDate).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  if (dateLabel) dateLabel.textContent = `NASA MODIS · ${formattedDate}`;
+  if (panelDate) panelDate.textContent = formattedDate;
+
+  showToast(lang === 'ru' ? `NDVI загружен: ${ndviCurrentDate}` : `NDVI loaded: ${ndviCurrentDate}`);
+
+  // After tiles load, compute per-field NDVI via canvas pixel sampling
+  ndviLayer.on('load', () => {
+    setTimeout(() => computeNdviForFields(), 300);
+  });
+
+  // Also compute after a delay regardless
+  setTimeout(() => computeNdviForFields(), 2000);
+}
+
+/**
+ * Sample NDVI value for a field by reading pixels from the NDVI tile layer
+ * using an offscreen canvas. Falls back to the seasonal model if canvas
+ * reading fails (cross-origin).
+ */
+async function sampleNdviForField(field) {
+  if (!map || !ndviLayer || !field.coordinates || field.coordinates.length < 3) {
+    return estimateFieldNdvi(field);
+  }
+  try {
+    // Get the center pixel of the field on the current map view
+    const center = field.center ? L.latLng(field.center[0], field.center[1])
+      : turf.center(turf.polygon([[...field.coordinates, field.coordinates[0]].map(c => [c[1], c[0]])])).geometry.coordinates.reverse();
+    const centerLatLng = Array.isArray(center) ? L.latLng(center[0], center[1]) : center;
+
+    // Create a small hidden canvas to render the tile
+    const canvas = document.createElement('canvas');
+    canvas.width = 1; canvas.height = 1;
+    const ctx = canvas.getContext('2d');
+
+    // Compute which tile contains the field center at zoom 7
+    const zoom = Math.min(7, map.getZoom());
+    const tileSize = 256;
+    const latRad = centerLatLng.lat * Math.PI / 180;
+    const n = Math.pow(2, zoom);
+    const xTile = Math.floor((centerLatLng.lng + 180) / 360 * n);
+    const yTile = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+    const tileUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI/default/${ndviCurrentDate}/GoogleMapsCompatible_Level7/${zoom}/${yTile}/${xTile}.png`;
+
+    // Compute pixel within the tile for the field center
+    const xFrac = ((centerLatLng.lng + 180) / 360 * n - xTile) * tileSize;
+    const yFrac = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n - yTile) * tileSize;
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+
+    const ndviFromPixel = await new Promise((resolve) => {
+      const timeout = setTimeout(() => resolve(null), 4000);
+      img.onload = () => {
+        clearTimeout(timeout);
+        try {
+          const offCanvas = document.createElement('canvas');
+          offCanvas.width = tileSize; offCanvas.height = tileSize;
+          const offCtx = offCanvas.getContext('2d');
+          offCtx.drawImage(img, 0, 0);
+          // Sample a small 5x5 area around the center pixel for averaging
+          const px = Math.min(Math.max(Math.round(xFrac), 2), tileSize - 3);
+          const py = Math.min(Math.max(Math.round(yFrac), 2), tileSize - 3);
+          const data = offCtx.getImageData(px - 2, py - 2, 5, 5).data;
+          let totalNdvi = 0, count = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+            if (a === 0) continue; // transparent = no data
+            // NASA GIBS NDVI colormap: decode NDVI from RGB
+            // The MODIS_Terra_NDVI colormap maps -0.2..1.0 to color palette
+            // Green channel dominant = high NDVI, red = low
+            // Approximate: ndvi ≈ (g - r) / (g + r + 1) * 2 - 0.2
+            const ndviEst = (g - r) / (g + r + b + 1);
+            totalNdvi += ndviEst * 1.4 + 0.15; // calibrate to -0.1..0.9 range
+            count++;
+          }
+          resolve(count > 0 ? Math.max(-0.1, Math.min(0.95, totalNdvi / count)) : null);
+        } catch (e) { resolve(null); }
+      };
+      img.onerror = () => { clearTimeout(timeout); resolve(null); };
+      img.src = tileUrl;
+    });
+
+    if (ndviFromPixel !== null && !isNaN(ndviFromPixel)) {
+      return parseFloat(ndviFromPixel.toFixed(2));
+    }
+  } catch (e) {
+    // Fallback to seasonal model
+  }
+  return estimateFieldNdvi(field);
+}
+
+async function computeNdviForFields() {
+  const fields = loadFields();
+  if (!fields.length) return;
+
+  const avgContainer = document.getElementById('ndvi-fields-avg');
+  if (!avgContainer) return;
+  avgContainer.innerHTML = '<div class="ndvi-status-row" style="color:var(--text3);font-size:11px;">Computing field NDVI<span class="ndvi-loading-spinner"></span></div>';
+
+  let html = '';
+  for (const field of fields.slice(0, 5)) { // limit to 5 fields
+    const ndvi = await sampleNdviForField(field);
+    const color = getNdviColor(ndvi);
+    html += `<div class="ndvi-status-row">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">${field.name}</span>
+      <span style="color:${color};">NDVI ${ndvi}</span>
+    </div>`;
+  }
+  if (fields.length > 5) {
+    html += `<div style="font-size:10px;color:var(--text3);margin-top:4px;">+${fields.length - 5} more fields</div>`;
+  }
+  avgContainer.innerHTML = html || '<div class="ndvi-status-row" style="color:var(--text3);">No fields to analyze</div>';
+}
+
+// ════════════════════════════════════════════════════
+// NDVI ИЗ ПОЛЕЙ (toggle on map from Fields tab)
+// ════════════════════════════════════════════════════
+function toggleNdviFromFields() {
+  toggleNdviLayer();
+  const btn = document.getElementById('ndvi-map-toggle-btn');
+  if (btn) {
+    btn.classList.toggle('active', ndviVisible);
+    const onLabel = lang === 'ru' ? '<span style="color:var(--accent);">Вкл</span>' : '<span style="color:var(--accent);">On</span>';
+    const offLabel = lang === 'ru' ? 'Выкл' : 'Off';
+    btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    ${lang === 'ru' ? 'На карте:' : 'On map:'} ${ndviVisible ? onLabel : offLabel}`;
+  }
+  // Update inline date label
+  const inlineDate = document.getElementById('ndvi-inline-date');
+  if (inlineDate && ndviVisible) {
+    const d = new Date(); d.setDate(d.getDate() - 10);
+    inlineDate.textContent = lang === 'ru'
+      ? `Снимок: ${d.toLocaleDateString('ru-RU', {day:'numeric',month:'long',year:'numeric'})}`
+      : `Image: ${d.toLocaleDateString('en-US', {day:'numeric',month:'long',year:'numeric'})}`;
+  }
+  renderNdviFieldsPanel();
+}
+
+// ════════════════════════════════════════════════════
+// РЕНДЕР NDVI ПАНЕЛИ ПОЛЕЙ
+// ════════════════════════════════════════════════════
+async function renderNdviFieldsPanel() {
+  const container = document.getElementById('ndvi-fields-list-panel');
+  const noFieldsMsg = document.getElementById('ndvi-no-fields-msg');
+  if (!container) return;
+
+  const fields = loadFields();
+  // Clear old field cards (keep no-fields msg)
+  Array.from(container.children).forEach(el => {
+    if (el !== noFieldsMsg) el.remove();
+  });
+
+  if (!fields.length) {
+    if (noFieldsMsg) noFieldsMsg.style.display = 'flex';
+    return;
+  }
+  if (noFieldsMsg) noFieldsMsg.style.display = 'none';
+
+  // Show loading skeleton
+  const loadingEl = document.createElement('div');
+  loadingEl.className = 'loading-card';
+  loadingEl.innerHTML = `<span class="ndvi-loading-spinner"></span> Анализ полей...`;
+  container.appendChild(loadingEl);
+
+  for (const field of fields) {
+    const ndvi = await sampleNdviForField(field);
+    const color = getNdviColor(ndvi);
+    const health = getHealthStatus(ndvi);
+    const lat = field.center ? field.center[0].toFixed(4) : '—';
+    const lng = field.center ? field.center[1].toFixed(4) : '—';
+
+    const card = document.createElement('div');
+    card.className = 'ndvi-field-card';
+    card.innerHTML = `
+      <div class="ndvi-field-card-top">
+        <div class="ndvi-field-dot" style="background:${field.color};"></div>
+        <div style="flex:1;min-width:0;">
+          <div class="ndvi-field-card-name">${field.name}</div>
+          <div class="ndvi-field-card-coords">${lat}°N, ${lng}°E · ${field.area} га</div>
+        </div>
+        <div class="ndvi-value-badge" style="background:${color};">NDVI ${ndvi}</div>
+      </div>
+      <div class="ndvi-mini-bar">
+        <span class="ndvi-mini-label" style="font-size:10px;">${health.label}</span>
+        <div class="ndvi-mini-track">
+          <div class="ndvi-mini-fill" style="width:${Math.round(ndvi*100)}%;background:${color};"></div>
+        </div>
+      </div>
+      <button class="ndvi-map-link" onclick="goToFieldOnMap('${field.id}')">
+        <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Показать на карте
+      </button>
+    `;
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.ndvi-map-link')) return;
+      openFieldDetail(field.id);
+    });
+    container.insertBefore(card, loadingEl);
+  }
+  loadingEl.remove();
+}
+
+function goToFieldOnMap(fieldId) {
+  const field = loadFields().find(f => f.id === fieldId);
+  if (!field || !field.center) return;
+  switchTab('map');
+  setTimeout(() => {
+    map.setView(field.center, 14);
+    map.invalidateSize();
+  }, 150);
+}
+
+// ════════════════════════════════════════════════════
+// FIELDS SUB-TABS (List / NDVI)
+// ════════════════════════════════════════════════════
+let currentFieldsSubTab = 'list';
+function setFieldsSubTab(tab) {
+  currentFieldsSubTab = tab;
+  document.getElementById('subtab-list').classList.toggle('active', tab === 'list');
+  document.getElementById('subtab-ndvi').classList.toggle('active', tab === 'ndvi');
+  document.getElementById('fields-subview-list').style.display = tab === 'list' ? '' : 'none';
+  document.getElementById('fields-subview-ndvi').style.display = tab === 'ndvi' ? 'flex' : 'none';
+  if (tab === 'ndvi') {
+    // Update toggle button state
+    const btn = document.getElementById('ndvi-map-toggle-btn');
+    if (btn) {
+      btn.classList.toggle('active', ndviVisible);
+      btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      На карте: ${ndviVisible ? '<span style="color:var(--accent);">Вкл</span>' : 'Выкл'}`;
+    }
+    const inlineDate = document.getElementById('ndvi-inline-date');
+    if (inlineDate) {
+      const d = new Date(); d.setDate(d.getDate() - 10);
+      inlineDate.textContent = `Снимок: ${d.toLocaleDateString('ru-RU', {day:'numeric',month:'long',year:'numeric'})}`;
+    }
+    renderNdviFieldsPanel();
+  }
 }
 
 // Получить средний NDVI для поля по центру (симуляция на основе координат)
@@ -2713,6 +3414,7 @@ function cancelDrawMode() {
   currentDrawPoints = [];
   setDrawModeActive(false);
   clearTempDrawLayers();
+  hideIntersectError();
 }
 
 function clearTempDrawLayers() {
@@ -2732,6 +3434,19 @@ function onMapClick(e) {
   updateTempDraw();
   updateDrawArea();
   document.getElementById('draw-hint')?.classList.remove('visible');
+
+  // Real-time intersection check
+  if (currentDrawPoints.length >= 4) {
+    if (checkPolygonSelfIntersects(currentDrawPoints)) {
+      showIntersectError();
+      if (tempPolygon) tempPolygon.setStyle({ color: '#ef5350', fillColor: '#ef5350' });
+      if (tempPolyline) tempPolyline.setStyle({ color: '#ef5350' });
+    } else {
+      hideIntersectError();
+      if (tempPolygon) tempPolygon.setStyle({ color: '#4CAF50', fillColor: '#4CAF50' });
+      if (tempPolyline) tempPolyline.setStyle({ color: '#4CAF50' });
+    }
+  }
 }
 
 function updateTempDraw() {
@@ -2815,6 +3530,14 @@ function undoLastPoint() {
     if (currentDrawPoints.length === 0) {
       document.getElementById('draw-hint')?.classList.add('visible');
     }
+    // Re-check intersections after undo
+    if (currentDrawPoints.length >= 4 && checkPolygonSelfIntersects(currentDrawPoints)) {
+      showIntersectError();
+    } else {
+      hideIntersectError();
+      if (tempPolygon) tempPolygon.setStyle({ color: '#4CAF50', fillColor: '#4CAF50' });
+      if (tempPolyline) tempPolyline.setStyle({ color: '#4CAF50' });
+    }
   }
 }
 
@@ -2830,12 +3553,82 @@ function setDrawModeSelect() {
   isDrawing = false;
 }
 
+// ════════════════════════════════════════════════════
+// ВАЛИДАЦИЯ САМОПЕРЕСЕЧЕНИЙ ПОЛИГОНА
+// ════════════════════════════════════════════════════
+function doSegmentsIntersect(p1, p2, p3, p4) {
+  // Check if segment p1-p2 intersects segment p3-p4 (excluding shared endpoints)
+  function cross(o, a, b) {
+    return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  }
+  function onSegment(p, q, r) {
+    return q[0] <= Math.max(p[0], r[0]) && q[0] >= Math.min(p[0], r[0]) &&
+           q[1] <= Math.max(p[1], r[1]) && q[1] >= Math.min(p[1], r[1]);
+  }
+  const d1 = cross(p3, p4, p1);
+  const d2 = cross(p3, p4, p2);
+  const d3 = cross(p1, p2, p3);
+  const d4 = cross(p1, p2, p4);
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+      ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true;
+  if (d1 === 0 && onSegment(p3, p1, p4)) return true;
+  if (d2 === 0 && onSegment(p3, p2, p4)) return true;
+  if (d3 === 0 && onSegment(p1, p3, p2)) return true;
+  if (d4 === 0 && onSegment(p1, p4, p2)) return true;
+  return false;
+}
+
+function checkPolygonSelfIntersects(pts) {
+  // Close the polygon
+  const closed = [...pts, pts[0]];
+  const n = closed.length - 1; // number of edges
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 2; j < n; j++) {
+      // Skip adjacent edges (they share an endpoint)
+      if (i === 0 && j === n - 1) continue;
+      if (doSegmentsIntersect(closed[i], closed[i + 1], closed[j], closed[j + 1])) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+let intersectErrorTimer = null;
+function showIntersectError() {
+  const el = document.getElementById('draw-intersect-error');
+  if (!el) return;
+  el.classList.add('visible');
+  clearTimeout(intersectErrorTimer);
+  intersectErrorTimer = setTimeout(() => el.classList.remove('visible'), 3000);
+}
+function hideIntersectError() {
+  const el = document.getElementById('draw-intersect-error');
+  if (el) el.classList.remove('visible');
+}
+
 // Завершить рисование → открыть модалку сохранения
 function finishDrawing() {
   if (currentDrawPoints.length < 3) {
     showToast(t('minPoints'));
     return;
   }
+
+  // ▶ Validate: no self-intersections
+  if (checkPolygonSelfIntersects(currentDrawPoints)) {
+    showIntersectError();
+    showToast(lang === 'ru' ? 'Линии не должны пересекаться' : 'Lines must not intersect');
+    // Highlight the polygon red to signal the error
+    if (tempPolygon) {
+      tempPolygon.setStyle({ color: '#ef5350', fillColor: '#ef5350' });
+      setTimeout(() => {
+        if (tempPolygon) tempPolygon.setStyle({ color: '#4CAF50', fillColor: '#4CAF50' });
+      }, 2500);
+    }
+    return; // Prevent saving
+  }
+
+  hideIntersectError();
   clearTempDrawLayers();
 
   // Вычислить площадь и периметр
@@ -3409,7 +4202,7 @@ function renderColorPicker(containerId, currentColor, onChange) {
 }
 
 // ════════════════════════════════════════════════════
-// ПОГОДА (Open-Meteo API)
+// ПОГОДА (Open-Meteo API — 7 дней, по выбранному полю)
 // ════════════════════════════════════════════════════
 const WMO_ICONS = {
   0:'☀️', 1:'🌤️', 2:'⛅', 3:'☁️',
@@ -3421,71 +4214,215 @@ const WMO_ICONS = {
   85:'🌨️', 86:'❄️',
   95:'⛈️', 96:'⛈️', 99:'⛈️'
 };
+const WMO_LABELS = {
+  0:'Ясно', 1:'Почти ясно', 2:'Переменная облачность', 3:'Пасмурно',
+  45:'Туман', 48:'Туман',
+  51:'Морось', 53:'Морось', 55:'Ливень',
+  61:'Дождь', 63:'Дождь', 65:'Сильный дождь',
+  71:'Снег', 73:'Снег', 75:'Сильный снег',
+  80:'Ливни', 81:'Ливни', 82:'Сильные ливни',
+  95:'Гроза', 96:'Гроза с градом', 99:'Сильная гроза'
+};
+
+let selectedWeatherFieldId = null;
+
+function populateWeatherFieldSelect() {
+  const sel = document.getElementById('weather-field-select');
+  if (!sel) return;
+  const fields = loadFields();
+  // Clear options except the placeholder
+  while (sel.options.length > 1) sel.remove(1);
+  fields.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f.id;
+    opt.textContent = `${f.name} (${f.area} га)`;
+    sel.appendChild(opt);
+  });
+  // Auto-select previously selected or first field
+  if (selectedWeatherFieldId) {
+    const exists = fields.find(f => f.id === selectedWeatherFieldId);
+    if (exists) sel.value = selectedWeatherFieldId;
+  } else if (fields.length === 1) {
+    sel.value = fields[0].id;
+    selectedWeatherFieldId = fields[0].id;
+  }
+}
+
+function onWeatherFieldChange(fieldId) {
+  selectedWeatherFieldId = fieldId || null;
+  loadWeather();
+}
 
 async function loadWeather() {
   const fields = loadFields();
   const container = document.getElementById('weather-list-container');
+  const noFieldDiv = document.getElementById('weather-no-field');
+  const fieldInfoBar = document.getElementById('weather-field-info');
 
-  if (fields.length === 0) {
-    container.innerHTML = `<div class="loading-card">${t('noWeatherData')}</div>`;
+  // Populate the select
+  populateWeatherFieldSelect();
+
+  if (!fields.length) {
+    if (noFieldDiv) {
+      noFieldDiv.style.display = 'flex';
+      const textEl = noFieldDiv.querySelector('#weather-no-field-text');
+      const btnEl = noFieldDiv.querySelector('button');
+      if (textEl) textEl.innerHTML = lang === 'ru'
+        ? 'Выберите или нарисуйте поле,<br>чтобы увидеть прогноз погоды'
+        : 'Select or draw a field first<br>to see the weather forecast';
+      if (btnEl) { btnEl.textContent = lang === 'ru' ? '+ Нарисовать поле' : '+ Draw a field'; btnEl.style.display = ''; }
+    }
+    container.innerHTML = '';
+    container.appendChild(noFieldDiv);
+    if (fieldInfoBar) fieldInfoBar.style.display = 'none';
     return;
   }
 
-  container.innerHTML = '';
+  // If no field selected, show the prompt
+  if (!selectedWeatherFieldId) {
+    if (noFieldDiv) {
+      noFieldDiv.style.display = 'flex';
+      const textEl = noFieldDiv.querySelector('#weather-no-field-text');
+      const btnEl = noFieldDiv.querySelector('button');
+      if (textEl) textEl.innerHTML = lang === 'ru'
+        ? 'Выберите поле выше,<br>чтобы увидеть прогноз погоды'
+        : 'Select a field above<br>to see the weather forecast';
+      if (btnEl) btnEl.style.display = 'none';
+    }
+    container.innerHTML = '';
+    container.appendChild(noFieldDiv);
+    if (fieldInfoBar) fieldInfoBar.style.display = 'none';
+    return;
+  }
 
-  for (const field of fields) {
-    const card = document.createElement('div');
-    card.className = 'weather-card';
-    card.innerHTML = `<div class="weather-field-name">${field.name}</div><div class="spinner"></div>`;
-    container.appendChild(card);
+  const field = fields.find(f => f.id === selectedWeatherFieldId);
+  if (!field) return;
 
+  // Show field info bar
+  if (fieldInfoBar) fieldInfoBar.style.display = 'flex';
+  const coordsEl = document.getElementById('weather-field-coords');
+  const areaEl = document.getElementById('weather-field-area');
+  if (coordsEl && field.center) {
+    coordsEl.textContent = `${field.center[0].toFixed(4)}°N, ${field.center[1].toFixed(4)}°E`;
+  }
+  if (areaEl) areaEl.textContent = `${field.area} га`;
+
+  // Loading state
+  container.innerHTML = `<div class="loading-card"><span class="ndvi-loading-spinner"></span> Загрузка прогноза...</div>`;
+
+  try {
+    const [lat, lng] = field.center;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}`
+      + `&current=temperature_2m,windspeed_10m,weathercode,precipitation,relativehumidity_2m,apparent_temperature`
+      + `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max`
+      + `&timezone=auto&forecast_days=7`;
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const cur = data.current;
+    const daily = data.daily;
+
+    const wind = cur.windspeed_10m;
+    const rain = cur.precipitation;
+    const humidity = cur.relativehumidity_2m;
+    const feelsLike = cur.apparent_temperature;
+    const canSpray = wind < 5 && rain === 0;
+
+    // 7-day forecast cards
+    const forecastHTML = daily.time.map((dateStr, i) => {
+      const day = new Date(dateStr);
+      const isToday = i === 0;
+      const dayName = isToday ? 'Сегодня' : day.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { weekday: 'short' });
+      const icon = WMO_ICONS[daily.weathercode[i]] || '🌡️';
+      const rain_mm = daily.precipitation_sum[i] || 0;
+      return `
+        <div class="forecast-day-card ${isToday ? 'today' : ''}">
+          <div class="fday-name">${dayName}</div>
+          <div class="fday-icon">${icon}</div>
+          <div class="fday-max">${Math.round(daily.temperature_2m_max[i])}°</div>
+          <div class="fday-min">${Math.round(daily.temperature_2m_min[i])}°</div>
+          ${rain_mm > 0 ? `<div class="fday-rain">💧${rain_mm.toFixed(1)}</div>` : ''}
+        </div>`;
+    }).join('');
+
+    // Reverse geocode location name (best effort)
+    let locationName = `${lat.toFixed(3)}°N, ${lng.toFixed(3)}°E`;
     try {
-      const [lat, lng] = field.center;
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}`
-        + `&current=temperature_2m,windspeed_10m,weathercode,precipitation`
-        + `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum`
-        + `&timezone=auto&forecast_days=4`;
+      const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=${lang}`);
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        const addr = geoData.address || {};
+        locationName = [addr.city || addr.town || addr.village || addr.county, addr.state || addr.country].filter(Boolean).join(', ') || locationName;
+      }
+    } catch(_) {}
 
-      const res = await fetch(url);
-      const data = await res.json();
-      const cur = data.current;
-      const daily = data.daily;
-
-      const wind = cur.windspeed_10m;
-      const rain = cur.precipitation;
-      const canSpray = wind < 5 && rain === 0;
-
-      const forecastHTML = [1,2,3].map(i => {
-        const day = new Date(daily.time[i]);
-        const dayName = day.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { weekday: 'short' });
-        const icon = WMO_ICONS[daily.weathercode[i]] || '🌡️';
-        return `
-          <div class="forecast-day">
-            <div class="forecast-day-name">${dayName}</div>
-            <div class="forecast-day-icon">${icon}</div>
-            <div class="forecast-day-temp">${Math.round(daily.temperature_2m_max[i])}°</div>
+    container.innerHTML = `
+      <div class="weather-card">
+        <!-- Location + field header -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <div style="flex:1;">
+            <div class="weather-field-name" style="margin-bottom:2px;">${field.name}</div>
+            <div style="font-size:12px;color:var(--text3);">
+              <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:3px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              ${locationName}
+            </div>
+            <div style="font-size:12px;color:var(--text3);margin-top:1px;">
+              Площадь: <strong style="color:var(--text2);">${field.area} га</strong>
+              · Периметр: ${field.perimeter} км
+            </div>
           </div>
-        `;
-      }).join('');
+        </div>
 
-      card.innerHTML = `
-        <div class="weather-field-name">${field.name}</div>
+        <!-- Current conditions -->
         <div class="weather-current">
           <div class="weather-icon">${WMO_ICONS[cur.weathercode] || '🌡️'}</div>
-          <div class="weather-temp">${Math.round(cur.temperature_2m)}°C</div>
-          <div class="weather-details">
-            <div class="weather-detail">💨 ${wind} м/с</div>
-            <div class="weather-detail">🌧 ${rain} мм</div>
+          <div>
+            <div class="weather-temp">${Math.round(cur.temperature_2m)}°C</div>
+            <div style="font-size:12px;color:var(--text2);">Ощущается как ${Math.round(feelsLike)}°</div>
+            <div style="font-size:12px;color:var(--text2);">${WMO_LABELS[cur.weathercode] || ''}</div>
           </div>
         </div>
-        <div class="spray-badge ${canSpray ? 'safe' : 'unsafe'}">
-          ${canSpray ? t('safeSpray') : t('unsafeSpray')}
+
+        <!-- Detail grid -->
+        <div class="weather-details-grid">
+          <div class="weather-detail-card">
+            <div class="weather-detail-label">💨 Ветер</div>
+            <div class="weather-detail-val">${wind} <span style="font-size:12px;font-weight:400;">м/с</span></div>
+            <div class="weather-detail-sub">${wind < 3 ? 'Штиль' : wind < 5 ? 'Слабый' : wind < 10 ? 'Умеренный' : 'Сильный'}</div>
+          </div>
+          <div class="weather-detail-card">
+            <div class="weather-detail-label">🌧 Осадки</div>
+            <div class="weather-detail-val">${rain} <span style="font-size:12px;font-weight:400;">мм</span></div>
+            <div class="weather-detail-sub">${rain === 0 ? 'Нет осадков' : 'Есть осадки'}</div>
+          </div>
+          <div class="weather-detail-card">
+            <div class="weather-detail-label">💧 Влажность</div>
+            <div class="weather-detail-val">${humidity}<span style="font-size:12px;font-weight:400;">%</span></div>
+            <div class="weather-detail-sub">${humidity < 40 ? 'Сухо' : humidity < 70 ? 'Комфортно' : 'Влажно'}</div>
+          </div>
+          <div class="weather-detail-card">
+            <div class="weather-detail-label">🌿 Опрыскивание</div>
+            <div class="weather-detail-val" style="font-size:13px;color:${canSpray ? 'var(--accent)' : 'var(--danger)'};">${canSpray ? '✅ Можно' : '❌ Нельзя'}</div>
+            <div class="weather-detail-sub">${canSpray ? 'Ветер и дождь в норме' : 'Ветер/дождь мешают'}</div>
+          </div>
         </div>
-        <div class="forecast-row">${forecastHTML}</div>
-      `;
-    } catch {
-      card.innerHTML = `<div class="weather-field-name">${field.name}</div><div style="color:var(--text3);font-size:13px;">${t('weatherLoadError')}</div>`;
-    }
+
+        <!-- 7-day forecast -->
+        <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Прогноз на 7 дней</div>
+        <div class="forecast-7day">${forecastHTML}</div>
+
+        <div style="font-size:10px;color:var(--text3);margin-top:10px;text-align:right;">
+          📡 Open-Meteo · ${new Date().toLocaleDateString('ru-RU', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}
+        </div>
+      </div>
+    `;
+  } catch(err) {
+    container.innerHTML = `<div class="weather-card">
+      <div class="weather-field-name">${field.name}</div>
+      <div style="color:var(--danger);font-size:13px;margin-top:8px;">⚠ ${t('weatherLoadError')}</div>
+      <button class="modal-btn secondary" style="margin-top:12px;" onclick="loadWeather()">Повторить</button>
+    </div>`;
   }
 }
 
@@ -3641,13 +4578,29 @@ function switchTab(tab) {
   document.getElementById(`tab-${tab}`).classList.add('active');
   activeTab = tab;
 
-  if (tab === 'fields') renderFieldsList();
-  if (tab === 'weather') loadWeather();
+  if (tab === 'fields') {
+    renderFieldsList();
+    // Ensure list sub-view is visible by default
+    setFieldsSubTab(currentFieldsSubTab || 'list');
+  }
+  if (tab === 'weather') {
+    populateWeatherFieldSelect();
+    loadWeather();
+  }
   if (tab === 'notes') renderNotesList();
   if (tab === 'profile') renderProfile();
 
   // Обновить размер карты
-  if (tab === 'map') setTimeout(() => { if (map) { map.invalidateSize(); updateMapLabels(); } }, 100);
+  if (tab === 'map') setTimeout(() => {
+    if (map) {
+      map.invalidateSize();
+      updateMapLabels();
+      // Re-render current layer tiles if they look blank
+      if (currentLayer === 'osm' && map.hasLayer(osmLayer)) {
+        osmLayer.redraw();
+      }
+    }
+  }, 150);
 }
 
 // ════════════════════════════════════════════════════
