@@ -43,9 +43,17 @@
     --radius: 16px;
     --radius-sm: 10px;
     --shadow: 0 8px 32px rgba(0,0,0,0.4);
-    --nav-h: 72px;
+
+    /* Safe areas — iOS Dynamic Island / notch / home indicator */
+    --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+
+    /* Nav bar: fixed icon area + safe bottom padding */
+    --nav-h: 54px;
     --nav-total: calc(var(--nav-h) + var(--safe-bottom));
+
     --header-h: 60px;
     --z-map: 400;
     --z-draw: 480;
@@ -64,7 +72,12 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
-  html, body {
+  html {
+    height: 100%;
+    height: 100dvh;
+    width: 100%;
+  }
+  body {
     height: 100%;
     width: 100%;
     overflow: hidden;
@@ -74,6 +87,9 @@
     /* Убрать bounce-скролл на iOS */
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
+    /* Запрет выделения текста на мобильных */
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   /* ══════════════════════════════════════
@@ -82,15 +98,16 @@
   #app-wrapper {
     width: 100%;
     max-width: 430px;
-    height: 100vh;
-    /* PWA: учитываем safe area сверху (вырез/Dynamic Island) */
-    padding-top: env(safe-area-inset-top, 0px);
+    /* dvh = dynamic viewport height — правильно работает на iOS Safari */
+    height: 100vh; /* fallback */
+    height: 100dvh;
     box-sizing: border-box;
     margin: 0 auto;
     position: relative;
     overflow: hidden;
     background: var(--bg);
     overscroll-behavior: none;
+    /* НЕ добавляем padding-top здесь — управляем через элементы */
   }
 
   /* ══════════════════════════════════════
@@ -106,12 +123,15 @@
     align-items: center;
     justify-content: center;
     padding: 40px 32px;
+    /* Safe area для login тоже */
+    padding-top: calc(var(--safe-top) + 40px);
+    padding-bottom: calc(var(--safe-bottom) + 40px);
     gap: 0;
   }
 
   #login-screen .lang-switcher {
     position: absolute;
-    top: 56px;
+    top: calc(var(--safe-top) + 16px);
     right: 24px;
     display: flex;
     gap: 0;
@@ -181,7 +201,7 @@
   #main-app {
     display: none;
     flex-direction: column;
-    height: 100vh;
+    height: 100%;
     position: relative;
   }
   #main-app.visible { display: flex; }
@@ -194,15 +214,20 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: var(--nav-h);
+    /* Высота = иконки + safe area снизу (home indicator) */
+    height: var(--nav-total);
+    /* Иконки выровнены сверху внутри bar */
+    padding-top: 8px;
     padding-bottom: var(--safe-bottom);
+    /* Боковые отступы для landscape iPhone */
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
     background: rgba(13,20,28,0.98);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border-top: 1px solid rgba(255,255,255,0.12);
+    border-top: 1px solid rgba(255,255,255,0.10);
     display: flex !important;
     align-items: flex-start;
-    padding-top: 10px;
     z-index: var(--z-nav);
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
@@ -241,8 +266,12 @@
   ══════════════════════════════════════ */
   .screen {
     position: absolute;
-    inset: 0;
-    bottom: var(--nav-h);
+    /* top с учётом safe-top для notch/Dynamic Island */
+    top: var(--safe-top);
+    left: 0;
+    right: 0;
+    /* bottom = полная высота таббара включая safe-bottom */
+    bottom: var(--nav-total);
     display: none;
     flex-direction: column;
     overflow: hidden;
@@ -254,8 +283,10 @@
   ══════════════════════════════════════ */
   #screen-map {
     position: absolute;
-    inset: 0;
-    bottom: var(--nav-h);
+    top: 0; /* карта начинается с 0, контролы учитывают safe-top */
+    left: 0;
+    right: 0;
+    bottom: var(--nav-total);
   }
 
   #map {
@@ -266,7 +297,8 @@
   /* Контролы на карте */
   .map-control-top {
     position: absolute;
-    top: 16px;
+    /* Учитываем safe-top + небольшой отступ */
+    top: calc(var(--safe-top) + 12px);
     left: 16px;
     right: 16px;
     display: flex;
@@ -287,6 +319,7 @@
   .map-fields-pill {
     background: rgba(15,25,35,0.92);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-radius: 24px;
     padding: 10px 16px;
     display: flex;
@@ -305,6 +338,7 @@
     border-radius: 50%;
     background: rgba(15,25,35,0.92);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
@@ -316,52 +350,59 @@
   /* Кнопка геолокации */
   #btn-geolocate {
     position: absolute;
-    bottom: calc(var(--nav-h) + 16px);
+    bottom: calc(var(--nav-total) + 76px);
     right: 16px;
     z-index: var(--z-map);
-    width: 48px; height: 48px;
+    width: 44px; height: 44px;
     border-radius: 50%;
     background: rgba(15,25,35,0.92);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     color: var(--text);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
   }
 
   /* Большая кнопка добавить поле */
   #btn-add-field-map {
     position: absolute;
-    bottom: calc(var(--nav-h) + 12px);
+    /* nav-total = nav-h + safe-bottom, добавляем ещё отступ 12px */
+    bottom: calc(var(--nav-total) + 12px);
     left: 50%;
     transform: translateX(-50%);
     z-index: var(--z-map);
     background: var(--accent);
     color: #fff;
     border: none;
-    border-radius: 20px;
-    padding: 18px 32px;
-    font-size: 17px;
+    border-radius: 28px;
+    /* Уменьшили padding — кнопка была слишком большой */
+    padding: 14px 28px;
+    font-size: 16px;
     font-weight: 700;
     cursor: pointer;
-    display: flex; align-items: center; gap: 10px;
-    box-shadow: 0 4px 24px rgba(76,175,80,0.4);
+    display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 4px 20px rgba(76,175,80,0.45);
     transition: all 0.2s;
+    white-space: nowrap;
   }
   #btn-add-field-map:active { transform: translateX(-50%) scale(0.97); }
-  #btn-add-field-map svg { width: 24px; height: 24px; }
+  #btn-add-field-map svg { width: 20px; height: 20px; }
 
   /* Переключатель слоя карты */
   #layer-switcher {
     position: absolute;
-    bottom: calc(var(--nav-h) + 56px);
+    bottom: calc(var(--nav-total) + 76px);
     left: 16px;
     z-index: var(--z-map);
     background: rgba(15,25,35,0.92);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-radius: var(--radius-sm);
     overflow: hidden;
     border: 1px solid var(--border);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
   }
   .layer-btn {
     display: block;
@@ -383,20 +424,20 @@
   #draw-mode-ui {
     display: none;
     position: absolute;
-    inset: 0;
-    bottom: var(--nav-h);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: var(--nav-total);
     z-index: var(--z-draw);
     pointer-events: none;
   }
-  /* Draw mode should not cover the tab bar */
   #draw-mode-ui.active {
     display: block;
-    bottom: var(--nav-h);
   }
 
   .draw-top-section {
     position: absolute;
-    top: 16px;
+    top: calc(var(--safe-top) + 12px);
     left: 16px;
     right: 16px;
     display: flex;
@@ -531,6 +572,8 @@
 
   .screen-header {
     padding: 16px 20px 0;
+    /* Учёт safe-top для notch/Dynamic Island */
+    padding-top: calc(var(--safe-top) + 12px);
     background: var(--bg);
     flex-shrink: 0;
   }
@@ -592,7 +635,7 @@
     flex: 1;
     overflow-y: auto;
     padding: 0 16px;
-    padding-bottom: 16px;
+    padding-bottom: 20px;
   }
   .fields-list::-webkit-scrollbar { display: none; }
 
@@ -676,11 +719,19 @@
   ══════════════════════════════════════ */
   #screen-field-detail {
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: var(--z-detail);
     background: var(--bg);
     display: none;
     flex-direction: column;
+    /* Учёт safe areas */
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
   }
   #screen-field-detail.open { display: flex; }
 
@@ -1037,7 +1088,9 @@
     width: 100%;
     background: var(--bg2);
     border-radius: 20px 20px 0 0;
-    padding: 16px 20px 32px;
+    padding: 16px 20px;
+    /* Bottom padding includes home indicator */
+    padding-bottom: calc(var(--safe-bottom) + 24px);
     max-height: 80vh;
     overflow-y: auto;
   }
@@ -1317,7 +1370,7 @@
   /* Toast уведомление — сверху, не блокирует кнопки */
   #toast {
     position: absolute;
-    top: 16px;
+    top: calc(var(--safe-top) + 16px);
     left: 50%;
     transform: translateX(-50%) translateY(-120%);
     background: var(--bg3);
@@ -1350,7 +1403,8 @@
   .profile-scroll {
     flex: 1;
     overflow-y: auto;
-    padding: 0 16px 24px;
+    padding: 0 16px;
+    padding-bottom: calc(var(--safe-bottom) + 24px);
   }
   .profile-scroll::-webkit-scrollbar { display: none; }
   .profile-card {
@@ -1775,7 +1829,7 @@
   #ndvi-status-panel {
     display: none;
     position: absolute;
-    bottom: calc(var(--nav-h) + 130px);
+    bottom: calc(var(--nav-total) + 130px);
     left: 16px;
     right: 16px;
     z-index: var(--z-map);
@@ -1914,7 +1968,7 @@
 
       <!-- Индикатор загрузки тайлов -->
       <div id="map-tile-loader" style="
-        display:none;position:absolute;bottom:calc(var(--nav-h)+8px);right:60px;
+        display:none;position:absolute;bottom:calc(var(--nav-total) + 8px);right:60px;
         z-index:var(--z-map);background:rgba(13,20,28,0.85);backdrop-filter:blur(8px);
         border:1px solid var(--border);border-radius:100px;padding:6px 12px;
         font-size:11px;color:var(--text2);display:none;align-items:center;gap:6px;
