@@ -210,18 +210,22 @@
      НИЖНЯЯ НАВИГАЦИЯ
   ══════════════════════════════════════ */
   #tab-bar {
-    position: absolute;
+    position: fixed;
     bottom: 0;
-    left: 0;
-    right: 0;
-    /* Высота = иконки + safe area снизу (home indicator) */
+    left: 50%;
+    /* Use translateZ(0) for GPU compositing — keeps bar pinned on iOS Safari */
+    -webkit-transform: translateX(-50%) translateZ(0);
+    transform: translateX(-50%) translateZ(0);
+    width: 100%;
+    max-width: 430px;
+    /* Height = icon area + safe area (home indicator / bottom bar on iPhone) */
     height: var(--nav-total);
-    /* Иконки выровнены сверху внутри bar */
+    /* Align icons at the top of the bar, safe-area padding fills the gap below */
     padding-top: 8px;
-    padding-bottom: var(--safe-bottom);
-    /* Боковые отступы для landscape iPhone */
-    padding-left: var(--safe-left);
-    padding-right: var(--safe-right);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* Landscape iPhone side safe-areas */
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
     background: rgba(13,20,28,0.98);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
@@ -229,8 +233,9 @@
     display: flex !important;
     align-items: flex-start;
     z-index: var(--z-nav);
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
+    /* Force stacking context so nothing overlaps the tab bar */
+    isolation: isolate;
+    will-change: transform;
     visibility: visible !important;
     opacity: 1 !important;
     pointer-events: all !important;
@@ -347,29 +352,30 @@
   }
   .map-icon-btn svg { width: 20px; height: 20px; }
 
-  /* Кнопка геолокации */
+  /* Кнопка геолокации — нижний правый, выше таббара */
   #btn-geolocate {
     position: absolute;
-    bottom: calc(var(--nav-total) + 76px);
+    bottom: calc(var(--nav-total) + 12px);
     right: 16px;
     z-index: var(--z-map);
-    width: 44px; height: 44px;
+    width: 48px; height: 48px;
     border-radius: 50%;
-    background: rgba(15,25,35,0.92);
+    background: rgba(15,25,35,0.95);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     color: var(--text);
-    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    transition: all 0.2s;
   }
+  #btn-geolocate:active { transform: scale(0.93); }
 
-  /* Большая кнопка добавить поле */
+  /* Большая кнопка добавить поле — центр, выше геолокации и слоёв */
   #btn-add-field-map {
     position: absolute;
-    /* nav-total = nav-h + safe-bottom, добавляем ещё отступ 12px */
-    bottom: calc(var(--nav-total) + 12px);
+    bottom: calc(var(--nav-total) + 76px);
     left: 50%;
     transform: translateX(-50%);
     z-index: var(--z-map);
@@ -377,7 +383,6 @@
     color: #fff;
     border: none;
     border-radius: 28px;
-    /* Уменьшили padding — кнопка была слишком большой */
     padding: 14px 28px;
     font-size: 16px;
     font-weight: 700;
@@ -390,19 +395,19 @@
   #btn-add-field-map:active { transform: translateX(-50%) scale(0.97); }
   #btn-add-field-map svg { width: 20px; height: 20px; }
 
-  /* Переключатель слоя карты */
+  /* Переключатель слоя карты — нижний левый, выше таббара */
   #layer-switcher {
     position: absolute;
-    bottom: calc(var(--nav-total) + 76px);
+    bottom: calc(var(--nav-total) + 12px);
     left: 16px;
     z-index: var(--z-map);
-    background: rgba(15,25,35,0.92);
+    background: rgba(15,25,35,0.95);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-radius: var(--radius-sm);
     overflow: hidden;
     border: 1px solid var(--border);
-    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
   }
   .layer-btn {
     display: block;
@@ -1397,6 +1402,159 @@
   body.modal-open { overflow: hidden; }
 
   /* ══════════════════════════════════════
+     КНОПКА ПОКАЗАТЬ НА КАРТЕ (field card)
+  ══════════════════════════════════════ */
+  .field-show-on-map-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: rgba(76,175,80,0.12);
+    border: 1px solid rgba(76,175,80,0.3);
+    border-radius: 100px;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: all 0.2s;
+    font-family: inherit;
+    align-self: flex-start;
+  }
+  .field-show-on-map-btn:active {
+    background: rgba(76,175,80,0.25);
+    transform: scale(0.97);
+  }
+
+  /* ══════════════════════════════════════
+     NDVI ПАНЕЛЬ — УЛУЧШЕННЫЙ ДИЗАЙН
+  ══════════════════════════════════════ */
+  .ndvi-legend-redesigned {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+  .ndvi-legend-redesigned-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .ndvi-legend-redesigned-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+  .ndvi-date-tag {
+    font-size: 10px;
+    color: var(--text3);
+    background: var(--bg3);
+    padding: 3px 8px;
+    border-radius: 100px;
+  }
+  .ndvi-gradient-bar {
+    height: 18px;
+    border-radius: 9px;
+    background: linear-gradient(to right, #8B0000, #FF4500, #FFA500, #FFFF00, #7FBF00, #006400);
+    margin-bottom: 6px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .ndvi-scale-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .ndvi-scale-label {
+    font-size: 10px;
+    color: var(--text3);
+    text-align: center;
+  }
+  .ndvi-scale-label strong {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 1px;
+  }
+  .ndvi-legend-ranges {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .ndvi-range-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 8px;
+    border-radius: 8px;
+    background: var(--bg3);
+    font-size: 10px;
+    color: var(--text2);
+    font-weight: 500;
+  }
+  .ndvi-range-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .ndvi-field-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .ndvi-field-name-block { flex: 1; min-width: 0; }
+  .ndvi-field-name-block .name {
+    font-size: 15px; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ndvi-field-name-block .coords { font-size: 10px; color: var(--text3); margin-top: 1px; }
+  .ndvi-value-badge-lg {
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .ndvi-bar-section { margin-bottom: 10px; }
+  .ndvi-bar-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+  }
+  .ndvi-bar-label { font-size: 11px; color: var(--text3); width: 28px; flex-shrink: 0; }
+  .ndvi-bar-track {
+    flex: 1; height: 8px; border-radius: 4px;
+    background: var(--bg3); overflow: hidden;
+  }
+  .ndvi-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .ndvi-bar-value { font-size: 12px; font-weight: 700; width: 32px; text-align: right; flex-shrink: 0; }
+  .ndvi-health-status-row {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .ndvi-health-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 100px;
+    font-size: 11px; font-weight: 600;
+  }
+  .ndvi-health-pill.green { background: rgba(76,175,80,0.15); color: #66bb6a; }
+  .ndvi-health-pill.orange { background: rgba(255,152,0,0.15); color: #ffa726; }
+  .ndvi-health-pill.red { background: rgba(239,83,80,0.15); color: #ef5350; }
+  .ndvi-map-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    background: rgba(76,175,80,0.12);
+    border: 1px solid rgba(76,175,80,0.3);
+    border-radius: 100px;
+    color: var(--accent); font-size: 11px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: all 0.2s;
+  }
+  .ndvi-map-btn:active { background: rgba(76,175,80,0.25); }
+
+  /* ══════════════════════════════════════
      ПРОФИЛЬ
   ══════════════════════════════════════ */
   #screen-profile {
@@ -1619,19 +1777,19 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 0 8px;
+    padding: 14px 0 10px;
     gap: 10px;
   }
   .ndvi-map-toggle-btn {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 12px;
+    padding: 9px 14px;
     background: var(--bg3);
     border: 1px solid var(--border);
     border-radius: 100px;
     color: var(--text2);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
@@ -1643,64 +1801,181 @@
     border-color: var(--accent);
     color: var(--accent);
   }
+
+  /* REDESIGNED NDVI Legend Card */
   .ndvi-legend-inline {
     background: var(--bg2);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 10px 12px;
-    margin-bottom: 12px;
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
   }
   .ndvi-legend-inline-title {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--text3);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.6px;
+    margin-bottom: 10px;
+  }
+  /* Gradient bar with scale markers */
+  .ndvi-scale-track-wrap {
+    position: relative;
     margin-bottom: 6px;
   }
-  /* Per-field NDVI card in NDVI panel */
+  .ndvi-scale-gradient {
+    height: 20px;
+    border-radius: 10px;
+    background: linear-gradient(to right, #8B0000 0%, #FF4500 20%, #FFA500 40%, #FFFF00 55%, #7FBF00 75%, #006400 100%);
+    box-shadow: inset 0 1px 4px rgba(0,0,0,0.35);
+    margin-bottom: 6px;
+  }
+  .ndvi-scale-ticks {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 2px;
+    margin-bottom: 10px;
+  }
+  .ndvi-scale-tick {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .ndvi-scale-tick-val {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .ndvi-scale-tick-lbl {
+    font-size: 9px;
+    color: var(--text3);
+    text-align: center;
+    max-width: 44px;
+    line-height: 1.2;
+  }
+  /* Color chips legend */
+  .ndvi-color-chips {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .ndvi-color-chip {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--bg3);
+    border-radius: 8px;
+    padding: 7px 8px;
+    border: 1px solid var(--border);
+  }
+  .ndvi-color-chip-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .ndvi-color-chip-info {}
+  .ndvi-color-chip-range {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+  }
+  .ndvi-color-chip-label {
+    font-size: 9px;
+    color: var(--text3);
+    line-height: 1.2;
+    margin-top: 1px;
+  }
+
+  /* Redesigned per-field NDVI card */
   .ndvi-field-card {
     background: var(--bg2);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 14px;
-    margin-bottom: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background 0.15s, transform 0.15s;
   }
-  .ndvi-field-card:active { background: var(--bg3); }
+  .ndvi-field-card:active { background: var(--bg3); transform: scale(0.98); }
   .ndvi-field-card-top {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: 12px;
+    margin-bottom: 14px;
   }
   .ndvi-field-dot {
-    width: 12px; height: 12px;
+    width: 14px; height: 14px;
     border-radius: 50%;
     flex-shrink: 0;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.1);
   }
-  .ndvi-field-card-name { font-size: 15px; font-weight: 700; flex: 1; }
-  .ndvi-field-card-coords { font-size: 11px; color: var(--text3); }
-  .ndvi-value-badge {
-    padding: 4px 10px;
-    border-radius: 100px;
-    font-size: 13px;
+  .ndvi-field-card-name {
+    font-size: 16px;
     font-weight: 700;
-    color: #fff;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .ndvi-map-link {
-    display: flex;
-    align-items: center;
-    gap: 4px;
+  .ndvi-field-card-coords {
     font-size: 11px;
-    color: var(--accent);
-    margin-top: 8px;
-    cursor: pointer;
-    background: none;
-    border: none;
-    padding: 0;
+    color: var(--text3);
+    margin-top: 2px;
   }
+  .ndvi-value-badge {
+    padding: 6px 13px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.3px;
+    flex-shrink: 0;
+  }
+  /* NDVI progress bar row */
+  .ndvi-bar-section { margin-bottom: 12px; }
+  .ndvi-bar-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ndvi-bar-label { font-size: 11px; color: var(--text3); width: 36px; flex-shrink: 0; font-weight: 600; }
+  .ndvi-bar-track {
+    flex: 1; height: 10px; border-radius: 5px;
+    background: var(--bg3); overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .ndvi-bar-fill { height: 100%; border-radius: 5px; transition: width 0.7s ease; }
+  .ndvi-bar-value { font-size: 13px; font-weight: 700; width: 36px; text-align: right; flex-shrink: 0; }
+  /* Health & forecast row */
+  .ndvi-health-status-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .ndvi-health-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; border-radius: 100px;
+    font-size: 12px; font-weight: 700;
+  }
+  .ndvi-health-pill.green { background: rgba(76,175,80,0.15); color: #66bb6a; }
+  .ndvi-health-pill.orange { background: rgba(255,152,0,0.15); color: #ffa726; }
+  .ndvi-health-pill.red { background: rgba(239,83,80,0.15); color: #ef5350; }
+  .ndvi-map-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    cursor: pointer;
+    background: rgba(76,175,80,0.1);
+    border: 1px solid rgba(76,175,80,0.25);
+    border-radius: 100px;
+    padding: 5px 12px;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .ndvi-map-link:active { background: rgba(76,175,80,0.22); }
 
   /* ══════════════════════════════════════
      WEATHER SCREEN — new design
@@ -4161,6 +4436,12 @@ function renderFieldsList() {
 
       <!-- Мини-спарклайн вегетации -->
       <svg class="veg-sparkline" id="spark-${field.id}" viewBox="0 0 280 36" preserveAspectRatio="none"></svg>
+
+      <!-- Кнопка показать на карте -->
+      <button class="field-show-on-map-btn" onclick="event.stopPropagation(); goToFieldOnMap('${field.id}')">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Показать на карте
+      </button>
     `;
     card.addEventListener('click', () => openFieldDetail(field.id));
     container.appendChild(card);
