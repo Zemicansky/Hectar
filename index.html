@@ -1166,6 +1166,8 @@
   @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   .screen.active { animation: fadeIn 0.25s ease; }
 
+  /* ══════════════════════════════════════
+     NDVI ЛЕГЕНДА
   ══════════════════════════════════════ */
   #ndvi-legend {
     display: none;
@@ -1797,6 +1799,219 @@
   .weather-detail-val { font-size: 16px; font-weight: 700; }
   .weather-detail-sub { font-size: 11px; color: var(--text2); }
 
+  /* ══════════════════════════════════════
+     AI COW RECOGNITION BUTTON
+  ══════════════════════════════════════ */
+  .ai-cow-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .ai-cow-btn:active { background: var(--bg3); transform: scale(0.98); }
+  .ai-cow-btn-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ai-cow-icon { font-size: 24px; line-height: 1; }
+  .ai-cow-label { font-size: 15px; font-weight: 600; text-align: left; margin-bottom: 2px; }
+  .ai-cow-sub { font-size: 12px; color: var(--text3); text-align: left; }
+  .ai-soon-badge {
+    background: rgba(255,152,0,0.15);
+    color: #ffa726;
+    border: 1px solid rgba(255,152,0,0.3);
+    border-radius: 100px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+
+  /* ══════════════════════════════════════
+     RAIN PROBABILITY INDICATOR
+  ══════════════════════════════════════ */
+  .rain-prob-card {
+    background: var(--bg3);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+  .rain-prob-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+  .rain-prob-bar-wrap {
+    position: relative;
+    height: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+  .rain-prob-bar-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+  }
+  .rain-prob-val { font-size: 16px; font-weight: 700; }
+  .rain-prob-sub { font-size: 11px; color: var(--text2); }
+
+  /* ══════════════════════════════════════
+     PAST SEASONS STATISTICS
+  ══════════════════════════════════════ */
+  #screen-seasons {
+    background: var(--bg);
+  }
+  .seasons-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px;
+    padding-bottom: 20px;
+  }
+  .seasons-scroll::-webkit-scrollbar { display: none; }
+  .season-record-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .season-record-card:active { background: var(--bg3); transform: scale(0.98); }
+  .season-record-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .season-record-year {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .season-record-crop {
+    font-size: 13px;
+    color: var(--text2);
+    background: var(--bg3);
+    padding: 3px 10px;
+    border-radius: 100px;
+  }
+  .season-record-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .season-stat-mini {
+    text-align: center;
+    background: var(--bg3);
+    border-radius: 8px;
+    padding: 8px 6px;
+  }
+  .season-stat-mini .val { font-size: 15px; font-weight: 700; }
+  .season-stat-mini .lbl { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 1px; }
+  .season-record-notes {
+    font-size: 12px;
+    color: var(--text3);
+    line-height: 1.5;
+    margin-top: 6px;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+  }
+  .season-delete-btn {
+    background: none;
+    border: none;
+    color: var(--danger);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 2px 6px;
+  }
+
+  /* Past seasons trend chart */
+  .seasons-trend-container {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .seasons-trend-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text2);
+    margin-bottom: 10px;
+  }
+  .seasons-trend-svg {
+    width: 100%;
+    height: 80px;
+    overflow: visible;
+  }
+  .seasons-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--text3);
+  }
+  .seasons-empty-icon { font-size: 40px; opacity: 0.4; }
+  .seasons-empty p { font-size: 14px; line-height: 1.6; }
+  .add-season-fab {
+    margin: 8px 16px 16px;
+    background: var(--accent);
+    border: none;
+    border-radius: 100px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 4px 20px rgba(76,175,80,0.35);
+  }
+  .add-season-fab svg { width: 22px; height: 22px; }
+
+  /* Comparison chips */
+  .season-compare-row {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+  }
+  .season-compare-row::-webkit-scrollbar { display: none; }
+  .season-compare-chip {
+    flex-shrink: 0;
+    padding: 5px 12px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .season-compare-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
 </style>
 <style>
   /* ══════════════════════════════════════
@@ -1900,7 +2115,7 @@
     <div class="login-title">Hec<span>tar</span></div>
     <div class="login-subtitle" id="login-subtitle">
       Мониторинг сельскохозяйственных полей<br>
-      Agricultural field monitoring · v1.3
+      Agricultural field monitoring · v1.4
     </div>
 
     <button class="login-btn google" onclick="showToast('Google Auth coming soon')">
@@ -2044,10 +2259,11 @@
             </button>
           </div>
         </div>
-        <!-- Sub-tabs: Fields list | NDVI -->
+        <!-- Sub-tabs: Fields list | NDVI | Seasons -->
         <div class="fields-subtab-row">
           <button class="fields-subtab active" id="subtab-list" onclick="setFieldsSubTab('list')" data-i18n="allFields">Список полей</button>
           <button class="fields-subtab" id="subtab-ndvi" onclick="setFieldsSubTab('ndvi')">🌿 NDVI</button>
+          <button class="fields-subtab" id="subtab-seasons" onclick="setFieldsSubTab('seasons')">📊 Сезоны</button>
         </div>
       </div>
 
@@ -2113,6 +2329,25 @@
             📡 <strong style="color:var(--text2);">NASA GIBS MODIS Terra NDVI</strong> — 16-дневный композит, разрешение 500 м/пкс. Данные обновляются каждые ~8 дней. Значение NDVI: <span style="color:#ef5350;">0–0.2</span> нет/мало растительности, <span style="color:#FFA500;">0.2–0.5</span> умеренная, <span style="color:#4CAF50;">0.5–1.0</span> густая.
           </div>
         </div>
+      </div>
+
+      <!-- Sub-view: Seasons panel -->
+      <div id="fields-subview-seasons" style="display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0;">
+        <!-- Compare metric chips -->
+        <div class="season-compare-row" id="season-compare-row" style="padding:0 16px 4px;">
+          <button class="season-compare-chip active" data-metric="yield" onclick="setSeasonsMetric('yield')">🌾 Урожай</button>
+          <button class="season-compare-chip" data-metric="rainfall" onclick="setSeasonsMetric('rainfall')">🌧 Осадки</button>
+          <button class="season-compare-chip" data-metric="quality" onclick="setSeasonsMetric('quality')">⭐ Качество</button>
+        </div>
+        <!-- Trend chart -->
+        <div id="seasons-trend-area" style="padding:0 16px;flex-shrink:0;"></div>
+        <!-- Season records list -->
+        <div class="seasons-scroll" id="seasons-list-container" style="flex:1;overflow-y:auto;padding:0 16px 8px;"></div>
+        <!-- FAB -->
+        <button class="add-season-fab" onclick="openAddSeasonModal()">
+          <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span id="add-season-fab-label">Добавить сезон</span>
+        </button>
       </div>
     </div>
 
@@ -2233,6 +2468,9 @@
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════
+       ЭКРАН СЕЗОНОВ (PAST SEASONS STATS)
+  ══════════════════════════════════════ -->
   <!-- ══════════════════════════════════════
        ДЕТАЛЬНЫЙ ЭКРАН ПОЛЯ
   ══════════════════════════════════════ -->
@@ -2364,6 +2602,56 @@
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════
+       МОДАЛЬНОЕ ОКНО: ДОБАВИТЬ СЕЗОН
+  ══════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-add-season">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header-row">
+        <button class="modal-cancel-btn" onclick="closeModal('modal-add-season')" data-i18n="cancel">Отмена</button>
+        <div class="modal-title" style="margin:0" id="modal-season-title">Добавить сезон</div>
+        <button class="modal-action-btn" onclick="saveSeasonRecord()">Сохранить</button>
+      </div>
+      <div class="modal-form-group">
+        <label class="modal-label">Год сезона</label>
+        <input class="modal-input" id="season-year" type="number" min="1990" max="2030" placeholder="2023"/>
+      </div>
+      <div class="modal-form-group">
+        <label class="modal-label">Культура</label>
+        <select class="modal-select" id="season-crop">
+          <option value="">Без культуры</option>
+          <option value="wheat">🌾 Пшеница / Wheat</option>
+          <option value="corn">🌽 Кукуруза / Corn</option>
+          <option value="sunflower">🌻 Подсолнух / Sunflower</option>
+          <option value="barley">🌿 Ячмень / Barley</option>
+          <option value="soybean">🫘 Соя / Soybean</option>
+          <option value="other">🌱 Другое / Other</option>
+        </select>
+      </div>
+      <div class="modal-form-group">
+        <label class="modal-label">Урожайность (т/га)</label>
+        <input class="modal-input" id="season-yield" type="number" min="0" max="20" step="0.1" placeholder="3.5"/>
+      </div>
+      <div class="modal-form-group">
+        <label class="modal-label">Осадки за сезон (мм)</label>
+        <input class="modal-input" id="season-rainfall" type="number" min="0" max="2000" step="1" placeholder="350"/>
+      </div>
+      <div class="modal-form-group">
+        <label class="modal-label">Качество урожая (1–5 ⭐)</label>
+        <input class="modal-input" id="season-quality" type="number" min="1" max="5" step="0.5" placeholder="4"/>
+      </div>
+      <div class="modal-form-group">
+        <label class="modal-label">Площадь поля (га)</label>
+        <input class="modal-input" id="season-area" type="number" min="0" step="0.1" placeholder="50"/>
+      </div>
+      <div class="modal-form-group">
+        <label class="modal-label">Заметки / Notes</label>
+        <textarea class="modal-textarea" id="season-notes" placeholder="Условия сезона, проблемы, улучшения..."></textarea>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast уведомление -->
   <div id="toast"></div>
 
@@ -2380,7 +2668,7 @@
 // ════════════════════════════════════════════════════
 // КОНСТАНТЫ ПРИЛОЖЕНИЯ
 // ════════════════════════════════════════════════════
-const APP_VERSION = '1.3';
+const APP_VERSION = '1.4';
 const STORAGE_PREFIX = 'hectar';
 const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
 const DEFAULT_MAP_ZOOM = 11;
@@ -3302,8 +3590,13 @@ function setFieldsSubTab(tab) {
   currentFieldsSubTab = tab;
   document.getElementById('subtab-list').classList.toggle('active', tab === 'list');
   document.getElementById('subtab-ndvi').classList.toggle('active', tab === 'ndvi');
+  const seasonsBtn = document.getElementById('subtab-seasons');
+  if (seasonsBtn) seasonsBtn.classList.toggle('active', tab === 'seasons');
   document.getElementById('fields-subview-list').style.display = tab === 'list' ? '' : 'none';
   document.getElementById('fields-subview-ndvi').style.display = tab === 'ndvi' ? 'flex' : 'none';
+  const seasonsView = document.getElementById('fields-subview-seasons');
+  if (seasonsView) seasonsView.style.display = tab === 'seasons' ? 'flex' : 'none';
+  if (tab === 'seasons') renderSeasonsList();
   if (tab === 'ndvi') {
     // Update toggle button state
     const btn = document.getElementById('ndvi-map-toggle-btn');
@@ -4368,7 +4661,7 @@ async function loadWeather() {
     const [lat, lng] = field.center;
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}`
       + `&current=temperature_2m,windspeed_10m,weathercode,precipitation,relativehumidity_2m,apparent_temperature`
-      + `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max`
+      + `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,precipitation_probability_max`
       + `&timezone=auto&forecast_days=7`;
 
     const res = await fetch(url);
@@ -4390,13 +4683,14 @@ async function loadWeather() {
       const dayName = isToday ? 'Сегодня' : day.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { weekday: 'short' });
       const icon = WMO_ICONS[daily.weathercode[i]] || '🌡️';
       const rain_mm = daily.precipitation_sum[i] || 0;
+      const rainProb = daily.precipitation_probability_max ? (daily.precipitation_probability_max[i] || 0) : null;
       return `
         <div class="forecast-day-card ${isToday ? 'today' : ''}">
           <div class="fday-name">${dayName}</div>
           <div class="fday-icon">${icon}</div>
           <div class="fday-max">${Math.round(daily.temperature_2m_max[i])}°</div>
           <div class="fday-min">${Math.round(daily.temperature_2m_min[i])}°</div>
-          ${rain_mm > 0 ? `<div class="fday-rain">💧${rain_mm.toFixed(1)}</div>` : ''}
+          ${rainProb !== null ? `<div class="fday-rain">🌂${Math.round(rainProb)}%</div>` : rain_mm > 0 ? `<div class="fday-rain">💧${rain_mm.toFixed(1)}</div>` : ''}
         </div>`;
     }).join('');
 
@@ -4460,6 +4754,42 @@ async function loadWeather() {
             <div class="weather-detail-val" style="font-size:13px;color:${canSpray ? 'var(--accent)' : 'var(--danger)'};">${canSpray ? '✅ Можно' : '❌ Нельзя'}</div>
             <div class="weather-detail-sub">${canSpray ? 'Ветер и дождь в норме' : 'Ветер/дождь мешают'}</div>
           </div>
+          ${(() => {
+            // Rain probability: estimate from precipitation_probability_max if available, else from WMO code + precipitation
+            let rainProb = null;
+            if (data.daily.precipitation_probability_max && data.daily.precipitation_probability_max[0] !== undefined) {
+              rainProb = data.daily.precipitation_probability_max[0];
+            } else {
+              // Estimate: base on WMO code and precipitation
+              const wc = cur.weathercode;
+              if (wc === 0) rainProb = 2;
+              else if (wc <= 2) rainProb = 10;
+              else if (wc === 3) rainProb = 20;
+              else if (wc <= 48) rainProb = 30;
+              else if (wc <= 55) rainProb = 55;
+              else if (wc <= 65) rainProb = 75;
+              else if (wc <= 77) rainProb = 80;
+              else if (wc <= 82) rainProb = 70;
+              else rainProb = 90;
+              if (rain > 0) rainProb = Math.min(100, rainProb + 20);
+            }
+            const probNum = Math.round(rainProb);
+            const probColor = probNum < 30 ? '#4CAF50' : probNum < 60 ? '#ff9800' : '#2196F3';
+            const probLabel = probNum < 20 ? (lang === 'ru' ? 'Маловероятно' : 'Unlikely') : probNum < 50 ? (lang === 'ru' ? 'Возможно' : 'Possible') : probNum < 75 ? (lang === 'ru' ? 'Вероятно' : 'Likely') : (lang === 'ru' ? 'Очень вероятно' : 'Very likely');
+            return `
+          <div class="rain-prob-card" style="grid-column:1/-1;">
+            <div class="rain-prob-label">🌂 ${lang === 'ru' ? 'Вероятность дождя' : 'Rain Probability'}</div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="flex:1;">
+                <div class="rain-prob-bar-wrap">
+                  <div class="rain-prob-bar-fill" style="width:${probNum}%;background:${probColor};"></div>
+                </div>
+              </div>
+              <div class="rain-prob-val" style="color:${probColor};">${probNum}%</div>
+            </div>
+            <div class="rain-prob-sub">${probLabel}</div>
+          </div>`;
+          })()}
         </div>
 
         <!-- 7-day forecast -->
@@ -4725,6 +5055,19 @@ function renderProfile() {
       </div>
     </div>
     <div class="settings-group">
+      <div class="settings-group-title">${lang === 'ru' ? 'AI-инструменты' : 'AI Tools'}</div>
+      <button class="ai-cow-btn" onclick="openAiCowRecognition()">
+        <div class="ai-cow-btn-left">
+          <span class="ai-cow-icon">🐄</span>
+          <div>
+            <div class="ai-cow-label">${lang === 'ru' ? 'AI Распознавание коров' : 'AI Cow Recognition'}</div>
+            <div class="ai-cow-sub">${lang === 'ru' ? 'Анализ скота с помощью ИИ' : 'Livestock analysis with AI'}</div>
+          </div>
+        </div>
+        <span class="ai-soon-badge">soon</span>
+      </button>
+    </div>
+    <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
       <div class="about-block">
         <div class="about-logo">Hectar</div>
@@ -4815,6 +5158,229 @@ function showToast(msg) {
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ════════════════════════════════════════════════════
+// AI COW RECOGNITION
+// ════════════════════════════════════════════════════
+function openAiCowRecognition() {
+  showToast(lang === 'ru' ? '🐄 AI Распознавание коров — скоро!' : '🐄 AI Cow Recognition — coming soon!');
+}
+
+// ════════════════════════════════════════════════════
+// PAST SEASONS STATISTICS
+// ════════════════════════════════════════════════════
+const SEASONS_STORAGE_KEY = `${STORAGE_PREFIX}_seasons`;
+
+function loadSeasonRecords() {
+  try {
+    return JSON.parse(localStorage.getItem(SEASONS_STORAGE_KEY) || '[]');
+  } catch(e) { return []; }
+}
+
+function saveSeasonRecords(records) {
+  localStorage.setItem(SEASONS_STORAGE_KEY, JSON.stringify(records));
+}
+
+let currentSeasonsMetric = 'yield';
+
+function setSeasonsMetric(metric) {
+  currentSeasonsMetric = metric;
+  document.querySelectorAll('.season-compare-chip').forEach(c => {
+    c.classList.toggle('active', c.getAttribute('data-metric') === metric);
+  });
+  renderSeasonsTrend();
+}
+
+function openAddSeasonModal() {
+  const currentYear = new Date().getFullYear();
+  document.getElementById('season-year').value = currentYear - 1;
+  document.getElementById('season-crop').value = '';
+  document.getElementById('season-yield').value = '';
+  document.getElementById('season-rainfall').value = '';
+  document.getElementById('season-quality').value = '';
+  document.getElementById('season-area').value = '';
+  document.getElementById('season-notes').value = '';
+  openModal('modal-add-season');
+}
+
+function saveSeasonRecord() {
+  const year = parseInt(document.getElementById('season-year').value);
+  if (!year || year < 1990 || year > 2030) {
+    showToast(lang === 'ru' ? 'Введите корректный год' : 'Enter a valid year');
+    return;
+  }
+  const record = {
+    id: generateId(),
+    year,
+    crop: document.getElementById('season-crop').value,
+    yield: parseFloat(document.getElementById('season-yield').value) || null,
+    rainfall: parseFloat(document.getElementById('season-rainfall').value) || null,
+    quality: parseFloat(document.getElementById('season-quality').value) || null,
+    area: parseFloat(document.getElementById('season-area').value) || null,
+    notes: document.getElementById('season-notes').value.trim(),
+    addedAt: new Date().toISOString().split('T')[0]
+  };
+
+  const records = loadSeasonRecords();
+  // Replace existing year record if same year exists
+  const existingIdx = records.findIndex(r => r.year === year);
+  if (existingIdx >= 0) {
+    record.id = records[existingIdx].id;
+    records[existingIdx] = record;
+  } else {
+    records.push(record);
+  }
+  records.sort((a,b) => b.year - a.year);
+  saveSeasonRecords(records);
+  closeModal('modal-add-season');
+  renderSeasonsList();
+  showToast(lang === 'ru' ? `Сезон ${year} сохранён` : `Season ${year} saved`);
+}
+
+function deleteSeasonRecord(id) {
+  const records = loadSeasonRecords().filter(r => r.id !== id);
+  saveSeasonRecords(records);
+  renderSeasonsList();
+  showToast(lang === 'ru' ? 'Сезон удалён' : 'Season deleted');
+}
+
+const CROP_DISPLAY = { wheat:'🌾 Пшеница', corn:'🌽 Кукуруза', sunflower:'🌻 Подсолнух', barley:'🌿 Ячмень', soybean:'🫘 Соя', other:'🌱 Другое' };
+
+function renderSeasonsTrend() {
+  const container = document.getElementById('seasons-trend-area');
+  if (!container) return;
+  const records = loadSeasonRecords();
+  if (records.length < 2) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const sorted = [...records].sort((a,b) => a.year - b.year);
+  const metricKey = currentSeasonsMetric;
+  const metricLabel = { yield: lang==='ru'?'Урожайность (т/га)':'Yield (t/ha)', rainfall: lang==='ru'?'Осадки (мм)':'Rainfall (mm)', quality: lang==='ru'?'Качество (1-5)':'Quality (1-5)' }[metricKey];
+  const metricColor = { yield:'#4CAF50', rainfall:'#2196F3', quality:'#ff9800' }[metricKey];
+
+  const values = sorted.map(r => r[metricKey]);
+  const validPairs = sorted.map((r,i) => [r.year, values[i]]).filter(p => p[1] !== null && p[1] !== undefined);
+  if (validPairs.length < 2) { container.innerHTML = ''; return; }
+
+  const W = 340, H = 80;
+  const minV = Math.min(...validPairs.map(p=>p[1]));
+  const maxV = Math.max(...validPairs.map(p=>p[1]));
+  const range = maxV - minV || 1;
+  const pad = { l: 4, r: 4, t: 8, b: 20 };
+  const innerW = W - pad.l - pad.r;
+  const innerH = H - pad.t - pad.b;
+
+  const toX = (i) => pad.l + (i / (validPairs.length - 1)) * innerW;
+  const toY = (v) => pad.t + (1 - (v - minV) / range) * innerH;
+
+  const pathD = validPairs.map((p,i) => `${i===0?'M':'L'}${toX(i).toFixed(1)},${toY(p[1]).toFixed(1)}`).join(' ');
+  const areaD = pathD + ` L${toX(validPairs.length-1).toFixed(1)},${(pad.t+innerH).toFixed(1)} L${pad.l},${(pad.t+innerH).toFixed(1)} Z`;
+
+  const dotsHTML = validPairs.map((p,i) => {
+    const x = toX(i).toFixed(1);
+    const y = toY(p[1]).toFixed(1);
+    return `<circle cx="${x}" cy="${y}" r="4" fill="${metricColor}" stroke="#fff" stroke-width="1.5"/>
+      <text x="${x}" y="${parseFloat(y)-8}" font-size="9" fill="${metricColor}" text-anchor="middle" font-weight="700">${p[1]}</text>
+      <text x="${x}" y="${(pad.t+innerH+14).toFixed(1)}" font-size="9" fill="#4a6580" text-anchor="middle">${p[0]}</text>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="seasons-trend-container">
+      <div class="seasons-trend-title">${metricLabel}</div>
+      <svg class="seasons-trend-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="seasons-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${metricColor}" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="${metricColor}" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="${areaD}" fill="url(#seasons-grad)" stroke="none"/>
+        <path d="${pathD}" fill="none" stroke="${metricColor}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        ${dotsHTML}
+      </svg>
+    </div>`;
+}
+
+function renderSeasonsList() {
+  const container = document.getElementById('seasons-list-container');
+  if (!container) return;
+  const records = loadSeasonRecords();
+
+  // Update FAB label based on lang
+  const fabLabel = document.getElementById('add-season-fab-label');
+  if (fabLabel) fabLabel.textContent = lang === 'ru' ? 'Добавить сезон' : 'Add Season';
+
+  // Update seasons sub-tab label
+  const subTabBtn = document.getElementById('subtab-seasons');
+  if (subTabBtn) subTabBtn.textContent = (lang === 'ru' ? '📊 Сезоны' : '📊 Seasons');
+
+  renderSeasonsTrend();
+
+  container.innerHTML = '';
+
+  if (records.length === 0) {
+    container.innerHTML = `
+      <div class="seasons-empty">
+        <div class="seasons-empty-icon">📊</div>
+        <p>${lang === 'ru' ? 'Пока нет данных по прошлым сезонам.\nДобавьте первый сезон, чтобы начать отслеживать динамику урожайности.' : 'No past seasons yet.\nAdd your first season to start tracking yield trends.'}</p>
+      </div>`;
+    return;
+  }
+
+  // Summary stats
+  const yields = records.filter(r => r.yield !== null).map(r => r.yield);
+  const avgYield = yields.length ? (yields.reduce((a,b)=>a+b,0)/yields.length).toFixed(1) : '—';
+  const bestRecord = yields.length ? records.filter(r => r.yield !== null).reduce((best, r) => r.yield > best.yield ? r : best) : null;
+
+  const summaryHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+      <div class="stat-card-sm" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;">
+        <div class="stat-label" style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">${lang==='ru'?'Ср. урожай':'Avg Yield'}</div>
+        <div class="stat-value" style="font-size:20px;font-weight:700;">${avgYield} <span style="font-size:11px;color:var(--text2);font-weight:400;">т/га</span></div>
+      </div>
+      <div class="stat-card-sm" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;">
+        <div class="stat-label" style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">${lang==='ru'?'Лучший год':'Best Year'}</div>
+        <div class="stat-value" style="font-size:20px;font-weight:700;color:var(--accent);">${bestRecord ? bestRecord.year : '—'}</div>
+      </div>
+    </div>`;
+  container.insertAdjacentHTML('beforeend', summaryHTML);
+
+  records.forEach(rec => {
+    const cropLabel = CROP_DISPLAY[rec.crop] || rec.crop || (lang==='ru' ? 'Без культуры' : 'No crop');
+    const stars = rec.quality ? '⭐'.repeat(Math.round(rec.quality)) : '';
+
+    const card = document.createElement('div');
+    card.className = 'season-record-card';
+    card.innerHTML = `
+      <div class="season-record-header">
+        <div class="season-record-year">${rec.year}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${rec.crop ? `<span class="season-record-crop">${cropLabel}</span>` : ''}
+          <button class="season-delete-btn" onclick="event.stopPropagation();deleteSeasonRecord('${rec.id}')">✕</button>
+        </div>
+      </div>
+      <div class="season-record-stats">
+        <div class="season-stat-mini">
+          <div class="val" style="color:var(--accent);">${rec.yield !== null ? rec.yield : '—'}</div>
+          <div class="lbl">${lang==='ru'?'т/га':'t/ha'}</div>
+        </div>
+        <div class="season-stat-mini">
+          <div class="val" style="color:#2196F3;">${rec.rainfall !== null ? rec.rainfall : '—'}</div>
+          <div class="lbl">${lang==='ru'?'мм осадков':'mm rain'}</div>
+        </div>
+        <div class="season-stat-mini">
+          <div class="val">${rec.quality !== null ? rec.quality : '—'}</div>
+          <div class="lbl">${lang==='ru'?'качество':'quality'}</div>
+        </div>
+      </div>
+      ${rec.area ? `<div style="font-size:12px;color:var(--text3);margin-bottom:4px;">📐 ${rec.area} ${lang==='ru'?'га':'ha'} · ${stars}</div>` : stars ? `<div style="font-size:12px;margin-bottom:4px;">${stars}</div>` : ''}
+      ${rec.notes ? `<div class="season-record-notes">${rec.notes}</div>` : ''}
+    `;
+    container.appendChild(card);
+  });
 }
 
 // ════════════════════════════════════════════════════
