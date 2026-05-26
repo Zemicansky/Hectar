@@ -2662,7 +2662,7 @@
         <!-- NDVI map overlay toggle -->
         <div class="ndvi-panel-header">
           <div>
-            <div style="font-size:15px;font-weight:700;">NDVI — Вегетационный индекс</div>
+            <div style="font-size:15px;font-weight:700;" data-i18n-ndvi-title>NDVI — Вегетационный индекс</div>
             <div style="font-size:12px;color:var(--text2);margin-top:2px;">NASA GIBS MODIS Terra · 500 м/пкс</div>
           </div>
           <button class="ndvi-map-toggle-btn" id="ndvi-map-toggle-btn" onclick="toggleNdviFromFields()">
@@ -2673,9 +2673,9 @@
 
         <!-- Legend -->
         <div class="ndvi-legend-inline">
-          <div class="ndvi-legend-inline-title">Шкала NDVI</div>
+          <div class="ndvi-legend-inline-title" data-i18n-ndvi-scale>Шкала NDVI</div>
           <div class="ndvi-gradient" style="height:14px;border-radius:7px;margin-bottom:4px;"></div>
-          <div class="ndvi-labels"><span>−1 Нет вег.</span><span>0</span><span>+1 Высокая</span></div>
+          <div class="ndvi-labels"><span data-i18n-ndvi-lo>−1 Нет вег.</span><span>0</span><span data-i18n-ndvi-hi>+1 Высокая</span></div>
           <div style="font-size:10px;color:var(--text3);margin-top:4px;" id="ndvi-inline-date">Данные: загружаются...</div>
         </div>
 
@@ -2683,14 +2683,14 @@
         <div id="ndvi-fields-list-panel">
           <div class="empty-state" id="ndvi-no-fields-msg" style="display:none;">
             <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" width="40" height="40"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
-            <p style="font-size:13px;">Нет полей для анализа.<br>Нарисуйте поле на карте.</p>
+            <p style="font-size:13px;" data-i18n-ndvi-nf>Нет полей для анализа.<br>Нарисуйте поле на карте.</p>
           </div>
         </div>
 
         <!-- Data source note -->
         <div style="margin-top:12px;padding:12px;background:var(--bg2);border-radius:var(--radius-sm);border:1px solid var(--border);">
           <div style="font-size:11px;color:var(--text3);line-height:1.6;">
-            📡 <strong style="color:var(--text2);">NASA GIBS MODIS Terra NDVI</strong> — 16-дневный композит, разрешение 500 м/пкс. Данные обновляются каждые ~8 дней. Значение NDVI: <span style="color:#ef5350;">0–0.2</span> нет/мало растительности, <span style="color:#FFA500;">0.2–0.5</span> умеренная, <span style="color:#4CAF50;">0.5–1.0</span> густая.
+            📡 <strong style="color:var(--text2);">NASA GIBS MODIS Terra NDVI</strong> — <span data-i18n-ndvi-desc>16-дневный композит, разрешение 500 м/пкс. Данные обновляются каждые ~8 дней. Значение NDVI: <span style="color:#ef5350;">0–0.2</span> нет/мало растительности, <span style="color:#FFA500;">0.2–0.5</span> умеренная, <span style="color:#4CAF50;">0.5–1.0</span> густая.</span>
           </div>
         </div>
       </div>
@@ -3261,6 +3261,20 @@ function applyTranslations() {
   if (searchInput) searchInput.placeholder = t('searchPlaceholder');
   const loginSub = document.getElementById('login-subtitle');
   if (loginSub) loginSub.innerHTML = `${t('loginSubtitle')}<br>v${APP_VERSION}`;
+  const ndviScaleEl = document.querySelector('[data-i18n-ndvi-scale]');
+  if (ndviScaleEl) ndviScaleEl.textContent = lang === 'ru' ? 'Шкала NDVI' : 'NDVI Scale';
+  const ndviLoEl = document.querySelector('[data-i18n-ndvi-lo]');
+  if (ndviLoEl) ndviLoEl.textContent = lang === 'ru' ? '−1 Нет вег.' : '−1 No veg.';
+  const ndviHiEl = document.querySelector('[data-i18n-ndvi-hi]');
+  if (ndviHiEl) ndviHiEl.textContent = lang === 'ru' ? '+1 Высокая' : '+1 Dense';
+  const ndviTitleEl = document.querySelector('[data-i18n-ndvi-title]');
+  if (ndviTitleEl) ndviTitleEl.textContent = lang === 'ru' ? 'NDVI — Вегетационный индекс' : 'NDVI — Vegetation Index';
+  const ndviDescEl = document.querySelector('[data-i18n-ndvi-desc]');
+  if (ndviDescEl) ndviDescEl.innerHTML = lang === 'ru'
+    ? '16-дневный композит, разрешение 500 м/пкс. Данные обновляются каждые ~8 дней. Значение NDVI: <span style="color:#ef5350;">0–0.2</span> нет/мало растительности, <span style="color:#FFA500;">0.2–0.5</span> умеренная, <span style="color:#4CAF50;">0.5–1.0</span> густая.'
+    : '16-day composite, 500m/px resolution. Data updated every ~8 days. NDVI value: <span style="color:#ef5350;">0–0.2</span> bare/sparse, <span style="color:#FFA500;">0.2–0.5</span> moderate, <span style="color:#4CAF50;">0.5–1.0</span> dense.';
+  const ndviNfEl = document.querySelector('[data-i18n-ndvi-nf]');
+  if (ndviNfEl) ndviNfEl.innerHTML = lang === 'ru' ? 'Нет полей для анализа.<br>Нарисуйте поле на карте.' : 'No fields to analyze.<br>Draw a field on the map.';
   // Update weather no-field text dynamically
   const wnoFieldText = document.getElementById('weather-no-field-text');
   if (wnoFieldText) wnoFieldText.innerHTML = lang === 'ru'
@@ -3874,9 +3888,9 @@ async function computeNdviForFields() {
     </div>`;
   }
   if (fields.length > 5) {
-    html += `<div style="font-size:10px;color:var(--text3);margin-top:4px;">+${fields.length - 5} more fields</div>`;
+    html += `<div style="font-size:10px;color:var(--text3);margin-top:4px;">+${fields.length - 5} ${lang === 'ru' ? 'ещё полей' : 'more fields'}</div>`;
   }
-  avgContainer.innerHTML = html || '<div class="ndvi-status-row" style="color:var(--text3);">No fields to analyze</div>';
+  avgContainer.innerHTML = html || `<div class="ndvi-status-row" style="color:var(--text3);">${lang === 'ru' ? 'Нет полей для анализа' : 'No fields to analyze'}</div>`;
 }
 
 // ════════════════════════════════════════════════════
@@ -3926,7 +3940,7 @@ async function renderNdviFieldsPanel() {
   // Show loading skeleton
   const loadingEl = document.createElement('div');
   loadingEl.className = 'loading-card';
-  loadingEl.innerHTML = `<span class="ndvi-loading-spinner"></span> Анализ полей...`;
+  loadingEl.innerHTML = `<span class="ndvi-loading-spinner"></span> ${lang === 'ru' ? 'Анализ полей...' : 'Analysing fields...'}`;
   container.appendChild(loadingEl);
 
   for (const field of fields) {
@@ -4004,7 +4018,9 @@ function setFieldsSubTab(tab) {
     const inlineDate = document.getElementById('ndvi-inline-date');
     if (inlineDate) {
       const d = new Date(); d.setDate(d.getDate() - 10);
-      inlineDate.textContent = `Снимок: ${d.toLocaleDateString('ru-RU', {day:'numeric',month:'long',year:'numeric'})}`;
+      inlineDate.textContent = lang === 'ru'
+        ? `Снимок: ${d.toLocaleDateString('ru-RU', {day:'numeric',month:'long',year:'numeric'})}`
+        : `Image: ${d.toLocaleDateString('en-US', {day:'numeric',month:'long',year:'numeric'})}`;
     }
     renderNdviFieldsPanel();
   }
@@ -4044,17 +4060,18 @@ function getNdviColor(ndvi) {
 function getVegetationStage(field) {
   const month = new Date().getMonth() + 1;
   const crop = field.crop;
+  const isRu = lang === 'ru';
   const stages = {
     wheat: [
-      [3,4,'Всходы 🌱'], [5,5,'Кущение 🌿'], [6,6,'Колошение 🌾'],
-      [7,7,'Налив зерна'], [8,8,'Созревание'], [9,12,'Покой']
+      [3,4, isRu?'Всходы 🌱':'Sprouting 🌱'], [5,5, isRu?'Кущение 🌿':'Tillering 🌿'], [6,6, isRu?'Колошение 🌾':'Heading 🌾'],
+      [7,7, isRu?'Налив зерна':'Grain fill'], [8,8, isRu?'Созревание':'Ripening'], [9,12, isRu?'Покой':'Dormant']
     ],
     corn: [
-      [5,5,'Всходы 🌱'], [6,6,'Вегетация 🌿'], [7,7,'Цветение 🌽'],
-      [8,9,'Налив'], [10,12,'Покой']
+      [5,5, isRu?'Всходы 🌱':'Sprouting 🌱'], [6,6, isRu?'Вегетация 🌿':'Growing 🌿'], [7,7, isRu?'Цветение 🌽':'Flowering 🌽'],
+      [8,9, isRu?'Налив':'Grain fill'], [10,12, isRu?'Покой':'Dormant']
     ],
     default: [
-      [3,5,'Всходы 🌱'], [6,7,'Активный рост 🌿'], [8,9,'Созревание'], [10,2,'Покой']
+      [3,5, isRu?'Всходы 🌱':'Sprouting 🌱'], [6,7, isRu?'Активный рост 🌿':'Active growth 🌿'], [8,9, isRu?'Созревание':'Ripening'], [10,2, isRu?'Покой':'Dormant']
     ]
   };
   const list = stages[crop] || stages.default;
@@ -4062,14 +4079,14 @@ function getVegetationStage(field) {
     if (from <= to) { if (month >= from && month <= to) return label; }
     else { if (month >= from || month <= to) return label; }
   }
-  return 'Вегетация';
+  return isRu ? 'Вегетация' : 'Vegetation';
 }
 
 function getHealthStatus(ndvi) {
-  if (ndvi >= 0.65) return { label: 'Хорошее', cls: 'green' };
-  if (ndvi >= 0.45) return { label: 'Норма', cls: 'green' };
-  if (ndvi >= 0.3) return { label: 'Ослаблено', cls: 'orange' };
-  return { label: 'Критично', cls: 'red' };
+  if (ndvi >= 0.65) return { label: lang === 'ru' ? 'Хорошее' : 'Good', cls: 'green' };
+  if (ndvi >= 0.45) return { label: lang === 'ru' ? 'Норма' : 'Normal', cls: 'green' };
+  if (ndvi >= 0.3) return { label: lang === 'ru' ? 'Ослаблено' : 'Weak', cls: 'orange' };
+  return { label: lang === 'ru' ? 'Критично' : 'Critical', cls: 'red' };
 }
 
 function getYieldForecast(field, ndvi) {
@@ -4255,11 +4272,11 @@ function updateDrawArea() {
     const area = turf.area(poly) / 10000;
     const line = turf.lineString(coords.map(c => [c[1], c[0]]));
     const perim = turf.length(line, { units: 'kilometers' });
-    label.textContent = `${area.toFixed(2)} га · ${perim.toFixed(2)} км`;
+    label.textContent = `${area.toFixed(2)} ${lang === 'ru' ? 'га' : 'ha'} · ${perim.toFixed(2)} ${lang === 'ru' ? 'км' : 'km'}`;
   } else if (currentDrawPoints.length === 2) {
     const line = turf.lineString(currentDrawPoints.map(c => [c[1], c[0]]));
     const dist = turf.length(line, { units: 'kilometers' });
-    label.textContent = `${(dist * 1000).toFixed(0)} м`;
+    label.textContent = `${(dist * 1000).toFixed(0)} ${lang === 'ru' ? 'м' : 'm'}`;
   } else {
     label.textContent = '';
   }
@@ -4406,7 +4423,7 @@ function finishDrawing() {
 // СОХРАНИТЬ НОВОЕ ПОЛЕ
 // ════════════════════════════════════════════════════
 function saveNewField() {
-  const name = document.getElementById('new-field-name').value.trim() || 'Поле';
+  const name = document.getElementById('new-field-name').value.trim() || (lang === 'ru' ? 'Поле' : 'Field');
   const crop = document.getElementById('new-field-crop').value;
   const { coords, area, perimeter, center } = window._pendingFieldData;
 
@@ -4492,7 +4509,7 @@ function renderFieldsList() {
   if (filtered.length === 0) {
     const noMatch = document.createElement('div');
     noMatch.className = 'empty-state';
-    noMatch.innerHTML = '<p style="color:var(--text3);font-size:14px;">Нет полей по фильтру</p>';
+    noMatch.innerHTML = `<p style="color:var(--text3);font-size:14px;">${lang === 'ru' ? 'Нет полей по фильтру' : 'No fields match the filter'}</p>`;
     container.appendChild(noMatch);
     return;
   }
@@ -4758,23 +4775,23 @@ function renderFieldDetailHTML(field) {
         <div class="stat-value">${field.perimeter} <span class="stat-unit">${t('km')}</span></div>
       </div>
       <div class="stat-card-sm">
-        <div class="stat-label">Стадия вегетации</div>
+        <div class="stat-label">${lang === 'ru' ? 'Стадия вегетации' : 'Growth Stage'}</div>
         <div class="stat-value" style="font-size:13px;">${stage}</div>
       </div>
       <div class="stat-card-sm">
-        <div class="stat-label">Здоровье растений</div>
+        <div class="stat-label">${lang === 'ru' ? 'Здоровье растений' : 'Plant Health'}</div>
         <div class="stat-value" style="font-size:13px;color:${ndviColor};">${health.label}</div>
       </div>
       <div class="stat-card-sm">
-        <div class="stat-label">Прогноз урожая</div>
-        <div class="stat-value">${yieldFc} <span class="stat-unit">т/га</span></div>
+        <div class="stat-label">${lang === 'ru' ? 'Прогноз урожая' : 'Yield Forecast'}</div>
+        <div class="stat-value">${yieldFc} <span class="stat-unit">${lang === 'ru' ? 'т/га' : 't/ha'}</span></div>
       </div>
       <div class="stat-card-sm">
-        <div class="stat-label">Дата посева</div>
+        <div class="stat-label">${lang === 'ru' ? 'Дата посева' : 'Sowing Date'}</div>
         <div class="stat-value" style="font-size:13px;">${sowDate}</div>
       </div>
       <div class="stat-card-sm">
-        <div class="stat-label">Сл. обработка</div>
+        <div class="stat-label">${lang === 'ru' ? 'Сл. обработка' : 'Next Treatment'}</div>
         <div class="stat-value" style="font-size:13px;">${nextTreatDate}</div>
       </div>
       <div class="stat-card-sm">
@@ -4785,9 +4802,9 @@ function renderFieldDetailHTML(field) {
 
     <!-- NDVI блок -->
     <div class="ndvi-chart-container">
-      <div class="ndvi-chart-title">NDVI · Вегетационный индекс</div>
+      <div class="ndvi-chart-title">NDVI · ${lang === 'ru' ? 'Вегетационный индекс' : 'Vegetation Index'}</div>
       <div class="ndvi-mini-bar" style="margin-bottom:10px;">
-        <span class="ndvi-mini-label">Текущий</span>
+        <span class="ndvi-mini-label">${lang === 'ru' ? 'Текущий' : 'Current'}</span>
         <div class="ndvi-mini-track">
           <div class="ndvi-mini-fill" style="width:${Math.round(ndvi*100)}%;background:${ndviColor};"></div>
         </div>
@@ -4806,7 +4823,7 @@ function renderFieldDetailHTML(field) {
         <circle cx="${(curMonth*stepX).toFixed(1)}" cy="${toY(ndviMonths[curMonth]).toFixed(1)}" r="4" fill="${ndviColor}" stroke="#fff" stroke-width="1.5"/>
         ${months.map((m,i)=>`<text x="${(i*stepX).toFixed(1)}" y="${H}" font-size="8" fill="#4a6580" text-anchor="middle">${m}</text>`).join('')}
       </svg>
-      <div style="font-size:10px;color:var(--text3);margin-top:4px;text-align:right;">NASA MODIS · расчётные данные</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px;text-align:right;">NASA MODIS · ${lang === 'ru' ? 'расчётные данные' : 'estimated data'}</div>
     </div>
 
     <div class="section-title">${t('fieldColor')}</div>
@@ -4975,6 +4992,9 @@ function setWeatherMode(mode) {
   if (fieldLabel) fieldLabel.textContent = lang === 'ru' ? 'По полю' : 'By Field';
   if (cityLabel) cityLabel.textContent = lang === 'ru' ? 'По городу' : 'By City';
   if (cityInput) cityInput.placeholder = lang === 'ru' ? 'Поиск города или места...' : 'Search city or location...';
+  // Hide field-info bar when switching to city mode
+  const fieldInfoBar = document.getElementById('weather-field-info');
+  if (fieldInfoBar && mode === 'city') fieldInfoBar.style.display = 'none';
   loadWeather();
 }
 
@@ -5061,6 +5081,15 @@ const WMO_LABELS = {
   80:'Ливни', 81:'Ливни', 82:'Сильные ливни',
   95:'Гроза', 96:'Гроза с градом', 99:'Сильная гроза'
 };
+const WMO_LABELS_EN = {
+  0:'Clear sky', 1:'Mainly clear', 2:'Partly cloudy', 3:'Overcast',
+  45:'Fog', 48:'Fog',
+  51:'Light drizzle', 53:'Drizzle', 55:'Heavy drizzle',
+  61:'Rain', 63:'Moderate rain', 65:'Heavy rain',
+  71:'Snow', 73:'Moderate snow', 75:'Heavy snow',
+  80:'Rain showers', 81:'Rain showers', 82:'Heavy showers',
+  95:'Thunderstorm', 96:'Thunderstorm with hail', 99:'Heavy thunderstorm'
+};
 
 let selectedWeatherFieldId = null;
 
@@ -5099,19 +5128,17 @@ async function loadWeather() {
 
   // ── CITY MODE ──────────────────────────────────────
   if (weatherMode === 'city') {
+    // Always hide field-related UI in city mode
     if (fieldInfoBar) fieldInfoBar.style.display = 'none';
+    const fieldModeSection = document.getElementById('weather-mode-field');
+    if (fieldModeSection) fieldModeSection.style.display = 'none';
+
     if (!weatherCityLat || !weatherCityLng) {
-      if (noFieldDiv) {
-        noFieldDiv.style.display = 'flex';
-        const textEl = noFieldDiv.querySelector('#weather-no-field-text');
-        const btnEl = noFieldDiv.querySelector('button');
-        if (textEl) textEl.innerHTML = lang === 'ru'
-          ? 'Введите название города<br>в поле поиска выше'
-          : 'Enter a city name<br>in the search box above';
-        if (btnEl) btnEl.style.display = 'none';
-      }
-      container.innerHTML = '';
-      container.appendChild(noFieldDiv);
+      container.innerHTML = `
+        <div class="weather-no-field" style="display:flex;">
+          <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24" style="opacity:0.3;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+          <p>${lang === 'ru' ? 'Введите название города<br>в поле поиска выше' : 'Enter a city name<br>in the search box above'}</p>
+        </div>`;
       return;
     }
     // Have city coords — fetch weather
@@ -5239,35 +5266,26 @@ async function loadWeather() {
   populateWeatherFieldSelect();
 
   if (!fields.length) {
-    if (noFieldDiv) {
-      noFieldDiv.style.display = 'flex';
-      const textEl = noFieldDiv.querySelector('#weather-no-field-text');
-      const btnEl = noFieldDiv.querySelector('button');
-      if (textEl) textEl.innerHTML = lang === 'ru'
-        ? 'Выберите или нарисуйте поле,<br>чтобы увидеть прогноз погоды'
-        : 'Select or draw a field first<br>to see the weather forecast';
-      if (btnEl) { btnEl.textContent = lang === 'ru' ? '+ Нарисовать поле' : '+ Draw a field'; btnEl.style.display = ''; }
-    }
-    container.innerHTML = '';
-    container.appendChild(noFieldDiv);
     if (fieldInfoBar) fieldInfoBar.style.display = 'none';
+    container.innerHTML = `
+      <div class="weather-no-field" style="display:flex;">
+        <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24" style="opacity:0.3;"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        <p>${lang === 'ru' ? 'Выберите или нарисуйте поле,<br>чтобы увидеть прогноз погоды' : 'Select or draw a field first<br>to see the weather forecast'}</p>
+        <button class="modal-btn primary" style="width:auto;padding:12px 24px;margin-top:8px;" onclick="switchTab('map'); startDrawMode()">
+          ${lang === 'ru' ? '+ Нарисовать поле' : '+ Draw a field'}
+        </button>
+      </div>`;
     return;
   }
 
   // If no field selected, show the prompt
   if (!selectedWeatherFieldId) {
-    if (noFieldDiv) {
-      noFieldDiv.style.display = 'flex';
-      const textEl = noFieldDiv.querySelector('#weather-no-field-text');
-      const btnEl = noFieldDiv.querySelector('button');
-      if (textEl) textEl.innerHTML = lang === 'ru'
-        ? 'Выберите поле выше,<br>чтобы увидеть прогноз погоды'
-        : 'Select a field above<br>to see the weather forecast';
-      if (btnEl) btnEl.style.display = 'none';
-    }
-    container.innerHTML = '';
-    container.appendChild(noFieldDiv);
     if (fieldInfoBar) fieldInfoBar.style.display = 'none';
+    container.innerHTML = `
+      <div class="weather-no-field" style="display:flex;">
+        <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24" style="opacity:0.3;"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        <p>${lang === 'ru' ? 'Выберите поле выше,<br>чтобы увидеть прогноз погоды' : 'Select a field above<br>to see the weather forecast'}</p>
+      </div>`;
     return;
   }
 
@@ -5281,10 +5299,10 @@ async function loadWeather() {
   if (coordsEl && field.center) {
     coordsEl.textContent = `${field.center[0].toFixed(4)}°N, ${field.center[1].toFixed(4)}°E`;
   }
-  if (areaEl) areaEl.textContent = `${field.area} га`;
+  if (areaEl) areaEl.textContent = `${field.area} ${lang === 'ru' ? 'га' : 'ha'}`;
 
   // Loading state
-  container.innerHTML = `<div class="loading-card"><span class="ndvi-loading-spinner"></span> Загрузка прогноза...</div>`;
+  container.innerHTML = `<div class="loading-card"><span class="ndvi-loading-spinner"></span> ${lang === 'ru' ? 'Загрузка прогноза...' : 'Loading forecast...'}</div>`;
 
   try {
     const [lat, lng] = field.center;
@@ -5298,6 +5316,7 @@ async function loadWeather() {
     const data = await res.json();
     const cur = data.current;
     const daily = data.daily;
+    const isRu = lang === 'ru';
 
     const wind = cur.windspeed_10m;
     const rain = cur.precipitation;
@@ -5309,7 +5328,7 @@ async function loadWeather() {
     const forecastHTML = daily.time.map((dateStr, i) => {
       const day = new Date(dateStr);
       const isToday = i === 0;
-      const dayName = isToday ? 'Сегодня' : day.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { weekday: 'short' });
+      const dayName = isToday ? (isRu ? 'Сегодня' : 'Today') : day.toLocaleDateString(isRu ? 'ru-RU' : 'en-US', { weekday: 'short' });
       const icon = WMO_ICONS[daily.weathercode[i]] || '🌡️';
       const rain_mm = daily.precipitation_sum[i] || 0;
       const rainProb = daily.precipitation_probability_max ? (daily.precipitation_probability_max[i] || 0) : null;
@@ -5334,6 +5353,12 @@ async function loadWeather() {
       }
     } catch(_) {}
 
+    const windLabel = wind < 3 ? (isRu?'Штиль':'Calm') : wind < 5 ? (isRu?'Слабый':'Light') : wind < 10 ? (isRu?'Умеренный':'Moderate') : (isRu?'Сильный':'Strong');
+    const humLabel = humidity < 40 ? (isRu?'Сухо':'Dry') : humidity < 70 ? (isRu?'Комфортно':'Comfortable') : (isRu?'Влажно':'Humid');
+    const windUnit = isRu ? 'м/с' : 'm/s';
+    const rainUnit = isRu ? 'мм' : 'mm';
+    const tsLocale = isRu ? 'ru-RU' : 'en-US';
+
     container.innerHTML = `
       <div class="weather-card">
         <!-- Location + field header -->
@@ -5345,8 +5370,8 @@ async function loadWeather() {
               ${locationName}
             </div>
             <div style="font-size:12px;color:var(--text3);margin-top:1px;">
-              Площадь: <strong style="color:var(--text2);">${field.area} га</strong>
-              · Периметр: ${field.perimeter} км
+              ${isRu ? 'Площадь' : 'Area'}: <strong style="color:var(--text2);">${field.area} ${isRu ? 'га' : 'ha'}</strong>
+              · ${isRu ? 'Периметр' : 'Perimeter'}: ${field.perimeter} ${isRu ? 'км' : 'km'}
             </div>
           </div>
         </div>
@@ -5356,40 +5381,38 @@ async function loadWeather() {
           <div class="weather-icon">${WMO_ICONS[cur.weathercode] || '🌡️'}</div>
           <div>
             <div class="weather-temp">${Math.round(cur.temperature_2m)}°C</div>
-            <div style="font-size:12px;color:var(--text2);">Ощущается как ${Math.round(feelsLike)}°</div>
-            <div style="font-size:12px;color:var(--text2);">${WMO_LABELS[cur.weathercode] || ''}</div>
+            <div style="font-size:12px;color:var(--text2);">${isRu ? 'Ощущается как' : 'Feels like'} ${Math.round(feelsLike)}°</div>
+            <div style="font-size:12px;color:var(--text2);">${(isRu ? WMO_LABELS : WMO_LABELS_EN)[cur.weathercode] || ''}</div>
           </div>
         </div>
 
         <!-- Detail grid -->
         <div class="weather-details-grid">
           <div class="weather-detail-card">
-            <div class="weather-detail-label">💨 Ветер</div>
-            <div class="weather-detail-val">${wind} <span style="font-size:12px;font-weight:400;">м/с</span></div>
-            <div class="weather-detail-sub">${wind < 3 ? 'Штиль' : wind < 5 ? 'Слабый' : wind < 10 ? 'Умеренный' : 'Сильный'}</div>
+            <div class="weather-detail-label">💨 ${isRu?'Ветер':'Wind'}</div>
+            <div class="weather-detail-val">${wind} <span style="font-size:12px;font-weight:400;">${windUnit}</span></div>
+            <div class="weather-detail-sub">${windLabel}</div>
           </div>
           <div class="weather-detail-card">
-            <div class="weather-detail-label">🌧 Осадки</div>
-            <div class="weather-detail-val">${rain} <span style="font-size:12px;font-weight:400;">мм</span></div>
-            <div class="weather-detail-sub">${rain === 0 ? 'Нет осадков' : 'Есть осадки'}</div>
+            <div class="weather-detail-label">🌧 ${isRu?'Осадки':'Precip.'}</div>
+            <div class="weather-detail-val">${rain} <span style="font-size:12px;font-weight:400;">${rainUnit}</span></div>
+            <div class="weather-detail-sub">${rain === 0 ? (isRu?'Нет осадков':'No precipitation') : (isRu?'Есть осадки':'Precipitation')}</div>
           </div>
           <div class="weather-detail-card">
-            <div class="weather-detail-label">💧 Влажность</div>
+            <div class="weather-detail-label">💧 ${isRu?'Влажность':'Humidity'}</div>
             <div class="weather-detail-val">${humidity}<span style="font-size:12px;font-weight:400;">%</span></div>
-            <div class="weather-detail-sub">${humidity < 40 ? 'Сухо' : humidity < 70 ? 'Комфортно' : 'Влажно'}</div>
+            <div class="weather-detail-sub">${humLabel}</div>
           </div>
           <div class="weather-detail-card">
-            <div class="weather-detail-label">🌿 Опрыскивание</div>
-            <div class="weather-detail-val" style="font-size:13px;color:${canSpray ? 'var(--accent)' : 'var(--danger)'};">${canSpray ? '✅ Можно' : '❌ Нельзя'}</div>
-            <div class="weather-detail-sub">${canSpray ? 'Ветер и дождь в норме' : 'Ветер/дождь мешают'}</div>
+            <div class="weather-detail-label">🌿 ${isRu?'Опрыскивание':'Spraying'}</div>
+            <div class="weather-detail-val" style="font-size:13px;color:${canSpray ? 'var(--accent)' : 'var(--danger)'};">${canSpray ? (isRu?'✅ Можно':'✅ Safe') : (isRu?'❌ Нельзя':'❌ Avoid')}</div>
+            <div class="weather-detail-sub">${canSpray ? (isRu?'Ветер и дождь в норме':'Wind & rain OK') : (isRu?'Ветер/дождь мешают':'Wind/rain prevent')}</div>
           </div>
           ${(() => {
-            // Rain probability: estimate from precipitation_probability_max if available, else from WMO code + precipitation
             let rainProb = null;
             if (data.daily.precipitation_probability_max && data.daily.precipitation_probability_max[0] !== undefined) {
               rainProb = data.daily.precipitation_probability_max[0];
             } else {
-              // Estimate: base on WMO code and precipitation
               const wc = cur.weathercode;
               if (wc === 0) rainProb = 2;
               else if (wc <= 2) rainProb = 10;
@@ -5404,10 +5427,10 @@ async function loadWeather() {
             }
             const probNum = Math.round(rainProb);
             const probColor = probNum < 30 ? '#4CAF50' : probNum < 60 ? '#ff9800' : '#2196F3';
-            const probLabel = probNum < 20 ? (lang === 'ru' ? 'Маловероятно' : 'Unlikely') : probNum < 50 ? (lang === 'ru' ? 'Возможно' : 'Possible') : probNum < 75 ? (lang === 'ru' ? 'Вероятно' : 'Likely') : (lang === 'ru' ? 'Очень вероятно' : 'Very likely');
+            const probLabel = probNum < 20 ? (isRu ? 'Маловероятно' : 'Unlikely') : probNum < 50 ? (isRu ? 'Возможно' : 'Possible') : probNum < 75 ? (isRu ? 'Вероятно' : 'Likely') : (isRu ? 'Очень вероятно' : 'Very likely');
             return `
           <div class="rain-prob-card" style="grid-column:1/-1;">
-            <div class="rain-prob-label">🌂 ${lang === 'ru' ? 'Вероятность дождя' : 'Rain Probability'}</div>
+            <div class="rain-prob-label">🌂 ${isRu ? 'Вероятность дождя' : 'Rain Probability'}</div>
             <div style="display:flex;align-items:center;gap:10px;">
               <div style="flex:1;">
                 <div class="rain-prob-bar-wrap">
@@ -5422,11 +5445,11 @@ async function loadWeather() {
         </div>
 
         <!-- 7-day forecast -->
-        <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Прогноз на 7 дней</div>
+        <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">${isRu ? 'Прогноз на 7 дней' : '7-Day Forecast'}</div>
         <div class="forecast-7day">${forecastHTML}</div>
 
         <div style="font-size:10px;color:var(--text3);margin-top:10px;text-align:right;">
-          📡 Open-Meteo · ${new Date().toLocaleDateString('ru-RU', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}
+          📡 Open-Meteo · ${new Date().toLocaleDateString(tsLocale, {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}
         </div>
       </div>
     `;
@@ -5434,7 +5457,7 @@ async function loadWeather() {
     container.innerHTML = `<div class="weather-card">
       <div class="weather-field-name">${field.name}</div>
       <div style="color:var(--danger);font-size:13px;margin-top:8px;">⚠ ${t('weatherLoadError')}</div>
-      <button class="modal-btn secondary" style="margin-top:12px;" onclick="loadWeather()">Повторить</button>
+      <button class="modal-btn secondary" style="margin-top:12px;" onclick="loadWeather()">${lang === 'ru' ? 'Повторить' : 'Retry'}</button>
     </div>`;
   }
 }
