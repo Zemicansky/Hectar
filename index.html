@@ -280,18 +280,30 @@
     display: none;
     flex-direction: column;
     overflow: hidden;
+    /* FIX v1.8: non-map screens must sit above the always-present map layer */
+    z-index: 500;
+    background: var(--bg);
   }
   .screen.active { display: flex; }
+
+  /* FIX v1.8: ensure non-map screens are always above map layer when active,
+     and fully invisible when inactive */
+  .screen:not(.active) { display: none !important; pointer-events: none !important; }
+  #screen-fields { z-index: 501; } /* FIX v1.8: fields must cover map */
 
   /* ══════════════════════════════════════
      КАРТА
   ══════════════════════════════════════ */
+  /* FIX 1.8: screen-map visibility fix — карта не может быть display:none */
   #screen-map {
     position: absolute;
     top: 0; /* карта начинается с 0, контролы учитывают safe-top */
     left: 0;
     right: 0;
     bottom: var(--nav-total);
+    /* FIX 1.8: убрали display:none — используем visibility управляемую через JS */
+    visibility: visible;
+    pointer-events: auto;
   }
 
   #map {
@@ -426,12 +438,16 @@
   /* ══════════════════════════════════════
      РЕЖИМ РИСОВАНИЯ ПОЛЯ
   ══════════════════════════════════════ */
+  /* FIX 1.8: draw-mode-ui вынесен из-под visibility:hidden screen-map —
+     состояние измерения не сбрасывается при переключении вкладок */
   #draw-mode-ui {
     display: none;
-    position: absolute;
+    position: fixed; /* FIX 1.8: fixed вместо absolute — рисование работает поверх любой вкладки */
     top: 0;
-    left: 0;
-    right: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 430px;
     bottom: var(--nav-total);
     z-index: var(--z-draw);
     pointer-events: none;
@@ -2376,6 +2392,478 @@
   }
 }
 
+/* FIX v1.9: Favorite cities styles */
+.weather-fav-section {
+  margin-top: 8px;
+}
+.weather-fav-label {
+  font-size: 11px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.weather-fav-add-btn {
+  background: rgba(76,175,80,0.12);
+  border: 1px solid rgba(76,175,80,0.3);
+  border-radius: 100px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+.weather-fav-add-btn:active { background: rgba(76,175,80,0.25); }
+.weather-fav-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.weather-fav-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 28px;
+}
+.weather-fav-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px 5px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.weather-fav-chip:hover { background: var(--bg2); border-color: var(--accent); color: var(--accent); }
+.weather-fav-chip .fav-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(239,83,80,0.15);
+  color: var(--danger);
+  font-size: 10px;
+  margin-left: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.weather-fav-chip .fav-del:hover { background: rgba(239,83,80,0.35); }
+.weather-fav-empty {
+  font-size: 12px;
+  color: var(--text3);
+  padding: 4px 2px;
+  font-style: italic;
+}
+
+
+  /* ══════════════════════════════════════
+     FIX v1.8: LIGHT THEME CONTRAST FIXES
+     Applied via .light-theme class on <html>
+  ══════════════════════════════════════ */
+
+  /* Stat inline inputs in field detail */
+  .stat-inline-input {
+    font-family: inherit;
+    font-weight: 600;
+  }
+
+  /* ── Tab bar ── */
+  .light-theme #tab-bar {
+    background: rgba(240, 244, 248, 0.98);
+    border-top: 1px solid rgba(0,0,0,0.12);
+  }
+  .light-theme .tab-btn { color: #7a8fa0; }
+  .light-theme .tab-btn.active { color: var(--accent); }
+  .light-theme .tab-btn.active .tab-icon-wrap { background: rgba(76,175,80,0.12); }
+
+  /* ── Screen headers ── */
+  .light-theme .screen-header { background: #f0f4f8; }
+  .light-theme .screen-title { color: #1a2332; }
+  .light-theme .screen { background: #f0f4f8; }
+
+  /* ── Cards (field list, stat cards, weather cards) ── */
+  .light-theme .field-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+  }
+  .light-theme .field-card:active { background: #f5f8fc; }
+  .light-theme .stat-card-sm {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  }
+  .light-theme .stat-label { color: #7a8fa0; }
+  .light-theme .stat-value { color: #1a2332; }
+
+  /* ── Weather ── */
+  .light-theme .weather-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+    box-shadow: 0 1px 8px rgba(0,0,0,0.08);
+  }
+  .light-theme .weather-detail-card {
+    background: #f0f4f8;
+    border: 1px solid rgba(0,0,0,0.09);
+  }
+  .light-theme .weather-detail-label { color: #7a8fa0; }
+  .light-theme .weather-detail-val { color: #1a2332; }
+  .light-theme .weather-detail-sub { color: #7a8fa0; }
+  .light-theme .weather-temp { color: #1a2332; }
+  .light-theme .weather-field-name { color: #1a2332; }
+  .light-theme .forecast-day-card {
+    background: #f0f4f8;
+    border: 1px solid rgba(0,0,0,0.09);
+  }
+  .light-theme .forecast-day-card.today {
+    background: rgba(76,175,80,0.08);
+    border-color: rgba(76,175,80,0.3);
+  }
+  .light-theme .fday-name { color: #4a5e72; }
+  .light-theme .fday-max { color: #1a2332; }
+  .light-theme .fday-min { color: #7a8fa0; }
+  .light-theme .rain-prob-card {
+    background: #f0f4f8;
+    border: 1px solid rgba(0,0,0,0.09);
+  }
+  .light-theme .rain-prob-label { color: #4a5e72; }
+  .light-theme .rain-prob-sub { color: #7a8fa0; }
+
+  /* ── Modals ── */
+  .light-theme .modal-overlay { background: rgba(0,0,0,0.4); }
+  .light-theme .modal-sheet {
+    background: #ffffff;
+    border-top: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .modal-title { color: #1a2332; }
+  .light-theme .modal-label { color: #4a5e72; }
+  .light-theme .modal-input {
+    background: #f0f4f8;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.14);
+  }
+  .light-theme .modal-input::placeholder { color: #9aa8b5; }
+  .light-theme .modal-select {
+    background: #f0f4f8;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.14);
+  }
+  .light-theme .modal-textarea {
+    background: #f0f4f8;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.14);
+  }
+  .light-theme .modal-btn.secondary {
+    background: #e8eef4;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.12);
+  }
+
+  /* ── Notes ── */
+  .light-theme .note-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.09);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .light-theme .note-field-name { color: #1a2332; }
+  .light-theme .note-meta { color: #7a8fa0; }
+  .light-theme .note-date { color: #7a8fa0; }
+  .light-theme .filter-chip {
+    background: #e8eef4;
+    color: #4a5e72;
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .filter-chip.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: transparent;
+  }
+
+  /* ── Profile ── */
+  .light-theme .profile-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.09);
+  }
+  .light-theme .profile-name { color: #1a2332; }
+  .light-theme .profile-role { color: #7a8fa0; }
+  .light-theme .settings-group {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.09);
+  }
+  .light-theme .settings-group-title { color: #7a8fa0; }
+  .light-theme .setting-row label { color: #1a2332; }
+  .light-theme .setting-row select {
+    background: #f0f4f8;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.14);
+  }
+  .light-theme .about-block { color: #4a5e72; }
+  .light-theme .about-logo { color: #1a2332; }
+  .light-theme .about-version { color: #7a8fa0; }
+
+  /* ── Field detail screen ── */
+  .light-theme #screen-field-detail {
+    background: #f0f4f8;
+  }
+  .light-theme .detail-header {
+    background: rgba(240,244,248,0.98);
+    border-bottom: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .detail-title { color: #1a2332; }
+  .light-theme .back-btn { color: var(--accent); }
+  .light-theme .field-name-input {
+    background: #ffffff;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.14);
+  }
+  .light-theme .detail-stats-extended .stat-card-sm {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .ndvi-chart-container {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .ndvi-chart-title { color: #4a5e72; }
+  .light-theme .section-title { color: #1a2332; }
+  .light-theme .crop-chip {
+    background: #e8eef4;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .crop-chip.selected {
+    background: var(--accent);
+    color: #fff;
+    border-color: transparent;
+  }
+  .light-theme .event-type { color: #1a2332; }
+  .light-theme .event-date { color: #7a8fa0; }
+  .light-theme .event-note { color: #7a8fa0; }
+  .light-theme .add-event-btn {
+    background: #e8eef4;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.12);
+  }
+  .light-theme .season-record-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .season-record-year { color: #1a2332; }
+
+  /* ── Search input ── */
+  .light-theme .search-input-wrap {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.14);
+  }
+  .light-theme .search-input-wrap input {
+    background: transparent;
+    color: #1a2332;
+  }
+  .light-theme .search-input-wrap svg { color: #7a8fa0; }
+  .light-theme .search-result-item {
+    color: #1a2332;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .light-theme .search-result-item:hover { background: #f0f4f8; }
+
+  /* ── Sub-tabs (Fields) ── */
+  .light-theme .subtab-bar {
+    background: #f0f4f8;
+    border-bottom: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .subtab-btn { color: #7a8fa0; }
+  .light-theme .subtab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Map fields pill ── */
+  .light-theme .map-fields-pill {
+    background: rgba(255,255,255,0.95);
+    border-color: rgba(0,0,0,0.12);
+  }
+  .light-theme .map-fields-pill-text .title { color: #1a2332; }
+  .light-theme .map-fields-pill-text .sub { color: #7a8fa0; }
+  .light-theme .map-icon-btn {
+    background: rgba(255,255,255,0.95);
+    border-color: rgba(0,0,0,0.12);
+    color: #1a2332;
+  }
+
+  /* ── Empty states ── */
+  .light-theme .empty-state p { color: #7a8fa0; }
+  .light-theme .empty-state svg { color: #b0bec9; }
+
+  /* ── NDVI section ── */
+  .light-theme .ndvi-panel-header { color: #1a2332; }
+  .light-theme .ndvi-legend-inline { 
+    background: #ffffff; 
+    border: 1px solid rgba(0,0,0,0.10); 
+  }
+  .light-theme .ndvi-legend-inline-title { color: #4a5e72; }
+
+  /* ── Seasons section ── */
+  .light-theme .seasons-empty p { color: #7a8fa0; }
+  .light-theme .seasons-trend-container { 
+    background: #ffffff; 
+    border: 1px solid rgba(0,0,0,0.10); 
+  }
+  .light-theme .seasons-trend-title { color: #4a5e72; }
+
+  /* ── Login screen ── */
+  .light-theme #login-screen {
+    background: linear-gradient(160deg, #e8f4ea 0%, #f0f4f8 40%, #e0f0e8 100%);
+  }
+  .light-theme .login-subtitle { color: #4a5e72; }
+  .light-theme .login-btn.email { 
+    background: #e8eef4; 
+    color: #1a2332; 
+    border-color: rgba(0,0,0,0.14); 
+  }
+
+  /* FIX v1.8: weather field selector in light mode */
+  .light-theme .weather-field-selector {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.14);
+  }
+  .light-theme .weather-field-selector select { color: #1a2332; }
+
+
+
+  /* ══════════════════════════════════════
+     FIX v1.8 R2: YIELD FORECAST CARD
+  ══════════════════════════════════════ */
+  .yield-forecast-card {
+    background: linear-gradient(135deg, rgba(76,175,80,0.12) 0%, rgba(76,175,80,0.04) 100%);
+    border: 1px solid rgba(76,175,80,0.3);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    grid-column: 1 / -1;
+  }
+  .yield-forecast-card.yield-forecast-no-data {
+    background: var(--bg2);
+    border-color: var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .yield-fc-icon { font-size: 20px; }
+  .yield-fc-text {
+    font-size: 13px;
+    color: var(--text2);
+  }
+  .yield-fc-top { margin-bottom: 10px; }
+  .yield-fc-main {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 3px;
+  }
+  .yield-fc-detail {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.2px;
+  }
+  .yield-fc-bar-wrap { margin-bottom: 6px; }
+  .yield-fc-bar-track {
+    height: 8px;
+    background: var(--bg3);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+  .yield-fc-bar-range {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: rgba(76,175,80,0.25);
+    border-radius: 4px;
+  }
+  .yield-fc-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    position: relative;
+    z-index: 1;
+    transition: width 0.6s ease;
+  }
+  .yield-fc-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text3);
+  }
+  .yield-fc-source {
+    font-size: 10px;
+    color: var(--text3);
+    margin-top: 4px;
+  }
+
+  /* ══════════════════════════════════════
+     FIX v1.8 R2: EVENT EDIT/DELETE BUTTONS
+  ══════════════════════════════════════ */
+  .event-item {
+    position: relative;
+  }
+  .event-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: auto;
+    padding-left: 8px;
+  }
+  .event-edit-btn,
+  .event-delete-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    color: var(--text2);
+  }
+  .event-edit-btn:active,
+  .event-edit-btn:hover {
+    background: rgba(76,175,80,0.15);
+    border-color: rgba(76,175,80,0.4);
+    color: var(--accent);
+  }
+  .event-delete-btn:active,
+  .event-delete-btn:hover {
+    background: rgba(239,83,80,0.15);
+    border-color: rgba(239,83,80,0.4);
+    color: var(--danger);
+  }
+
+  /* Light theme overrides for new elements */
+  .light-theme .yield-forecast-card {
+    background: linear-gradient(135deg, rgba(76,175,80,0.08) 0%, rgba(255,255,255,1) 100%);
+    border-color: rgba(76,175,80,0.25);
+  }
+  .light-theme .yield-fc-bar-track { background: #e8eef4; }
+  .light-theme .event-edit-btn,
+  .light-theme .event-delete-btn {
+    background: #f0f4f8;
+    border-color: rgba(0,0,0,0.12);
+    color: #4a5e72;
+  }
+
+
 </style>
 <style>
   /* ══════════════════════════════════════
@@ -2479,7 +2967,7 @@
     <div class="login-title">Hec<span>tar</span></div>
     <div class="login-subtitle" id="login-subtitle">
       Мониторинг сельскохозяйственных полей<br>
-      Agricultural field monitoring · v1.6
+      Agricultural field monitoring · v1.8
     </div>
 
     <button class="login-btn google" onclick="showToast('Google Auth coming soon')">
@@ -2545,14 +3033,28 @@
         </div>
       </div>
 
-      <!-- Индикатор загрузки тайлов -->
+      <!-- FIX v1.9: Loading map indicator — centered on mobile via transform -->
       <div id="map-tile-loader" style="
-        display:none;position:absolute;bottom:calc(var(--nav-total) + 8px);right:60px;
-        z-index:var(--z-map);background:rgba(13,20,28,0.85);backdrop-filter:blur(8px);
-        border:1px solid var(--border);border-radius:100px;padding:6px 12px;
-        font-size:11px;color:var(--text2);display:none;align-items:center;gap:6px;
-        pointer-events:none;">
-        <span class="spinner" style="width:12px;height:12px;border-width:2px;"></span>
+        display:none;
+        position:absolute;
+        bottom:calc(var(--nav-total) + 12px);
+        left:50%;
+        transform:translateX(-50%);
+        z-index:var(--z-map);
+        background:rgba(13,20,28,0.92);
+        backdrop-filter:blur(10px);
+        -webkit-backdrop-filter:blur(10px);
+        border:1px solid var(--border);
+        border-radius:100px;
+        padding:8px 16px;
+        font-size:12px;
+        color:var(--text2);
+        align-items:center;
+        gap:8px;
+        white-space:nowrap;
+        pointer-events:none;
+        box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+        <span class="spinner" style="width:12px;height:12px;border-width:2px;flex-shrink:0;"></span>
         <span id="map-tile-loader-text">Загрузка карты…</span>
       </div>
 
@@ -2745,16 +3247,10 @@
               <option value="">— Выберите поле —</option>
             </select>
           </div>
-          <!-- Field info bar (shown when field selected) -->
-          <div class="weather-field-info" id="weather-field-info" style="display:none;">
-            <div class="weather-info-chip">
-              <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              <span id="weather-field-coords">—</span>
-            </div>
-            <div class="weather-info-chip">
-              <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3h18v18H3z"/></svg>
-              <span id="weather-field-area">—</span>
-            </div>
+          <!-- FIX v1.9: field name + area pill (no coordinates) -->
+          <div id="weather-field-meta" style="display:none;margin-top:6px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text2);display:none;align-items:center;gap:12px;flex-wrap:wrap;">
+            <span id="weather-field-meta-name" style="color:var(--text);font-weight:600;"></span>
+            <span id="weather-field-meta-area" style="color:var(--accent);font-weight:600;"></span>
           </div>
         </div>
 
@@ -2772,6 +3268,16 @@
           <div id="weather-city-results" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;overflow:hidden;max-height:180px;overflow-y:auto;"></div>
           <!-- Currently showing city name -->
           <div id="weather-city-current" style="display:none;font-size:13px;color:var(--text2);padding:4px 2px 6px;"></div>
+          <!-- FIX v1.9: Favorite cities section -->
+          <div class="weather-fav-section" id="weather-fav-section">
+            <div class="weather-fav-label">
+              <span>⭐ Favourite places</span>
+              <button class="weather-fav-add-btn" id="weather-fav-add-btn" onclick="addCurrentCityToFavourites()" title="Add current city to favourites">+ Add current city</button>
+            </div>
+            <div class="weather-fav-list" id="weather-fav-list">
+              <span class="weather-fav-empty" id="weather-fav-empty">Add your first favourite city</span>
+            </div>
+          </div>
         </div>
       </div>
       <div class="weather-list" id="weather-list-container">
@@ -3063,7 +3569,7 @@
 // ════════════════════════════════════════════════════
 // КОНСТАНТЫ ПРИЛОЖЕНИЯ
 // ════════════════════════════════════════════════════
-const APP_VERSION = '1.6';
+const APP_VERSION = '1.8'; // FIX 1.8: version bump
 const STORAGE_PREFIX = 'hectar';
 const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
 const DEFAULT_MAP_ZOOM = 11;
@@ -3484,6 +3990,8 @@ function initMap() {
   loadFields().forEach(field => addFieldToMap(field));
 
   map.on('click', onMapClick);
+  // FIX 1.8: регистрируем mousemove для резиновой линии
+  map.on('mousemove', onMapMouseMove);
   let labelTimer;
   map.on('zoomend moveend', () => {
     clearTimeout(labelTimer);
@@ -4090,13 +4598,119 @@ function getHealthStatus(ndvi) {
 }
 
 function getYieldForecast(field, ndvi) {
-  // Базовая урожайность в т/га по культуре
+  // FIX v1.8 R2: improved yield forecast in t/ha — also used internally
+  // Base yield by crop (t/ha)
   const yieldBase = {
     wheat: 3.2, corn: 6.5, sunflower: 2.1, barley: 3.0,
     soybean: 2.4, rapeseed: 2.8, rice: 5.0, default: 3.0
   };
   const base = yieldBase[field.crop] || yieldBase.default;
   return (base * (ndvi / 0.65)).toFixed(1);
+}
+
+// FIX v1.8 R2: Detailed yield forecast for field detail panel
+// Returns formatted string with c/ha, range, and methodology note
+function getDetailedYieldForecast(field, ndvi) {
+  const isRu = lang === 'ru';
+
+  // Step 1: base yield c/ha (centners = 100kg) by crop
+  const baseYieldCha = {
+    wheat:     { mid: 32, lo: 22, hi: 45 },
+    corn:      { mid: 65, lo: 45, hi: 90 },
+    sunflower: { mid: 21, lo: 14, hi: 30 },
+    barley:    { mid: 30, lo: 20, hi: 40 },
+    soybean:   { mid: 24, lo: 16, hi: 34 },
+    rapeseed:  { mid: 28, lo: 18, hi: 38 },
+    rice:      { mid: 50, lo: 35, hi: 68 },
+    oats:      { mid: 28, lo: 18, hi: 38 },
+    rye:       { mid: 26, lo: 17, hi: 35 },
+    buckwheat: { mid: 12, lo: 8,  hi: 18 },
+    millet:    { mid: 18, lo: 12, hi: 25 },
+    sorghum:   { mid: 35, lo: 24, hi: 50 },
+    peas:      { mid: 22, lo: 14, hi: 30 },
+    lentils:   { mid: 15, lo: 9,  hi: 22 },
+    chickpea:  { mid: 18, lo: 12, hi: 25 },
+    flax:      { mid: 10, lo: 6,  hi: 16 },
+    sugar_beet:{ mid: 350, lo: 250, hi: 500 },
+    potato:    { mid: 200, lo: 140, hi: 280 },
+    cotton:    { mid: 25, lo: 16, hi: 36 },
+    alfalfa:   { mid: 80, lo: 55, hi: 110 },
+    mustard:   { mid: 14, lo: 8,  hi: 20 },
+    other:     { mid: 30, lo: 18, hi: 45 }
+  };
+
+  // No crop → insufficient data
+  if (!field.crop) {
+    return {
+      text: isRu ? 'Недостаточно данных (культура не выбрана)' : 'Insufficient data (no crop selected)',
+      detail: null
+    };
+  }
+
+  const base = baseYieldCha[field.crop] || baseYieldCha.other;
+
+  // Step 2: NDVI adjustment
+  let ndviMult = 1.0;
+  let ndviNote = '';
+  if (ndvi > 0.7) {
+    ndviMult = 1.30;
+    ndviNote = isRu ? 'NDVI высокий (+30%)' : 'NDVI high (+30%)';
+  } else if (ndvi >= 0.5) {
+    ndviMult = 1.10;
+    ndviNote = isRu ? 'NDVI норма (+10%)' : 'NDVI normal (+10%)';
+  } else if (ndvi >= 0.4) {
+    ndviMult = 1.0;
+    ndviNote = isRu ? 'NDVI умеренный' : 'NDVI moderate';
+  } else if (ndvi >= 0.25) {
+    ndviMult = 0.80;
+    ndviNote = isRu ? 'NDVI низкий (−20%)' : 'NDVI low (−20%)';
+  } else {
+    ndviMult = 0.60;
+    ndviNote = isRu ? 'NDVI критический (−40%)' : 'NDVI critical (−40%)';
+  }
+
+  // Step 3: Climate/region adjustment based on latitude
+  const lat = field.center ? field.center[0] : 50;
+  let regionMult = 1.0;
+  let regionNote = '';
+  if (lat < 35) {
+    // Subtropical / warm zone
+    regionMult = 1.10;
+    regionNote = isRu ? 'Тёплый регион (+10%)' : 'Warm region (+10%)';
+  } else if (lat < 45) {
+    // Temperate warm
+    regionMult = 1.05;
+    regionNote = isRu ? 'Умеренно-тёплый (+5%)' : 'Temperate warm (+5%)';
+  } else if (lat < 52) {
+    // Temperate
+    regionMult = 1.0;
+    regionNote = isRu ? 'Умеренный климат' : 'Temperate climate';
+  } else if (lat < 58) {
+    // Temperate-cool
+    regionMult = 0.95;
+    regionNote = isRu ? 'Умеренно-холодный (−5%)' : 'Temperate cool (−5%)';
+  } else {
+    // Cold / northern
+    regionMult = 0.90;
+    regionNote = isRu ? 'Холодный регион (−10%)' : 'Cold region (−10%)';
+  }
+
+  const totalMult = ndviMult * regionMult;
+  const mid = Math.round(base.mid * totalMult);
+  const lo  = Math.round(base.lo  * totalMult);
+  const hi  = Math.round(base.hi  * totalMult);
+
+  const unit = isRu ? 'ц/га' : 'c/ha';
+  const forecastLine = isRu
+    ? `🌾 Прогноз урожая: ${mid} ${unit} (диапазон: ${lo} — ${hi})`
+    : `🌾 Yield forecast: ${mid} ${unit} (range: ${lo} — ${hi})`;
+
+  return {
+    text: forecastLine,
+    mid, lo, hi, unit,
+    ndviNote, regionNote,
+    detail: `${ndviNote} · ${regionNote}`
+  };
 }
 
 // Геолокация
@@ -4172,24 +4786,79 @@ function startDrawMode() {
 function cancelDrawMode() {
   isDrawing = false;
   currentDrawPoints = [];
+  clearRubberBand(); // FIX 1.8
   setDrawModeActive(false);
   clearTempDrawLayers();
   hideIntersectError();
 }
 
+// FIX 1.8: переменные для резиновой линии (preview от последней точки до курсора)
+let rubberBandLine = null;
+let rafPending = false;
+
+// FIX 1.8: обработчик движения мыши/пальца для резиновой линии
+function onMapMouseMove(e) {
+  if (!isDrawing || currentDrawPoints.length === 0) return;
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => {
+    rafPending = false;
+    if (!isDrawing || currentDrawPoints.length === 0) return;
+    const last = currentDrawPoints[currentDrawPoints.length - 1];
+    const cur = [e.latlng.lat, e.latlng.lng];
+    if (rubberBandLine) {
+      rubberBandLine.setLatLngs([last, cur]);
+    } else {
+      rubberBandLine = L.polyline([last, cur], {
+        color: '#4CAF50', weight: 2, dashArray: '4,4', opacity: 0.7,
+        interactive: false
+      }).addTo(map);
+    }
+    // FIX 1.8: обновляем площадь в реальном времени
+    updateDrawAreaLive(cur);
+  });
+}
+
+// FIX 1.8: очистить резиновую линию
+function clearRubberBand() {
+  if (rubberBandLine) { map.removeLayer(rubberBandLine); rubberBandLine = null; }
+}
+
+// FIX 1.8: обновление площади с предварительной точкой (курсором)
+function updateDrawAreaLive(previewPoint) {
+  const label = document.getElementById('draw-area-label');
+  if (!label) return;
+  const pts = previewPoint ? [...currentDrawPoints, previewPoint] : currentDrawPoints;
+  if (pts.length >= 3) {
+    const coords = [...pts, pts[0]];
+    try {
+      const poly = turf.polygon([coords.map(c => [c[1], c[0]])]);
+      const area = turf.area(poly) / 10000;
+      label.textContent = `${area.toFixed(2)} ${lang === 'ru' ? 'га' : 'ha'}`;
+    } catch(_) {}
+  }
+}
+
+// FIX 1.8: clearTempDrawLayers — также убирает резиновую линию и сохраняет глобальный mousemove
 function clearTempDrawLayers() {
   if (!map) return;
+  clearRubberBand(); // FIX 1.8: убираем резиновую линию
   if (tempPolyline) { map.removeLayer(tempPolyline); tempPolyline = null; }
   if (tempPolygon) { map.removeLayer(tempPolygon); tempPolygon = null; }
   const toRemove = [];
   map.eachLayer(l => { if (l._drawTemp) toRemove.push(l); });
   toRemove.forEach(l => map.removeLayer(l));
-  map.off('mousemove touchmove');
+  // FIX 1.8: убираем только перетаскивание вершин, но НЕ глобальный mousemove
   map.off('mouseup touchend');
+  // FIX 1.8: восстанавливаем глобальный mousemove для rubber band
+  map.off('mousemove'); // сброс всех слушателей mousemove
+  map.on('mousemove', onMapMouseMove); // и восстанавливаем наш
 }
 
 function onMapClick(e) {
   if (!isDrawing) return;
+  // FIX 1.8: моментально убираем резиновую линию при клике (новая точка)
+  clearRubberBand();
   currentDrawPoints.push([e.latlng.lat, e.latlng.lng]);
   updateTempDraw();
   updateDrawArea();
@@ -4702,28 +5371,28 @@ function renderFieldDetailHTML(field) {
 
   const ndvi = estimateFieldNdvi(field);
   const health = getHealthStatus(ndvi);
-  const stage = getVegetationStage(field);
-  const yieldFc = getYieldForecast(field, ndvi);
+  // FIX v1.8: removed fake getVegetationStage() and getYieldForecast() — user-editable instead
   const ndviColor = getNdviColor(ndvi);
   const sowEvent = (field.season || []).find(e => e.type === 'sowing');
   const sowDate = sowEvent ? sowEvent.date : '—';
-  const nextTreatDate = (() => {
-    if (field.season && field.season.length > 0) {
-      const d = new Date(field.season[0].date);
-      d.setDate(d.getDate() + 14);
-      return d.toISOString().split('T')[0];
-    }
-    const d = new Date(); d.setDate(d.getDate() + 7);
-    return d.toISOString().split('T')[0];
-  })();
+  // FIX v1.8: removed auto-computed nextTreatDate (was +14 days fake calc)
 
-  const seasonHTML = (field.season || []).map(ev => `
-    <div class="event-item">
+  // FIX v1.8 R2: season events with edit/delete buttons
+  const seasonHTML = (field.season || []).map((ev, idx) => `
+    <div class="event-item" data-event-index="${idx}">
       <div class="event-dot ${ev.type}"></div>
       <div class="event-info">
         <div class="event-type">${eventTypeLabel[ev.type] || ev.type}</div>
         <div class="event-date">${ev.date}</div>
         ${ev.note ? `<div class="event-note">${ev.note}</div>` : ''}
+      </div>
+      <div class="event-actions">
+        <button class="event-edit-btn" onclick="openEditEventModal('${field.id}', ${idx})" title="${lang==='ru'?'Редактировать':'Edit'}">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="event-delete-btn" onclick="deleteEventFromField('${field.id}', ${idx})" title="${lang==='ru'?'Удалить':'Delete'}">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
       </div>
     </div>
   `).join('');
@@ -4775,30 +5444,78 @@ function renderFieldDetailHTML(field) {
         <div class="stat-value">${field.perimeter} <span class="stat-unit">${t('km')}</span></div>
       </div>
       <div class="stat-card-sm">
+        <!-- FIX v1.8: Growth Stage removed (was fake/auto-generated). Replaced with editable user field -->
         <div class="stat-label">${lang === 'ru' ? 'Стадия вегетации' : 'Growth Stage'}</div>
-        <div class="stat-value" style="font-size:13px;">${stage}</div>
+        <div class="stat-value" style="font-size:12px;">
+          <input class="stat-inline-input" value="${field.growthStage || ''}"
+            placeholder="${lang === 'ru' ? 'Не указано' : 'Not specified'}"
+            onchange="updateFieldMeta('${field.id}', 'growthStage', this.value)"
+            style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:12px;padding:2px 0;outline:none;"/>
+        </div>
       </div>
       <div class="stat-card-sm">
+        <!-- FIX v1.8: Plant Health is NDVI-based estimate — keep but label clearly -->
         <div class="stat-label">${lang === 'ru' ? 'Здоровье растений' : 'Plant Health'}</div>
-        <div class="stat-value" style="font-size:13px;color:${ndviColor};">${health.label}</div>
+        <div class="stat-value" style="font-size:13px;color:${ndviColor};">${health.label} <span style="font-size:9px;color:var(--text3);">NDVI</span></div>
       </div>
       <div class="stat-card-sm">
+        <!-- FIX v1.8: Yield Forecast was randomly generated. Now user-editable -->
         <div class="stat-label">${lang === 'ru' ? 'Прогноз урожая' : 'Yield Forecast'}</div>
-        <div class="stat-value">${yieldFc} <span class="stat-unit">${lang === 'ru' ? 'т/га' : 't/ha'}</span></div>
+        <div class="stat-value" style="font-size:12px;display:flex;align-items:center;gap:4px;">
+          <input class="stat-inline-input" type="number" step="0.1" min="0" max="30"
+            value="${field.yieldForecast || ''}"
+            placeholder="—"
+            onchange="updateFieldMeta('${field.id}', 'yieldForecast', this.value)"
+            style="width:60px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:12px;padding:2px 0;outline:none;text-align:right;"/>
+          <span class="stat-unit">${lang === 'ru' ? 'т/га' : 't/ha'}</span>
+        </div>
       </div>
       <div class="stat-card-sm">
         <div class="stat-label">${lang === 'ru' ? 'Дата посева' : 'Sowing Date'}</div>
         <div class="stat-value" style="font-size:13px;">${sowDate}</div>
       </div>
       <div class="stat-card-sm">
+        <!-- FIX v1.8: Next Treatment was auto-calculated (+14 days). Now user-editable -->
         <div class="stat-label">${lang === 'ru' ? 'Сл. обработка' : 'Next Treatment'}</div>
-        <div class="stat-value" style="font-size:13px;">${nextTreatDate}</div>
+        <div class="stat-value" style="font-size:12px;">
+          <input class="stat-inline-input" type="date"
+            value="${field.nextTreatment || ''}"
+            onchange="updateFieldMeta('${field.id}', 'nextTreatment', this.value)"
+            style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:12px;padding:2px 0;outline:none;"/>
+        </div>
       </div>
       <div class="stat-card-sm">
         <div class="stat-label">${t('created')}</div>
         <div class="stat-value" style="font-size:13px;">${field.createdAt}</div>
       </div>
     </div>
+
+    <!-- FIX v1.8 R2: Yield Forecast Card — full width, calculated from NDVI + crop + region -->
+    ${(() => {
+      const fc = getDetailedYieldForecast(field, ndvi);
+      if (!fc.detail) {
+        return `<div class="yield-forecast-card yield-forecast-no-data">
+          <div class="yield-fc-icon">📊</div>
+          <div class="yield-fc-text">${fc.text}</div>
+        </div>`;
+      }
+      return `<div class="yield-forecast-card">
+        <div class="yield-fc-top">
+          <div class="yield-fc-main">${fc.text}</div>
+          <div class="yield-fc-detail">${fc.detail}</div>
+        </div>
+        <div class="yield-fc-bar-wrap">
+          <div class="yield-fc-bar-track">
+            <div class="yield-fc-bar-fill" style="width:${Math.min(100, Math.round((fc.mid / (fc.hi * 1.15)) * 100))}%;"></div>
+            <div class="yield-fc-bar-range" style="left:${Math.min(100,Math.round((fc.lo/(fc.hi*1.15))*100))}%;width:${Math.min(100,Math.round(((fc.hi-fc.lo)/(fc.hi*1.15))*100))}%;"></div>
+          </div>
+          <div class="yield-fc-labels">
+            <span>${fc.lo}</span><span style="color:var(--accent);font-weight:700;">${fc.mid} ${fc.unit}</span><span>${fc.hi}</span>
+          </div>
+        </div>
+        <div class="yield-fc-source">${lang === 'ru' ? '📐 Расчёт: база культуры · NDVI · регион' : '📐 Calc: crop base · NDVI · region'}</div>
+      </div>`;
+    })()}
 
     <!-- NDVI блок -->
     <div class="ndvi-chart-container">
@@ -4829,14 +5546,15 @@ function renderFieldDetailHTML(field) {
     <div class="section-title">${t('fieldColor')}</div>
     <div class="color-picker" id="detail-color-picker"></div>
 
+    <!-- FIX v1.8: Replaced crop chip grid with compact SELECT dropdown -->
     <div class="section-title">${t('crop')}</div>
-    <div class="crop-grid" id="detail-crop-grid">
-      ${CROPS.map(c => `
-        <div class="crop-chip ${fieldCropId === c.id ? 'selected' : ''}"
-          onclick="updateFieldCrop('${field.id}', '${c.id}', this)">${cropLabel(c)}</div>
-      `).join('')}
-      <div class="crop-chip ${!fieldCropId ? 'selected' : ''}"
-        onclick="updateFieldCrop('${field.id}', '', this)">${t('noCrop')}</div>
+    <div style="padding: 0 0 8px;">
+      <select class="modal-select" id="detail-crop-select"
+        onchange="updateFieldCropSelect('${field.id}', this.value)"
+        style="width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:15px;font-family:inherit;cursor:pointer;outline:none;">
+        <option value="" ${!fieldCropId ? 'selected' : ''}>${t('noCrop')}</option>
+        ${CROPS.map(c => `<option value="${c.id}" ${fieldCropId === c.id ? 'selected' : ''}>${cropLabel(c)}</option>`).join('')}
+      </select>
     </div>
 
     <div class="section-title">${t('seasonHistory')}</div>
@@ -4878,6 +5596,26 @@ function updateFieldCrop(fieldId, crop, el) {
   }
 }
 
+// FIX v1.8: SELECT-based crop update (no chip element needed)
+function updateFieldCropSelect(fieldId, crop) {
+  const fields = loadFields();
+  const f = fields.find(x => x.id === fieldId);
+  if (f) {
+    f.crop = crop;
+    saveFields(fields);
+  }
+}
+
+// FIX v1.8: generic field meta updater for editable stat fields
+function updateFieldMeta(fieldId, key, value) {
+  const fields = loadFields();
+  const f = fields.find(x => x.id === fieldId);
+  if (f) {
+    f[key] = value;
+    saveFields(fields);
+  }
+}
+
 function deleteCurrentField() {
   if (!currentFieldId) return;
   if (!confirm(t('deleteConfirm'))) return;
@@ -4895,10 +5633,62 @@ function deleteCurrentField() {
 // ════════════════════════════════════════════════════
 // СОБЫТИЯ СЕЗОНА
 // ════════════════════════════════════════════════════
+// FIX v1.8 R2: track edit mode — null = add new, number = edit index
+let editingEventIndex = null;
+
 function openAddEventModal() {
+  // FIX v1.8 R2: reset to ADD mode
+  editingEventIndex = null;
+  document.getElementById('event-type').value = 'sowing';
   document.getElementById('event-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('event-note').value = '';
+  // FIX v1.8 R2: update modal title to "Add Event"
+  const title = document.querySelector('#modal-add-event .modal-title');
+  if (title) title.textContent = lang === 'ru' ? 'Добавить событие' : 'Add Event';
+  const saveBtn = document.querySelector('#modal-add-event .modal-btn.primary');
+  if (saveBtn) saveBtn.textContent = lang === 'ru' ? 'Добавить' : 'Add';
   openModal('modal-add-event');
+}
+
+// FIX v1.8 R2: open modal in EDIT mode, pre-filled with existing event data
+function openEditEventModal(fieldId, eventIndex) {
+  if (!currentFieldId) currentFieldId = fieldId;
+  const fields = loadFields();
+  const f = fields.find(x => x.id === fieldId);
+  if (!f || !f.season || !f.season[eventIndex]) return;
+
+  editingEventIndex = eventIndex;
+  const ev = f.season[eventIndex];
+
+  document.getElementById('event-type').value = ev.type || 'sowing';
+  document.getElementById('event-date').value = ev.date || '';
+  document.getElementById('event-note').value = ev.note || '';
+
+  // Update modal title and button label
+  const title = document.querySelector('#modal-add-event .modal-title');
+  if (title) title.textContent = lang === 'ru' ? 'Редактировать событие' : 'Edit Event';
+  const saveBtn = document.querySelector('#modal-add-event .modal-btn.primary');
+  if (saveBtn) saveBtn.textContent = lang === 'ru' ? 'Сохранить' : 'Save';
+
+  openModal('modal-add-event');
+}
+
+// FIX v1.8 R2: delete an event from a field's season array with confirmation
+function deleteEventFromField(fieldId, eventIndex) {
+  const confirmMsg = lang === 'ru' ? 'Удалить это событие?' : 'Delete this event?';
+  if (!confirm(confirmMsg)) return;
+
+  const fields = loadFields();
+  const f = fields.find(x => x.id === fieldId);
+  if (!f || !f.season) return;
+
+  f.season.splice(eventIndex, 1);
+  saveFields(fields);
+
+  // Refresh the detail view
+  openFieldDetail(fieldId);
+  renderNotesList();
+  showToast(lang === 'ru' ? 'Событие удалено' : 'Event deleted');
 }
 
 function saveEvent() {
@@ -4913,9 +5703,22 @@ function saveEvent() {
     note: document.getElementById('event-note').value.trim()
   };
   f.season = f.season || [];
-  f.season.push(event);
+
+  // FIX v1.8 R2: handle edit vs add
+  if (editingEventIndex !== null && editingEventIndex >= 0 && editingEventIndex < f.season.length) {
+    // EDIT: replace existing event at index
+    f.season[editingEventIndex] = event;
+    showToast(lang === 'ru' ? 'Событие обновлено' : 'Event updated');
+  } else {
+    // ADD: append and sort
+    f.season.push(event);
+    showToast(lang === 'ru' ? 'Событие добавлено' : 'Event added');
+  }
+
   f.season.sort((a, b) => b.date.localeCompare(a.date));
   saveFields(fields);
+
+  editingEventIndex = null; // FIX v1.8 R2: reset edit mode
 
   closeModal('modal-add-event');
   openFieldDetail(currentFieldId);
@@ -4995,6 +5798,8 @@ function setWeatherMode(mode) {
   // Hide field-info bar when switching to city mode
   const fieldInfoBar = document.getElementById('weather-field-info');
   if (fieldInfoBar && mode === 'city') fieldInfoBar.style.display = 'none';
+  // FIX v1.9: render favourites when city mode becomes active
+  if (mode === 'city') renderFavouriteCities();
   loadWeather();
 }
 
@@ -5056,8 +5861,89 @@ function selectWeatherCity(lat, lon, name) {
   if (results) results.style.display = 'none';
   if (current) { current.style.display = 'block'; current.innerHTML = `📍 <strong style="color:var(--text);">${name}</strong>`; }
   if (input) input.value = name.split(',')[0];
+  // FIX v1.9: update add-btn state after selecting a city
+  updateFavAddBtnState();
   loadWeather();
 }
+
+// FIX v1.9: ═══════════════════════════════════
+// FAVOURITE CITIES — localStorage, max 5
+// ═══════════════════════════════════════════════
+const FAVS_KEY = STORAGE_PREFIX + '-weather-favs';
+
+function loadFavouriteCities() {
+  try { return JSON.parse(localStorage.getItem(FAVS_KEY) || '[]'); } catch { return []; }
+}
+function saveFavouriteCities(favs) {
+  localStorage.setItem(FAVS_KEY, JSON.stringify(favs));
+}
+
+function renderFavouriteCities() {
+  const list = document.getElementById('weather-fav-list');
+  const empty = document.getElementById('weather-fav-empty');
+  if (!list) return;
+  const favs = loadFavouriteCities();
+  // clear chips (keep empty label)
+  Array.from(list.children).forEach(el => { if (el !== empty) el.remove(); });
+  if (!favs.length) {
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  favs.forEach((fav, idx) => {
+    const chip = document.createElement('div');
+    chip.className = 'weather-fav-chip';
+    // escape for inline onclick
+    const safeName = fav.name.replace(/'/g, "\\'");
+    chip.innerHTML = `<span onclick="selectFavouriteCity(${idx})" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">⭐ ${fav.name.split(',')[0]}</span><span class="fav-del" onclick="deleteFavouriteCity(${idx},event)" title="Remove">✕</span>`;
+    list.appendChild(chip);
+  });
+  updateFavAddBtnState();
+}
+
+function updateFavAddBtnState() {
+  const btn = document.getElementById('weather-fav-add-btn');
+  if (!btn) return;
+  const favs = loadFavouriteCities();
+  const hasCity = !!(weatherCityLat && weatherCityLng && weatherCityName);
+  const maxReached = favs.length >= 5;
+  const alreadySaved = favs.some(f => f.name === weatherCityName);
+  btn.disabled = !hasCity || maxReached || alreadySaved;
+  if (maxReached) btn.title = 'Maximum 5 favourites reached';
+  else if (alreadySaved) btn.title = 'Already in favourites';
+  else btn.title = 'Add current city to favourites';
+}
+
+function addCurrentCityToFavourites() {
+  if (!weatherCityLat || !weatherCityLng || !weatherCityName) {
+    showToast(lang === 'ru' ? 'Сначала выберите город' : 'Select a city first');
+    return;
+  }
+  const favs = loadFavouriteCities();
+  if (favs.length >= 5) { showToast(lang === 'ru' ? 'Максимум 5 избранных' : 'Maximum 5 favourites'); return; }
+  if (favs.some(f => f.name === weatherCityName)) { showToast(lang === 'ru' ? 'Уже в избранном' : 'Already saved'); return; }
+  favs.push({ name: weatherCityName, lat: weatherCityLat, lng: weatherCityLng });
+  saveFavouriteCities(favs);
+  renderFavouriteCities();
+  showToast((lang === 'ru' ? '⭐ Добавлено: ' : '⭐ Added: ') + weatherCityName.split(',')[0]);
+}
+
+function selectFavouriteCity(idx) {
+  const favs = loadFavouriteCities();
+  const fav = favs[idx];
+  if (!fav) return;
+  selectWeatherCity(fav.lat, fav.lng, fav.name);
+}
+
+function deleteFavouriteCity(idx, e) {
+  if (e) { e.stopPropagation(); }
+  const favs = loadFavouriteCities();
+  const removed = favs.splice(idx, 1);
+  saveFavouriteCities(favs);
+  renderFavouriteCities();
+  if (removed[0]) showToast((lang === 'ru' ? 'Удалено: ' : 'Removed: ') + removed[0].name.split(',')[0]);
+}
+// FIX v1.9: ═══ end favourites ═══════════════
 
 // ════════════════════════════════════════════════════
 // ПОГОДА (Open-Meteo API — 7 дней, по выбранному полю)
@@ -5130,6 +6016,9 @@ async function loadWeather() {
   if (weatherMode === 'city') {
     // Always hide field-related UI in city mode
     if (fieldInfoBar) fieldInfoBar.style.display = 'none';
+    // FIX v1.9: hide field meta pill in city mode
+    const metaElCity = document.getElementById('weather-field-meta');
+    if (metaElCity) metaElCity.style.display = 'none';
     const fieldModeSection = document.getElementById('weather-mode-field');
     if (fieldModeSection) fieldModeSection.style.display = 'none';
 
@@ -5267,6 +6156,9 @@ async function loadWeather() {
 
   if (!fields.length) {
     if (fieldInfoBar) fieldInfoBar.style.display = 'none';
+    // FIX v1.9: hide meta pill
+    const metaElNF = document.getElementById('weather-field-meta');
+    if (metaElNF) metaElNF.style.display = 'none';
     container.innerHTML = `
       <div class="weather-no-field" style="display:flex;">
         <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24" style="opacity:0.3;"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
@@ -5281,6 +6173,9 @@ async function loadWeather() {
   // If no field selected, show the prompt
   if (!selectedWeatherFieldId) {
     if (fieldInfoBar) fieldInfoBar.style.display = 'none';
+    // FIX v1.9: hide meta pill
+    const metaElNS = document.getElementById('weather-field-meta');
+    if (metaElNS) metaElNS.style.display = 'none';
     container.innerHTML = `
       <div class="weather-no-field" style="display:flex;">
         <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24" style="opacity:0.3;"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
@@ -5292,14 +6187,19 @@ async function loadWeather() {
   const field = fields.find(f => f.id === selectedWeatherFieldId);
   if (!field) return;
 
-  // Show field info bar
-  if (fieldInfoBar) fieldInfoBar.style.display = 'flex';
-  const coordsEl = document.getElementById('weather-field-coords');
-  const areaEl = document.getElementById('weather-field-area');
-  if (coordsEl && field.center) {
-    coordsEl.textContent = `${field.center[0].toFixed(4)}°N, ${field.center[1].toFixed(4)}°E`;
+  // Show field info bar — FIX 1.8: removed coords. FIX v1.9: show name+area pill
+  if (fieldInfoBar) fieldInfoBar.style.display = 'none';
+  // FIX v1.9: update field meta pill with name and area in hectares
+  const metaEl = document.getElementById('weather-field-meta');
+  const metaName = document.getElementById('weather-field-meta-name');
+  const metaArea = document.getElementById('weather-field-meta-area');
+  if (metaEl && metaName && metaArea) {
+    metaEl.style.display = 'flex';
+    metaName.textContent = '🌾 ' + field.name;
+    // FIX v1.9: area already stored in ha (field.area), show to 2 decimals
+    const areaHa = parseFloat(field.area).toFixed(2);
+    metaArea.textContent = '📐 ' + areaHa + ' ha';
   }
-  if (areaEl) areaEl.textContent = `${field.area} ${lang === 'ru' ? 'га' : 'ha'}`;
 
   // Loading state
   container.innerHTML = `<div class="loading-card"><span class="ndvi-loading-spinner"></span> ${lang === 'ru' ? 'Загрузка прогноза...' : 'Loading forecast...'}</div>`;
@@ -5369,10 +6269,7 @@ async function loadWeather() {
               <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:3px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
               ${locationName}
             </div>
-            <div style="font-size:12px;color:var(--text3);margin-top:1px;">
-              ${isRu ? 'Площадь' : 'Area'}: <strong style="color:var(--text2);">${field.area} ${isRu ? 'га' : 'ha'}</strong>
-              · ${isRu ? 'Периметр' : 'Perimeter'}: ${field.perimeter} ${isRu ? 'км' : 'km'}
-            </div>
+            <!-- FIX 1.8: удалено отображение площади и периметра во вкладке погоды -->
           </div>
         </div>
 
@@ -5603,40 +6500,106 @@ function saveNote() {
 
 // ════════════════════════════════════════════════════
 // НАВИГАЦИЯ ПО ТАБАМ
+// FIX v1.9: переписана функция switchTab — корректное скрытие/показ экранов
 // ════════════════════════════════════════════════════
 let activeTab = 'map';
 function switchTab(tab) {
-  // Скрыть все экраны
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  // FIX v1.8 R2: always close field detail screen when switching tabs —
+  // otherwise detail screen (z-index:600) stays visible on top of target tab
+  const detailScreen = document.getElementById('screen-field-detail');
+  if (detailScreen && detailScreen.classList.contains('open')) {
+    detailScreen.classList.remove('open');
+    currentFieldId = null;
+    // Don't call renderFieldsList here — switchTab will do it if tab==='fields'
+  }
+
+  // FIX v1.9: при уходе с карты — принудительно завершаем измерение
+  if (tab !== 'map' && (isDrawing || document.getElementById('draw-mode-ui')?.classList.contains('active'))) {
+    // FIX v1.9: выключаем режим измерения без переключения обратно на карту
+    isDrawing = false;
+    currentDrawPoints = [];
+    if (typeof clearRubberBand === 'function') clearRubberBand();
+    if (typeof clearTempDrawLayers === 'function') clearTempDrawLayers();
+    if (typeof hideIntersectError === 'function') hideIntersectError();
+    // скрыть draw UI
+    const drawUi = document.getElementById('draw-mode-ui');
+    if (drawUi) drawUi.classList.remove('active');
+    const screenMap = document.getElementById('screen-map');
+    if (screenMap) screenMap.classList.remove('draw-active');
+    const addBtn = document.getElementById('btn-add-field-map');
+    if (addBtn) addBtn.style.display = '';
+    const drawHint = document.getElementById('draw-hint');
+    if (drawHint) drawHint.classList.remove('visible');
+  }
+
+  // FIX 1.8: скрываем все экраны через display:none, кроме screen-map —
+  // карта всегда остаётся в DOM (Leaflet требует видимого контейнера),
+  // но прячем поверх через visibility + pointer-events
+  const allScreenIds = ['map', 'fields', 'weather', 'notes', 'profile'];
+
+  allScreenIds.forEach(id => {
+    const el = document.getElementById('screen-' + id);
+    if (!el) return;
+    if (id === 'map') {
+      // FIX 1.8: карта не скрывается через display:none — это ломает Leaflet
+      if (tab === 'map') {
+        el.style.visibility = 'visible';
+        el.style.pointerEvents = 'auto';
+        el.style.zIndex = '';
+        el.classList.add('active');
+      } else {
+        el.style.visibility = 'hidden';
+        el.style.pointerEvents = 'none';
+        el.style.zIndex = '-1';
+        el.classList.remove('active');
+      }
+    } else {
+      // FIX v1.8: explicitly hide all non-map screens with display:none
+      el.classList.remove('active');
+      el.style.display = 'none';
+    }
+  });
+
+  // снимаем active у всех таб-кнопок
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
 
-  document.getElementById(`screen-${tab}`).classList.add('active');
-  document.getElementById(`tab-${tab}`).classList.add('active');
+  // FIX v1.8: показываем нужный экран — явно восстанавливаем display
+  if (tab !== 'map') {
+    const targetScreen = document.getElementById('screen-' + tab);
+    if (targetScreen) {
+      targetScreen.style.display = 'flex'; // FIX v1.8: override the display:none
+      targetScreen.classList.add('active');
+    }
+  }
+  const targetTab = document.getElementById('tab-' + tab);
+  if (targetTab) targetTab.classList.add('active');
   activeTab = tab;
 
   if (tab === 'fields') {
     renderFieldsList();
-    // Ensure list sub-view is visible by default
     setFieldsSubTab(currentFieldsSubTab || 'list');
   }
   if (tab === 'weather') {
     populateWeatherFieldSelect();
+    // FIX v1.9: render saved favourites on tab open
+    renderFavouriteCities();
     loadWeather();
   }
   if (tab === 'notes') renderNotesList();
   if (tab === 'profile') renderProfile();
 
-  // Обновить размер карты
-  if (tab === 'map') setTimeout(() => {
-    if (map) {
-      map.invalidateSize();
-      updateMapLabels();
-      // Re-render current layer tiles if they look blank
-      if (currentLayer === 'osm' && map.hasLayer(osmLayer)) {
-        osmLayer.redraw();
+  // обновляем размер карты при возврате
+  if (tab === 'map') {
+    setTimeout(() => {
+      if (map) {
+        map.invalidateSize();
+        updateMapLabels();
+        if (currentLayer === 'osm' && map.hasLayer(osmLayer)) {
+          osmLayer.redraw();
+        }
       }
-    }
-  }, 150);
+    }, 150);
+  }
 }
 
 // ════════════════════════════════════════════════════
@@ -5741,22 +6704,31 @@ function updateSetting(key, value) {
 }
 
 function applyTheme(theme) {
+  // FIX v1.8: toggle light/dark class on html element for CSS selectors
   if (theme === 'light') {
+    document.documentElement.classList.add('light-theme');
+    document.documentElement.classList.remove('dark-theme');
     document.documentElement.style.setProperty('--bg', '#f0f4f8');
     document.documentElement.style.setProperty('--bg2', '#ffffff');
     document.documentElement.style.setProperty('--bg3', '#e8eef4');
+    document.documentElement.style.setProperty('--card', 'rgba(255,255,255,0.98)');
     document.documentElement.style.setProperty('--text', '#1a2332');
-    document.documentElement.style.setProperty('--text2', '#5a6d80');
-    document.documentElement.style.setProperty('--text3', '#8fa0b0');
-    document.documentElement.style.setProperty('--border', 'rgba(0,0,0,0.08)');
+    document.documentElement.style.setProperty('--text2', '#4a5e72');
+    document.documentElement.style.setProperty('--text3', '#7a8fa0');
+    document.documentElement.style.setProperty('--border', 'rgba(0,0,0,0.12)');
+    document.documentElement.style.setProperty('--shadow', '0 2px 12px rgba(0,0,0,0.12)');
   } else {
+    document.documentElement.classList.add('dark-theme');
+    document.documentElement.classList.remove('light-theme');
     document.documentElement.style.setProperty('--bg', '#0f1923');
     document.documentElement.style.setProperty('--bg2', '#162231');
     document.documentElement.style.setProperty('--bg3', '#1e2f42');
+    document.documentElement.style.setProperty('--card', 'rgba(22, 34, 49, 0.92)');
     document.documentElement.style.setProperty('--text', '#ffffff');
     document.documentElement.style.setProperty('--text2', '#8fa8c0');
     document.documentElement.style.setProperty('--text3', '#4a6580');
     document.documentElement.style.setProperty('--border', 'rgba(255,255,255,0.08)');
+    document.documentElement.style.setProperty('--shadow', '0 8px 32px rgba(0,0,0,0.4)');
   }
 }
 
