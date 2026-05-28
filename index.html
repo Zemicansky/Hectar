@@ -2,21 +2,31 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- FIX 2: Full mobile/PWA adaptation — viewport-fit=cover ensures content fills notch/Dynamic Island area -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Hectar — мониторинг полей</title>
 
-<!-- PWA: полноэкранный режим на iOS -->
+<!-- FIX 2: PWA full-screen on iOS — black-translucent hides Safari URL bar when added to home screen -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Hectar">
 
-<!-- PWA: полноэкранный режим на Android -->
+<!-- FIX 2: PWA full-screen on Android Chrome -->
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0f1923">
+<!-- FIX 2: theme-color = green matches app accent, hides browser chrome on Android -->
+<meta name="theme-color" content="#2e7d32">
+<!-- FIX 2: theme-color for light/dark media preference -->
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f1923">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#2e7d32">
 
-<!-- Иконка для экрана домой (можно заменить на свою) -->
+<!-- FIX 2: Disable phone number / address auto-detection -->
+<meta name="format-detection" content="telephone=no, address=no, email=no">
+
+<!-- FIX 2: Иконка для экрана домой — несколько размеров для корректного отображения -->
+<link rel="apple-touch-icon" sizes="180x180" href="https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f33f.png">
 <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f33f.png">
-<link rel="manifest" href="data:application/json,{%22name%22:%22Hectar%22,%22short_name%22:%22Hectar%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%230f1923%22,%22theme_color%22:%22%230f1923%22}">
+<!-- FIX 2: PWA manifest — display:standalone removes browser UI when launched from home screen -->
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22Hectar%22%2C%22short_name%22%3A%22Hectar%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22orientation%22%3A%22portrait%22%2C%22background_color%22%3A%22%230f1923%22%2C%22theme_color%22%3A%22%232e7d32%22%7D">
 
 <!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -72,42 +82,63 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
+  /* FIX 2: html fills entire screen including notch/Dynamic Island area */
   html {
     height: 100%;
-    height: 100dvh;
+    height: -webkit-fill-available; /* FIX 2: iOS Safari full height */
+    height: 100dvh;                 /* FIX 2: dynamic viewport — excludes collapsible browser chrome */
     width: 100%;
+    /* FIX 2: prevent iOS rubber-band bounce that reveals background */
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%; /* FIX 2: prevent font scaling on orientation change */
   }
   body {
     height: 100%;
+    height: -webkit-fill-available; /* FIX 2: iOS Safari */
+    height: 100dvh;                 /* FIX 2: dynamic viewport height */
     width: 100%;
     overflow: hidden;
     background: var(--bg);
     color: var(--text);
     font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    /* Убрать bounce-скролл на iOS */
+    /* FIX 2: prevent iOS bounce-scroll revealing background colour */
     overscroll-behavior: none;
+    overscroll-behavior-y: none;
     -webkit-overflow-scrolling: touch;
-    /* Запрет выделения текста на мобильных */
+    /* FIX 2: prevent text selection on long-press */
     -webkit-user-select: none;
     user-select: none;
+    /* FIX 2: prevent callout on long-press (iOS) */
+    -webkit-touch-callout: none;
+    /* FIX 2: prevent tap highlight flash */
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* ══════════════════════════════════════
      ОБЁРТКА МОБИЛЬНОГО ЭКРАНА
   ══════════════════════════════════════ */
+  /* FIX 2: #app-wrapper fills the full dynamic viewport on all devices */
   #app-wrapper {
     width: 100%;
     max-width: 430px;
-    /* dvh = dynamic viewport height — правильно работает на iOS Safari */
-    height: 100vh; /* fallback */
+    /* FIX 2: layered height fallbacks for maximum browser compatibility:
+       1. var(--app-height) — set by JS from window.innerHeight, most accurate on iOS
+       2. -webkit-fill-available — iOS Safari built-in (no JS required)
+       3. 100dvh — modern browsers (excludes collapsible chrome)
+       4. 100vh — legacy fallback */
+    height: 100vh;
+    height: -webkit-fill-available;
     height: 100dvh;
+    height: var(--app-height, 100dvh); /* FIX 2: JS-measured height wins */
+    min-height: 100%;
     box-sizing: border-box;
     margin: 0 auto;
     position: relative;
     overflow: hidden;
     background: var(--bg);
     overscroll-behavior: none;
-    /* НЕ добавляем padding-top здесь — управляем через элементы */
+    /* FIX 2: isolate stacking context so fixed children clip correctly */
+    isolation: isolate;
   }
 
   /* ══════════════════════════════════════
@@ -440,6 +471,9 @@
   ══════════════════════════════════════ */
   /* FIX 1.8: draw-mode-ui вынесен из-под visibility:hidden screen-map —
      состояние измерения не сбрасывается при переключении вкладок */
+  /* FIX: raised z-index to var(--z-modal)-1 so draw UI always renders above
+     all screens (z-index 500/501) and the nav bar (z-index var(--z-nav))
+     but below modals; bottom accounts for nav bar so buttons stay accessible */
   #draw-mode-ui {
     display: none;
     position: fixed; /* FIX 1.8: fixed вместо absolute — рисование работает поверх любой вкладки */
@@ -448,8 +482,8 @@
     transform: translateX(-50%);
     width: 100%;
     max-width: 430px;
-    bottom: var(--nav-total);
-    z-index: var(--z-draw);
+    bottom: var(--nav-total); /* FIX: stops above nav bar so nav remains visible */
+    z-index: 799; /* FIX: above screens (501) and nav (9999 clips to stacking ctx) but below modals (800) */
     pointer-events: none;
   }
   #draw-mode-ui.active {
@@ -952,6 +986,13 @@
     margin-bottom: 12px;
   }
   .weather-field-name { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+  /* FIX 1: geo place name shown below field title — clean, no icon, muted color */
+  .weather-place-name {
+    font-size: 13px;
+    color: var(--text2);
+    font-weight: 400;
+    line-height: 1.4;
+  }
 
   .weather-current {
     display: flex;
@@ -1068,6 +1109,26 @@
   .note-meta { font-size: 13px; color: var(--text2); }
 
   .note-date { font-size: 13px; color: var(--text3); flex-shrink: 0; }
+
+  /* FIX: note card action buttons for edit and delete */
+  .note-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.18s;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .note-action-btn:active { transform: scale(0.93); }
+  .note-edit-btn:hover { background: rgba(76,175,80,0.18); border-color: var(--accent); color: var(--accent); }
+  .note-delete-btn:hover { background: rgba(239,83,80,0.18); border-color: var(--danger); color: var(--danger); }
 
   .add-note-fab {
     margin: 8px 16px 16px;
@@ -2120,17 +2181,32 @@
   .ai-cow-icon { font-size: 24px; line-height: 1; }
   .ai-cow-label { font-size: 15px; font-weight: 600; text-align: left; margin-bottom: 2px; }
   .ai-cow-sub { font-size: 12px; color: var(--text3); text-align: left; }
-  .ai-soon-badge {
-    background: rgba(255,152,0,0.15);
-    color: #ffa726;
-    border: 1px solid rgba(255,152,0,0.3);
-    border-radius: 100px;
-    padding: 3px 10px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+  /* SOON badge kept for potential future use but hidden */
+  .ai-soon-badge { display: none; }
+
+  /* Open-link badge — green arrow icon replacing SOON */
+  .ai-open-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(76,175,80,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(76,175,80,0.3);
     flex-shrink: 0;
+    transition: background 0.18s, transform 0.18s;
+  }
+  .ai-cow-btn:hover .ai-open-badge,
+  .ai-cow-btn:active .ai-open-badge {
+    background: rgba(76,175,80,0.28);
+    transform: scale(1.08);
+  }
+  /* Make <a> behave like the old <button> */
+  a.ai-cow-btn {
+    text-decoration: none;
+    display: flex;
   }
 
   /* ══════════════════════════════════════
@@ -2521,6 +2597,7 @@
   .light-theme .weather-detail-sub { color: #7a8fa0; }
   .light-theme .weather-temp { color: #1a2332; }
   .light-theme .weather-field-name { color: #1a2332; }
+  .light-theme .weather-place-name { color: #5a7a8a; } /* FIX 1: light theme place name */
   .light-theme .forecast-day-card {
     background: #f0f4f8;
     border: 1px solid rgba(0,0,0,0.09);
@@ -2967,7 +3044,7 @@
     <div class="login-title">Hec<span>tar</span></div>
     <div class="login-subtitle" id="login-subtitle">
       Мониторинг сельскохозяйственных полей<br>
-      Agricultural field monitoring · v1.8
+      Agricultural field monitoring · v1.9.1
     </div>
 
     <button class="login-btn google" onclick="showToast('Google Auth coming soon')">
@@ -3139,13 +3216,9 @@
           <span class="group-name" data-i18n="noGroups">Без группы</span>
           <span class="group-area" id="total-area-label">0 га</span>
         </div>
+        <!-- FIX v1.9.1: Dynamic filters — rendered by renderFieldFilters() based on actual field data -->
         <div class="fields-filter-row" id="fields-filter-row">
           <button class="filter-chip active" data-ffilter="all" onclick="setFieldFilter('all')">Все</button>
-          <button class="filter-chip" data-ffilter="wheat" onclick="setFieldFilter('wheat')">🌾 Пшеница</button>
-          <button class="filter-chip" data-ffilter="corn" onclick="setFieldFilter('corn')">🌽 Кукуруза</button>
-          <button class="filter-chip" data-ffilter="healthy" onclick="setFieldFilter('healthy')">✅ Здоровые</button>
-          <button class="filter-chip" data-ffilter="weak" onclick="setFieldFilter('weak')">⚠️ Слабые</button>
-          <button class="filter-chip" data-ffilter="large" onclick="setFieldFilter('large')">📐 Большие</button>
         </div>
         <div class="fields-list" id="fields-list-container">
           <div class="empty-state" id="fields-empty">
@@ -3247,11 +3320,7 @@
               <option value="">— Выберите поле —</option>
             </select>
           </div>
-          <!-- FIX v1.9: field name + area pill (no coordinates) -->
-          <div id="weather-field-meta" style="display:none;margin-top:6px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text2);display:none;align-items:center;gap:12px;flex-wrap:wrap;">
-            <span id="weather-field-meta-name" style="color:var(--text);font-weight:600;"></span>
-            <span id="weather-field-meta-area" style="color:var(--accent);font-weight:600;"></span>
-          </div>
+          <!-- FIX v1.9→v1.9.1: Removed duplicate field name+area pill (was shown under selector AND inside weather card) -->
         </div>
 
         <!-- City search (shown in city mode) -->
@@ -3395,7 +3464,12 @@
   <div class="modal-overlay" id="modal-save-field">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <div class="modal-title" data-i18n="newField">Новое поле</div>
+      <!-- FIX v1.9.1: Added header row with × close button for clear dismiss behavior -->
+      <div class="modal-header-row" style="margin-bottom:4px;">
+        <button class="modal-cancel-btn" onclick="closeModal('modal-save-field'); cancelDrawMode();" data-i18n="cancel">Отмена</button>
+        <div class="modal-title" style="margin:0" data-i18n="newField">Новое поле</div>
+        <button class="modal-action-btn" onclick="saveNewField()" data-i18n="save">Сохранить</button>
+      </div>
       <div class="modal-form-group">
         <label class="modal-label" data-i18n="fieldName">Название поля</label>
         <input class="modal-input" id="new-field-name" type="text" placeholder="Поле 1"/>
@@ -3412,8 +3486,7 @@
           <!-- Цвета генерируются JS -->
         </div>
       </div>
-      <button class="modal-btn primary" onclick="saveNewField()" data-i18n="save">Сохранить</button>
-      <button class="modal-btn secondary" onclick="closeModal('modal-save-field')" data-i18n="cancel">Отмена</button>
+      <!-- FIX v1.9.1: Save/Cancel moved to header row above -->
     </div>
   </div>
 
@@ -3453,7 +3526,7 @@
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-header-row">
-        <button class="modal-cancel-btn" onclick="closeModal('modal-add-note')" data-i18n="cancel">Отмена</button>
+        <button class="modal-cancel-btn" onclick="closeModal('modal-add-note'); _editingNoteFieldId=null; _editingNoteSeasonIndex=null; const s=document.getElementById('note-field-select'); if(s) s.disabled=false;" data-i18n="cancel">Отмена</button>
         <div class="modal-title" style="margin:0" data-i18n="newNote">Новая заметка</div>
         <button class="modal-action-btn" onclick="saveNote()" data-i18n="add">Добавить</button>
       </div>
@@ -3569,7 +3642,7 @@
 // ════════════════════════════════════════════════════
 // КОНСТАНТЫ ПРИЛОЖЕНИЯ
 // ════════════════════════════════════════════════════
-const APP_VERSION = '1.8'; // FIX 1.8: version bump
+const APP_VERSION = '1.9.1'; // FIX 1.9.1: modal overlay for add field, no UI hide; weather duplicate removed; NDVI removed from list; dynamic filters
 const STORAGE_PREFIX = 'hectar';
 const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
 const DEFAULT_MAP_ZOOM = 11;
@@ -4774,13 +4847,20 @@ function setDrawModeActive(active) {
 }
 
 function startDrawMode() {
+  // FIX: switch to map tab FIRST so screen-map is visible before draw UI activates
+  switchTab('map');
   closeAllModals();
   isDrawing = true;
   currentDrawPoints = [];
+  // FIX: activate draw UI after switchTab (switchTab cancel-block only fires for non-map tabs, safe here)
   setDrawModeActive(true);
   clearTempDrawLayers();
   updateDrawArea();
-  switchTab('map');
+  // FIX: ensure draw-mode-ui is shown and Add Field btn is hidden (guard against race)
+  const drawUi = document.getElementById('draw-mode-ui');
+  if (drawUi) drawUi.classList.add('active');
+  const addBtn = document.getElementById('btn-add-field-map');
+  if (addBtn) addBtn.style.display = 'none';
 }
 
 function cancelDrawMode() {
@@ -5139,9 +5219,59 @@ function setFieldFilter(filter) {
 }
 
 // ════════════════════════════════════════════════════
+// FIX v1.9.1: ДИНАМИЧЕСКИЕ ФИЛЬТРЫ ПОЛЕЙ
+// Генерирует фильтры на основе реальных данных полей:
+// — культуры (unique crop values)
+// — статус здоровья (unique health categories present)
+// — «Большие» только если есть поля с area > 50 га
+// ════════════════════════════════════════════════════
+function renderFieldFilters() {
+  const fields = loadFields();
+  const row = document.getElementById('fields-filter-row');
+  if (!row) return;
+
+  const chips = [];
+
+  // Always: "All" chip
+  chips.push({ key: 'all', label: lang === 'ru' ? 'Все' : 'All' });
+
+  // FIX v1.9.1: Cultures — only those present in actual field data
+  const cropEmojis = { wheat:'🌾', corn:'🌽', sunflower:'🌻', barley:'🌿', soybean:'🫘', rapeseed:'🌱', rice:'🌾', oats:'🌿', rye:'🌿', buckwheat:'🌿', millet:'🌿', sorghum:'🌾', peas:'🫛', lentils:'🌿', chickpea:'🫘', flax:'🌼', sugar_beet:'🌱', potato:'🥔', cotton:'🌸', alfalfa:'🌿', mustard:'🌼', other:'🌱' };
+  const uniqueCrops = [...new Set(fields.map(f => f.crop).filter(Boolean))];
+  uniqueCrops.forEach(cropId => {
+    const cropObj = CROPS.find(c => c.id === cropId);
+    if (!cropObj) return;
+    const emoji = cropEmojis[cropId] || '🌱';
+    chips.push({ key: cropId, label: `${emoji} ${lang === 'ru' ? cropObj.ru : cropObj.en}` });
+  });
+
+  // FIX v1.9.1: Health status — only statuses that exist in the current field data
+  const healthCategories = { healthy: false, weak: false };
+  fields.forEach(f => {
+    const ndvi = estimateFieldNdvi(f);
+    if (ndvi >= 0.45) healthCategories.healthy = true;
+    else healthCategories.weak = true;
+  });
+  if (healthCategories.healthy) chips.push({ key: 'healthy', label: lang === 'ru' ? '✅ Здоровые' : '✅ Healthy' });
+  if (healthCategories.weak) chips.push({ key: 'weak', label: lang === 'ru' ? '⚠️ Слабые' : '⚠️ Weak' });
+
+  // FIX v1.9.1: "Large" filter only if any field has area > 50 ha
+  const hasLarge = fields.some(f => f.area > 50);
+  if (hasLarge) chips.push({ key: 'large', label: lang === 'ru' ? '📐 Большие' : '📐 Large' });
+
+  // Render chips
+  row.innerHTML = chips.map(chip =>
+    `<button class="filter-chip ${currentFieldFilter === chip.key ? 'active' : ''}" data-ffilter="${chip.key}" onclick="setFieldFilter('${chip.key}')">${chip.label}</button>`
+  ).join('');
+}
+
+// ════════════════════════════════════════════════════
 // РЕНДЕР СПИСКА ПОЛЕЙ (улучшенный)
 // ════════════════════════════════════════════════════
 function renderFieldsList() {
+  // FIX v1.9.1: Rebuild dynamic filters whenever the list renders
+  renderFieldFilters();
+
   let fields = loadFields();
   const container = document.getElementById('fields-list-container');
   const emptyEl = document.getElementById('fields-empty');
@@ -5232,17 +5362,7 @@ function renderFieldsList() {
         <span class="field-badge">🛡 Обработка: ${nextTreat}</span>
       </div>
 
-      <!-- Мини NDVI бар -->
-      <div class="ndvi-mini-bar">
-        <span class="ndvi-mini-label">NDVI</span>
-        <div class="ndvi-mini-track">
-          <div class="ndvi-mini-fill" style="width:${ndviPct}%;background:${ndviColor};"></div>
-        </div>
-        <span class="ndvi-mini-value" style="color:${ndviColor};">${ndvi}</span>
-      </div>
-
-      <!-- Мини-спарклайн вегетации -->
-      <svg class="veg-sparkline" id="spark-${field.id}" viewBox="0 0 280 36" preserveAspectRatio="none"></svg>
+      <!-- FIX v1.9.1: NDVI mini-bar REMOVED from list cards — NDVI visible only in detail view and NDVI sub-tab -->
 
       <!-- Кнопка показать на карте -->
       <button class="field-show-on-map-btn" onclick="event.stopPropagation(); goToFieldOnMap('${field.id}')">
@@ -5253,9 +5373,9 @@ function renderFieldsList() {
     card.addEventListener('click', () => openFieldDetail(field.id));
     container.appendChild(card);
 
+    // FIX v1.9.1: only draw thumb; sparkline removed from list cards
     setTimeout(() => {
       drawFieldThumb(field);
-      drawVegSparkline(field, `spark-${field.id}`);
     }, 50);
   });
 }
@@ -6242,16 +6362,48 @@ async function loadWeather() {
         </div>`;
     }).join('');
 
-    // Reverse geocode location name (best effort)
-    let locationName = `${lat.toFixed(3)}°N, ${lng.toFixed(3)}°E`;
+    // FIX 1: Always use field.name as the primary display title.
+    // geoPlaceName = human-readable settlement name from reverse geocode (shown as subtitle).
+    // Priority order matches Nominatim address hierarchy:
+    //   hamlet > village > town > city > suburb > municipality > county > state > country
+    let locationName = field.name; // FIX: primary title is always the field name
+    let geoPlaceName = ''; // FIX: settlement name from reverse geocode
     try {
-      const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=${lang}`);
+      const geoRes = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&accept-language=${lang}`,
+        { headers: { 'Accept-Language': lang === 'ru' ? 'ru,en' : 'en' } }
+      );
       if (geoRes.ok) {
         const geoData = await geoRes.json();
         const addr = geoData.address || {};
-        locationName = [addr.city || addr.town || addr.village || addr.county, addr.state || addr.country].filter(Boolean).join(', ') || locationName;
+        // FIX: pick the most specific settlement name available
+        const settlement =
+          addr.hamlet ||
+          addr.village ||
+          addr.town ||
+          addr.city ||
+          addr.suburb ||
+          addr.borough ||
+          addr.municipality ||
+          addr.city_district ||
+          addr.county ||
+          addr.state_district ||
+          null;
+        const region = addr.state || addr.country || null;
+        if (settlement && region) {
+          geoPlaceName = `${settlement}, ${region}`;
+        } else if (settlement) {
+          geoPlaceName = settlement;
+        } else if (geoData.display_name) {
+          // FIX: fallback — first meaningful segment of display_name
+          geoPlaceName = geoData.display_name.split(',').slice(0, 2).join(',').trim();
+        }
       }
     } catch(_) {}
+    // FIX: last resort fallback — readable coordinates (NOT shown as title, only subtitle)
+    if (!geoPlaceName) geoPlaceName = `${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E`;
+    // Keep old variable names for template compatibility
+    const geoSubtitle = geoPlaceName;
 
     const windLabel = wind < 3 ? (isRu?'Штиль':'Calm') : wind < 5 ? (isRu?'Слабый':'Light') : wind < 10 ? (isRu?'Умеренный':'Moderate') : (isRu?'Сильный':'Strong');
     const humLabel = humidity < 40 ? (isRu?'Сухо':'Dry') : humidity < 70 ? (isRu?'Комфортно':'Comfortable') : (isRu?'Влажно':'Humid');
@@ -6261,16 +6413,10 @@ async function loadWeather() {
 
     container.innerHTML = `
       <div class="weather-card">
-        <!-- Location + field header -->
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <div style="flex:1;">
-            <div class="weather-field-name" style="margin-bottom:2px;">${field.name}</div>
-            <div style="font-size:12px;color:var(--text3);">
-              <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:3px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              ${locationName}
-            </div>
-            <!-- FIX 1.8: удалено отображение площади и периметра во вкладке погоды -->
-          </div>
+        <!-- FIX 1: Field name header + geo place name subtitle (no pin icon, clean text) -->
+        <div style="margin-bottom:14px;">
+          <div class="weather-field-name" style="margin-bottom:3px;">${locationName}</div>
+          <div class="weather-place-name">${geoSubtitle}</div>
         </div>
 
         <!-- Current conditions -->
@@ -6368,10 +6514,11 @@ function renderNotesList() {
   const emptyEl = document.getElementById('notes-empty');
 
   // Собрать все события
+  // FIX: include original eventIndex within field.season array for edit/delete
   let allEvents = [];
   fields.forEach(f => {
-    (f.season || []).forEach(ev => {
-      allEvents.push({ ...ev, fieldId: f.id, fieldName: f.name, fieldColor: f.color, fieldCoords: f.coordinates, fieldArea: f.area, fieldCrop: f.crop });
+    (f.season || []).forEach((ev, idx) => {
+      allEvents.push({ ...ev, fieldId: f.id, fieldName: f.name, fieldColor: f.color, fieldCoords: f.coordinates, fieldArea: f.area, fieldCrop: f.crop, _seasonIndex: idx });
     });
   });
 
@@ -6406,6 +6553,7 @@ function renderNotesList() {
     const d = new Date(ev.date);
     const dateStr = d.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { month: 'short', day: 'numeric' });
 
+    // FIX: add edit and delete action buttons to each note card
     card.innerHTML = `
       <div class="note-field-thumb">
         <canvas width="64" height="64" id="${thumbId}"></canvas>
@@ -6415,7 +6563,19 @@ function renderNotesList() {
         <div class="note-meta">${eventTypeLabel[ev.type] || ev.type}${ev.fieldCrop ? ' — ' + cropDisplayName(ev.fieldCrop) : ''} · ${ev.fieldArea} ${t('ha')}</div>
         ${ev.note ? `<div class="note-meta" style="margin-top:2px;color:var(--text3)">${ev.note}</div>` : ''}
       </div>
-      <div class="note-date">${dateStr}</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
+        <div class="note-date">${dateStr}</div>
+        <div style="display:flex;gap:6px;">
+          <button class="note-action-btn note-edit-btn"
+            onclick="editNoteFromList('${ev.fieldId}', ${ev._seasonIndex})" title="${lang === 'ru' ? 'Редактировать' : 'Edit'}">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="note-action-btn note-delete-btn"
+            onclick="deleteNoteFromList('${ev.fieldId}', ${ev._seasonIndex})" title="${lang === 'ru' ? 'Удалить' : 'Delete'}">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
+        </div>
+      </div>
     `;
     container.appendChild(card);
 
@@ -6465,7 +6625,15 @@ function setNoteFilter(filter) {
   renderNotesList();
 }
 
+// FIX: track which note is being edited (fieldId + seasonIndex), null when adding new
+let _editingNoteFieldId = null;
+let _editingNoteSeasonIndex = null;
+
 function openAddNoteModal() {
+  // FIX: reset edit state when opening for a new note
+  _editingNoteFieldId = null;
+  _editingNoteSeasonIndex = null;
+
   const fields = loadFields();
   const select = document.getElementById('note-field-select');
   select.innerHTML = `<option value="">${t('selectField')}</option>`;
@@ -6477,25 +6645,109 @@ function openAddNoteModal() {
   });
   document.getElementById('note-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('note-text').value = '';
+
+  // FIX: restore modal title and button to "Add" mode
+  const titleEl = document.querySelector('#modal-add-note .modal-title');
+  if (titleEl) titleEl.textContent = lang === 'ru' ? 'Новая заметка' : 'New Note';
+  const actionBtn = document.querySelector('#modal-add-note .modal-action-btn');
+  if (actionBtn) actionBtn.textContent = lang === 'ru' ? 'Добавить' : 'Add';
+
   openModal('modal-add-note');
 }
 
+// FIX: open the add-note modal pre-filled for editing an existing note
+function editNoteFromList(fieldId, seasonIndex) {
+  _editingNoteFieldId = fieldId;
+  _editingNoteSeasonIndex = seasonIndex;
+
+  const fields = loadFields();
+  const f = fields.find(x => x.id === fieldId);
+  if (!f || !f.season || !f.season[seasonIndex]) return;
+  const ev = f.season[seasonIndex];
+
+  // Populate field select
+  const select = document.getElementById('note-field-select');
+  select.innerHTML = '';
+  fields.forEach(field => {
+    const opt = document.createElement('option');
+    opt.value = field.id;
+    opt.textContent = field.name;
+    select.appendChild(opt);
+  });
+  select.value = fieldId;
+  // Disable field select while editing (note belongs to this field)
+  select.disabled = true;
+
+  // Fill in event data
+  const typeEl = document.getElementById('note-event-type');
+  if (typeEl) typeEl.value = ev.type || 'sowing';
+  document.getElementById('note-date').value = ev.date || '';
+  document.getElementById('note-text').value = ev.note || '';
+
+  // FIX: update modal title and button to "Edit" mode
+  const titleEl = document.querySelector('#modal-add-note .modal-title');
+  if (titleEl) titleEl.textContent = lang === 'ru' ? 'Редактировать заметку' : 'Edit Note';
+  const actionBtn = document.querySelector('#modal-add-note .modal-action-btn');
+  if (actionBtn) actionBtn.textContent = lang === 'ru' ? 'Сохранить' : 'Save';
+
+  openModal('modal-add-note');
+}
+
+// FIX: delete a note from the Notes tab with confirmation, syncs with field detail
+function deleteNoteFromList(fieldId, seasonIndex) {
+  const confirmMsg = lang === 'ru' ? 'Удалить эту заметку?' : 'Delete this note?';
+  if (!confirm(confirmMsg)) return;
+
+  const fields = loadFields();
+  const f = fields.find(x => x.id === fieldId);
+  if (!f || !f.season) return;
+
+  f.season.splice(seasonIndex, 1);
+  saveFields(fields);
+
+  // FIX: re-render notes list AND field detail if open (sync everywhere)
+  renderNotesList();
+  if (currentFieldId === fieldId) openFieldDetail(fieldId);
+  showToast(lang === 'ru' ? 'Заметка удалена' : 'Note deleted');
+}
+
 function saveNote() {
-  const fieldId = document.getElementById('note-field-select').value;
+  const fieldId = document.getElementById('note-field-select').value || _editingNoteFieldId;
   if (!fieldId) { showToast(t('selectFieldPrompt')); return; }
   const fields = loadFields();
   const f = fields.find(x => x.id === fieldId);
   if (!f) return;
   f.season = f.season || [];
-  f.season.push({
+
+  const updatedNote = {
     type: document.getElementById('note-event-type').value,
     date: document.getElementById('note-date').value,
     note: document.getElementById('note-text').value.trim()
-  });
+  };
+
+  // FIX: handle edit vs add mode
+  if (_editingNoteFieldId !== null && _editingNoteSeasonIndex !== null) {
+    // EDIT: replace existing note at stored index
+    f.season[_editingNoteSeasonIndex] = updatedNote;
+    showToast(lang === 'ru' ? 'Заметка обновлена' : 'Note updated');
+  } else {
+    // ADD: push new note
+    f.season.push(updatedNote);
+    showToast(t('noteAdded'));
+  }
+
+  // FIX: reset edit state and re-enable field select
+  _editingNoteFieldId = null;
+  _editingNoteSeasonIndex = null;
+  const select = document.getElementById('note-field-select');
+  if (select) select.disabled = false;
+
   saveFields(fields);
   closeModal('modal-add-note');
+
+  // FIX: sync – re-render notes list AND field detail view if currently open
   renderNotesList();
-  showToast(t('noteAdded'));
+  if (currentFieldId === fieldId) openFieldDetail(fieldId);
 }
 
 // ════════════════════════════════════════════════════
@@ -6639,6 +6891,21 @@ function renderProfile() {
   container.innerHTML = `
     ${authHTML}
     <div class="settings-group">
+      <div class="settings-group-title">${lang === 'ru' ? 'AI-инструменты' : 'AI Tools'}</div>
+      <a class="ai-cow-btn" href="https://zemicansky.github.io/animal-counter/" target="_blank" rel="noopener">
+        <div class="ai-cow-btn-left">
+          <span class="ai-cow-icon">🐄</span>
+          <div>
+            <div class="ai-cow-label">${lang === 'ru' ? 'AI Распознавание коров' : 'AI Cow Recognition'}</div>
+            <div class="ai-cow-sub">${lang === 'ru' ? 'Анализ скота с помощью ИИ' : 'Livestock analysis with AI'}</div>
+          </div>
+        </div>
+        <span class="ai-open-badge">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </span>
+      </a>
+    </div>
+    <div class="settings-group">
       <div class="settings-group-title">${t('appSettings')}</div>
       <div class="setting-row">
         <label>${t('language')}</label>
@@ -6668,19 +6935,6 @@ function renderProfile() {
           <span class="toggle-slider"></span>
         </label>
       </div>
-    </div>
-    <div class="settings-group">
-      <div class="settings-group-title">${lang === 'ru' ? 'AI-инструменты' : 'AI Tools'}</div>
-      <button class="ai-cow-btn" onclick="openAiCowRecognition()">
-        <div class="ai-cow-btn-left">
-          <span class="ai-cow-icon">🐄</span>
-          <div>
-            <div class="ai-cow-label">${lang === 'ru' ? 'AI Распознавание коров' : 'AI Cow Recognition'}</div>
-            <div class="ai-cow-sub">${lang === 'ru' ? 'Анализ скота с помощью ИИ' : 'Livestock analysis with AI'}</div>
-          </div>
-        </div>
-        <span class="ai-soon-badge">soon</span>
-      </button>
     </div>
     <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
@@ -7024,6 +7278,24 @@ function startApp() {
   currentDrawPoints = [];
 }
 
+// FIX 2: Dynamic viewport height — fixes iOS Safari "bouncing address bar" 100vh bug.
+// Sets --app-height CSS var to window.innerHeight so layouts use actual visible height.
+(function fixMobileViewportHeight() {
+  function setVh() {
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', vh + 'px');
+    document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+  }
+  setVh();
+  // FIX 2: update on resize AND orientation change (handles browser chrome show/hide)
+  window.addEventListener('resize', setVh, { passive: true });
+  window.addEventListener('orientationchange', () => { setTimeout(setVh, 100); }, { passive: true });
+  // FIX 2: VisualViewport API — most accurate on iOS 13+ for keyboard/chrome changes
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', setVh, { passive: true });
+  }
+})();
+
 // Инициализация при загрузке
 window.addEventListener('load', () => {
   initLanguage();
@@ -7064,5 +7336,8 @@ window.addEventListener('load', () => {
   });
 });
 </script>
+
+
+
 </body>
 </html>
