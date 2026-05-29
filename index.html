@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <!-- FIX 2: Full mobile/PWA adaptation — viewport-fit=cover ensures content fills notch/Dynamic Island area -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Hectar — мониторинг полей</title>
+<title>Hectar 2.0 — мониторинг полей</title>
 
 <!-- FIX 2: PWA full-screen on iOS — black-translucent hides Safari URL bar when added to home screen -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1496,7 +1496,7 @@
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    margin-top: 4px;
+    margin-top: 10px;
     transition: all 0.2s;
     font-family: inherit;
     align-self: flex-start;
@@ -2052,6 +2052,7 @@
     border: 1px solid rgba(76,175,80,0.25);
     border-radius: 100px;
     padding: 5px 12px;
+    margin-top: 10px;
     transition: all 0.2s;
     font-family: inherit;
   }
@@ -2184,24 +2185,25 @@
   /* SOON badge kept for potential future use but hidden */
   .ai-soon-badge { display: none; }
 
-  /* Open-link badge — green arrow icon replacing SOON */
+  /* Open-link badge — beautiful gradient launch button */
   .ai-open-badge {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: rgba(76,175,80,0.15);
-    color: var(--accent);
-    border: 1px solid rgba(76,175,80,0.3);
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #43a047 0%, #66bb6a 100%);
+    color: #fff;
+    border: none;
     flex-shrink: 0;
-    transition: background 0.18s, transform 0.18s;
+    box-shadow: 0 3px 10px rgba(76,175,80,0.45), 0 1px 3px rgba(0,0,0,0.2);
+    transition: box-shadow 0.18s, transform 0.18s;
   }
   .ai-cow-btn:hover .ai-open-badge,
   .ai-cow-btn:active .ai-open-badge {
-    background: rgba(76,175,80,0.28);
-    transform: scale(1.08);
+    box-shadow: 0 5px 18px rgba(76,175,80,0.6), 0 2px 6px rgba(0,0,0,0.25);
+    transform: scale(1.1) translateY(-1px);
   }
   /* Make <a> behave like the old <button> */
   a.ai-cow-btn {
@@ -3071,11 +3073,11 @@
 
       <!-- Верхние контролы -->
       <div class="map-control-top">
-        <div class="map-fields-pill" onclick="switchTab('fields')">
+        <div class="map-fields-pill" onclick="openSeasonManagerModal()">
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="7" height="7"/><rect x="15" y="3" width="7" height="7"/><rect x="2" y="14" width="7" height="7"/><rect x="15" y="14" width="7" height="7"/></svg>
           <div class="map-fields-pill-text">
             <div class="title" data-i18n="allFields">Все поля</div>
-            <div class="sub" data-i18n="season2026">Сезон 2026</div>
+            <div class="sub" id="current-season-label">Сезон 2026</div>
           </div>
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6,9 12,15 18,9"/></svg>
         </div>
@@ -3461,8 +3463,8 @@
   <!-- ══════════════════════════════════════
        МОДАЛЬНОЕ ОКНО: СОХРАНИТЬ ПОЛЕ
   ══════════════════════════════════════ -->
-  <div class="modal-overlay" id="modal-save-field">
-    <div class="modal-sheet">
+  <div class="modal-overlay" id="modal-save-field" style="position:fixed;inset:0;z-index:900;">
+    <div class="modal-sheet" style="padding-bottom:calc(var(--safe-bottom) + 32px);">
       <div class="modal-handle"></div>
       <!-- FIX v1.9.1: Added header row with × close button for clear dismiss behavior -->
       <div class="modal-header-row" style="margin-bottom:4px;">
@@ -3480,13 +3482,12 @@
           <option value="" data-i18n="noCrop">No crop</option>
         </select>
       </div>
-      <div class="modal-form-group">
+      <div class="modal-form-group" style="margin-bottom:0;">
         <label class="modal-label" data-i18n="fieldColor">Цвет</label>
-        <div class="color-picker" id="new-field-colors">
+        <div class="color-picker" id="new-field-colors" style="margin-bottom:0;">
           <!-- Цвета генерируются JS -->
         </div>
       </div>
-      <!-- FIX v1.9.1: Save/Cancel moved to header row above -->
     </div>
   </div>
 
@@ -3626,6 +3627,38 @@
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════
+       ЗАДАЧА 4: МОДАЛЬНОЕ ОКНО УПРАВЛЕНИЯ СЕЗОНАМИ
+  ══════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-season-manager" style="align-items:flex-end;">
+    <div class="modal-sheet" style="max-height:70vh;overflow-y:auto;padding-bottom:max(env(safe-area-inset-bottom, 16px), 24px);">
+      <div class="modal-handle"></div>
+      <div class="modal-header-row">
+        <button class="modal-cancel-btn" onclick="closeModal('modal-season-manager')">✕</button>
+        <div class="modal-title" style="margin:0;" id="season-mgr-title">🗓 Сезоны</div>
+        <button class="modal-action-btn" onclick="openCreateSeasonForm()" id="season-mgr-new-btn">+ Новый</button>
+      </div>
+      <!-- Форма создания нового сезона (скрыта по умолчанию) -->
+      <div id="new-season-form" style="display:none;background:var(--bg3);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;">
+        <div id="new-season-form-title" style="font-size:14px;font-weight:600;margin-bottom:10px;">Новый сезон</div>
+        <div class="modal-form-group">
+          <label class="modal-label" id="new-season-label">Название сезона</label>
+          <input class="modal-input" id="new-season-name" type="text" placeholder="2027" style="margin-bottom:0;"/>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="modal-btn secondary" style="margin-top:0;flex:1;" id="new-season-cancel-btn" onclick="document.getElementById('new-season-form').style.display='none'">
+            Отмена
+          </button>
+          <button class="modal-btn primary" style="margin-top:0;flex:1;" id="new-season-create-btn" onclick="createNewSeason()">
+            Создать
+          </button>
+        </div>
+      </div>
+      <!-- Список сезонов -->
+      <div id="season-manager-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  </div>
+
   <!-- Toast уведомление -->
   <div id="toast"></div>
 
@@ -3642,7 +3675,7 @@
 // ════════════════════════════════════════════════════
 // КОНСТАНТЫ ПРИЛОЖЕНИЯ
 // ════════════════════════════════════════════════════
-const APP_VERSION = '1.9.1'; // FIX 1.9.1: modal overlay for add field, no UI hide; weather duplicate removed; NDVI removed from list; dynamic filters
+const APP_VERSION = '2.0';
 const STORAGE_PREFIX = 'hectar';
 const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
 const DEFAULT_MAP_ZOOM = 11;
@@ -4638,29 +4671,46 @@ function getNdviColor(ndvi) {
   return '#006400';
 }
 
+// ЗАДАЧА 2: Длительность вегетационного цикла по культурам (дни)
+const CROP_CYCLE_DAYS = {
+  wheat: 100, corn: 130, sunflower: 120, barley: 90, rapeseed: 110,
+  soybean: 115, rice: 140, oats: 95, rye: 100, buckwheat: 80,
+  millet: 85, sorghum: 105, peas: 80, lentils: 85, chickpea: 90,
+  flax: 90, sugar_beet: 140, potato: 100, cotton: 150, alfalfa: 120,
+  mustard: 80, other: 100
+};
+
+// ЗАДАЧА 2: Автоматическое определение стадии вегетации по дате посева + культуре
 function getVegetationStage(field) {
-  const month = new Date().getMonth() + 1;
-  const crop = field.crop;
   const isRu = lang === 'ru';
-  const stages = {
-    wheat: [
-      [3,4, isRu?'Всходы 🌱':'Sprouting 🌱'], [5,5, isRu?'Кущение 🌿':'Tillering 🌿'], [6,6, isRu?'Колошение 🌾':'Heading 🌾'],
-      [7,7, isRu?'Налив зерна':'Grain fill'], [8,8, isRu?'Созревание':'Ripening'], [9,12, isRu?'Покой':'Dormant']
-    ],
-    corn: [
-      [5,5, isRu?'Всходы 🌱':'Sprouting 🌱'], [6,6, isRu?'Вегетация 🌿':'Growing 🌿'], [7,7, isRu?'Цветение 🌽':'Flowering 🌽'],
-      [8,9, isRu?'Налив':'Grain fill'], [10,12, isRu?'Покой':'Dormant']
-    ],
-    default: [
-      [3,5, isRu?'Всходы 🌱':'Sprouting 🌱'], [6,7, isRu?'Активный рост 🌿':'Active growth 🌿'], [8,9, isRu?'Созревание':'Ripening'], [10,2, isRu?'Покой':'Dormant']
-    ]
-  };
-  const list = stages[crop] || stages.default;
-  for (const [from, to, label] of list) {
-    if (from <= to) { if (month >= from && month <= to) return label; }
-    else { if (month >= from || month <= to) return label; }
+  const crop = field.crop;
+
+  // Ищем дату посева в событиях сезона
+  const sowEvent = (field.season || []).find(e => e.type === 'sowing');
+  // Также проверяем field.sowingDate (если задано в карточке поля)
+  const sowDateStr = sowEvent ? sowEvent.date : (field.sowingDate || null);
+
+  if (!sowDateStr || !crop) {
+    // Нет данных — показываем прочерк или "Не указана"
+    return isRu ? 'Не указана' : 'Not specified';
   }
-  return isRu ? 'Вегетация' : 'Vegetation';
+
+  const sowDate = new Date(sowDateStr);
+  const today = new Date();
+  if (isNaN(sowDate.getTime())) return isRu ? 'Не указана' : 'Not specified';
+
+  const daysElapsed = Math.floor((today - sowDate) / (1000 * 60 * 60 * 24));
+  const cycleDays = CROP_CYCLE_DAYS[crop] || CROP_CYCLE_DAYS.other;
+
+  if (daysElapsed < 0) return isRu ? 'Не начат' : 'Not started';
+  if (daysElapsed > cycleDays) return isRu ? 'Уборка завершена ✅' : 'Harvest complete ✅';
+
+  const pct = daysElapsed / cycleDays;
+
+  if (pct < 0.20) return isRu ? 'Всходы 🌱' : 'Sprouting 🌱';
+  if (pct < 0.50) return isRu ? 'Рост 🌿' : 'Growing 🌿';
+  if (pct < 0.85) return isRu ? 'Цветение / Формирование 🌸' : 'Flowering / Formation 🌸';
+  return isRu ? 'Созревание 🌾' : 'Ripening 🌾';
 }
 
 function getHealthStatus(ndvi) {
@@ -4681,38 +4731,34 @@ function getYieldForecast(field, ndvi) {
   return (base * (ndvi / 0.65)).toFixed(1);
 }
 
-// FIX v1.8 R2: Detailed yield forecast for field detail panel
-// Returns formatted string with c/ha, range, and methodology note
+// ════════════════════════════════════════════════════
+// ЗАДАЧА 1: РАСШИРЕННЫЙ ПРОГНОЗ УРОЖАЯ (v2.0)
+// Использует пессимистичные (минимальные) базовые значения + континентальный коэффициент
+// ════════════════════════════════════════════════════
+
+// Среднемировые минимальные значения (ц/га) — пессимистичный прогноз
+const CROP_BASE_MIN_CHA = {
+  wheat: 15, corn: 25, sunflower: 8, barley: 14, rapeseed: 12,
+  soybean: 12, rice: 30, oats: 13, rye: 12, buckwheat: 6,
+  millet: 6, sorghum: 8, peas: 8, lentils: 5, chickpea: 6,
+  flax: 4, sugar_beet: 250, potato: 100, cotton: 12, alfalfa: 30,
+  mustard: 5, other: 10
+};
+
+// Региональные коэффициенты по материкам
+const CONTINENT_COEFFS = {
+  europe:       { mult: 1.0,  label_ru: 'Европа',               label_en: 'Europe' },
+  north_america:{ mult: 1.0,  label_ru: 'Северная Америка',     label_en: 'North America' },
+  south_america:{ mult: 1.1,  label_ru: 'Южная Америка',        label_en: 'South America' },
+  asia:         { mult: 1.2,  label_ru: 'Азия',                 label_en: 'Asia' },
+  africa:       { mult: 0.8,  label_ru: 'Африка',               label_en: 'Africa' },
+  australia:    { mult: 0.7,  label_ru: 'Австралия и Океания',  label_en: 'Australia & Oceania' },
+};
+
 function getDetailedYieldForecast(field, ndvi) {
   const isRu = lang === 'ru';
 
-  // Step 1: base yield c/ha (centners = 100kg) by crop
-  const baseYieldCha = {
-    wheat:     { mid: 32, lo: 22, hi: 45 },
-    corn:      { mid: 65, lo: 45, hi: 90 },
-    sunflower: { mid: 21, lo: 14, hi: 30 },
-    barley:    { mid: 30, lo: 20, hi: 40 },
-    soybean:   { mid: 24, lo: 16, hi: 34 },
-    rapeseed:  { mid: 28, lo: 18, hi: 38 },
-    rice:      { mid: 50, lo: 35, hi: 68 },
-    oats:      { mid: 28, lo: 18, hi: 38 },
-    rye:       { mid: 26, lo: 17, hi: 35 },
-    buckwheat: { mid: 12, lo: 8,  hi: 18 },
-    millet:    { mid: 18, lo: 12, hi: 25 },
-    sorghum:   { mid: 35, lo: 24, hi: 50 },
-    peas:      { mid: 22, lo: 14, hi: 30 },
-    lentils:   { mid: 15, lo: 9,  hi: 22 },
-    chickpea:  { mid: 18, lo: 12, hi: 25 },
-    flax:      { mid: 10, lo: 6,  hi: 16 },
-    sugar_beet:{ mid: 350, lo: 250, hi: 500 },
-    potato:    { mid: 200, lo: 140, hi: 280 },
-    cotton:    { mid: 25, lo: 16, hi: 36 },
-    alfalfa:   { mid: 80, lo: 55, hi: 110 },
-    mustard:   { mid: 14, lo: 8,  hi: 20 },
-    other:     { mid: 30, lo: 18, hi: 45 }
-  };
-
-  // No crop → insufficient data
+  // No crop → show dash
   if (!field.crop) {
     return {
       text: isRu ? 'Недостаточно данных (культура не выбрана)' : 'Insufficient data (no crop selected)',
@@ -4720,7 +4766,10 @@ function getDetailedYieldForecast(field, ndvi) {
     };
   }
 
-  const base = baseYieldCha[field.crop] || baseYieldCha.other;
+  // Step 1: pessimistic base from task spec (ц/га)
+  const baseMin = CROP_BASE_MIN_CHA[field.crop] || CROP_BASE_MIN_CHA.other;
+  // lo = base min, mid = base*1.5 (realistic), hi = base*2.5 (optimistic)
+  const base = { lo: baseMin, mid: Math.round(baseMin * 1.5), hi: Math.round(baseMin * 2.5) };
 
   // Step 2: NDVI adjustment
   let ndviMult = 1.0;
@@ -4742,45 +4791,38 @@ function getDetailedYieldForecast(field, ndvi) {
     ndviNote = isRu ? 'NDVI критический (−40%)' : 'NDVI critical (−40%)';
   }
 
-  // Step 3: Climate/region adjustment based on latitude
-  const lat = field.center ? field.center[0] : 50;
-  let regionMult = 1.0;
+  // Step 3: Continent coefficient (from field.continent, or fallback to lat-based)
+  let continentMult = 1.0;
   let regionNote = '';
-  if (lat < 35) {
-    // Subtropical / warm zone
-    regionMult = 1.10;
-    regionNote = isRu ? 'Тёплый регион (+10%)' : 'Warm region (+10%)';
-  } else if (lat < 45) {
-    // Temperate warm
-    regionMult = 1.05;
-    regionNote = isRu ? 'Умеренно-тёплый (+5%)' : 'Temperate warm (+5%)';
-  } else if (lat < 52) {
-    // Temperate
-    regionMult = 1.0;
-    regionNote = isRu ? 'Умеренный климат' : 'Temperate climate';
-  } else if (lat < 58) {
-    // Temperate-cool
-    regionMult = 0.95;
-    regionNote = isRu ? 'Умеренно-холодный (−5%)' : 'Temperate cool (−5%)';
+  if (field.continent && CONTINENT_COEFFS[field.continent]) {
+    const c = CONTINENT_COEFFS[field.continent];
+    continentMult = c.mult;
+    const cLabel = isRu ? c.label_ru : c.label_en;
+    const pct = continentMult >= 1 ? `+${Math.round((continentMult-1)*100)}%` : `−${Math.round((1-continentMult)*100)}%`;
+    regionNote = `${cLabel} (${pct})`;
   } else {
-    // Cold / northern
-    regionMult = 0.90;
-    regionNote = isRu ? 'Холодный регион (−10%)' : 'Cold region (−10%)';
+    // Fallback: latitude-based as before
+    const lat = field.center ? field.center[0] : 50;
+    if (lat < 35) { continentMult = 1.10; regionNote = isRu ? 'Тёплый регион (+10%)' : 'Warm region (+10%)'; }
+    else if (lat < 45) { continentMult = 1.05; regionNote = isRu ? 'Умеренно-тёплый (+5%)' : 'Temperate warm (+5%)'; }
+    else if (lat < 52) { continentMult = 1.0;  regionNote = isRu ? 'Умеренный климат' : 'Temperate climate'; }
+    else if (lat < 58) { continentMult = 0.95; regionNote = isRu ? 'Умеренно-холодный (−5%)' : 'Temperate cool (−5%)'; }
+    else               { continentMult = 0.90; regionNote = isRu ? 'Холодный регион (−10%)' : 'Cold region (−10%)'; }
   }
 
-  const totalMult = ndviMult * regionMult;
-  const mid = Math.round(base.mid * totalMult);
+  const totalMult = ndviMult * continentMult;
   const lo  = Math.round(base.lo  * totalMult);
+  const mid = Math.round(base.mid * totalMult);
   const hi  = Math.round(base.hi  * totalMult);
 
   const unit = isRu ? 'ц/га' : 'c/ha';
   const forecastLine = isRu
-    ? `🌾 Прогноз урожая: ${mid} ${unit} (диапазон: ${lo} — ${hi})`
-    : `🌾 Yield forecast: ${mid} ${unit} (range: ${lo} — ${hi})`;
+    ? `🌾 Прогноз урожая: ${lo} ${unit} (диапазон: ${lo} — ${hi})`
+    : `🌾 Yield forecast: ${lo} ${unit} (range: ${lo} — ${hi})`;
 
   return {
     text: forecastLine,
-    mid, lo, hi, unit,
+    mid: lo, lo, hi, unit,  // mid=lo for pessimistic display
     ndviNote, regionNote,
     detail: `${ndviNote} · ${regionNote}`
   };
@@ -5564,14 +5606,9 @@ function renderFieldDetailHTML(field) {
         <div class="stat-value">${field.perimeter} <span class="stat-unit">${t('km')}</span></div>
       </div>
       <div class="stat-card-sm">
-        <!-- FIX v1.8: Growth Stage removed (was fake/auto-generated). Replaced with editable user field -->
+        <!-- ЗАДАЧА 2: Стадия вегетации — авто на основе даты посева + культуры -->
         <div class="stat-label">${lang === 'ru' ? 'Стадия вегетации' : 'Growth Stage'}</div>
-        <div class="stat-value" style="font-size:12px;">
-          <input class="stat-inline-input" value="${field.growthStage || ''}"
-            placeholder="${lang === 'ru' ? 'Не указано' : 'Not specified'}"
-            onchange="updateFieldMeta('${field.id}', 'growthStage', this.value)"
-            style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:12px;padding:2px 0;outline:none;"/>
-        </div>
+        <div class="stat-value" style="font-size:12px;color:var(--accent);">${getVegetationStage(field)}</div>
       </div>
       <div class="stat-card-sm">
         <!-- FIX v1.8: Plant Health is NDVI-based estimate — keep but label clearly -->
@@ -5579,28 +5616,11 @@ function renderFieldDetailHTML(field) {
         <div class="stat-value" style="font-size:13px;color:${ndviColor};">${health.label} <span style="font-size:9px;color:var(--text3);">NDVI</span></div>
       </div>
       <div class="stat-card-sm">
-        <!-- FIX v1.8: Yield Forecast was randomly generated. Now user-editable -->
-        <div class="stat-label">${lang === 'ru' ? 'Прогноз урожая' : 'Yield Forecast'}</div>
-        <div class="stat-value" style="font-size:12px;display:flex;align-items:center;gap:4px;">
-          <input class="stat-inline-input" type="number" step="0.1" min="0" max="30"
-            value="${field.yieldForecast || ''}"
-            placeholder="—"
-            onchange="updateFieldMeta('${field.id}', 'yieldForecast', this.value)"
-            style="width:60px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:12px;padding:2px 0;outline:none;text-align:right;"/>
-          <span class="stat-unit">${lang === 'ru' ? 'т/га' : 't/ha'}</span>
-        </div>
-      </div>
-      <div class="stat-card-sm">
         <div class="stat-label">${lang === 'ru' ? 'Дата посева' : 'Sowing Date'}</div>
-        <div class="stat-value" style="font-size:13px;">${sowDate}</div>
-      </div>
-      <div class="stat-card-sm">
-        <!-- FIX v1.8: Next Treatment was auto-calculated (+14 days). Now user-editable -->
-        <div class="stat-label">${lang === 'ru' ? 'Сл. обработка' : 'Next Treatment'}</div>
-        <div class="stat-value" style="font-size:12px;">
+        <div class="stat-value" style="font-size:13px;">
           <input class="stat-inline-input" type="date"
-            value="${field.nextTreatment || ''}"
-            onchange="updateFieldMeta('${field.id}', 'nextTreatment', this.value)"
+            value="${sowDate !== '—' ? sowDate : ''}"
+            onchange="updateFieldSowingDate('${field.id}', this.value)"
             style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:12px;padding:2px 0;outline:none;"/>
         </div>
       </div>
@@ -5610,7 +5630,7 @@ function renderFieldDetailHTML(field) {
       </div>
     </div>
 
-    <!-- FIX v1.8 R2: Yield Forecast Card — full width, calculated from NDVI + crop + region -->
+    <!-- FIX v2.0: Yield Forecast Card — pessimistic base + continent + NDVI -->
     ${(() => {
       const fc = getDetailedYieldForecast(field, ndvi);
       if (!fc.detail) {
@@ -5626,14 +5646,14 @@ function renderFieldDetailHTML(field) {
         </div>
         <div class="yield-fc-bar-wrap">
           <div class="yield-fc-bar-track">
-            <div class="yield-fc-bar-fill" style="width:${Math.min(100, Math.round((fc.mid / (fc.hi * 1.15)) * 100))}%;"></div>
+            <div class="yield-fc-bar-fill" style="width:${Math.min(100, Math.round((fc.lo / (fc.hi * 1.15)) * 100))}%;"></div>
             <div class="yield-fc-bar-range" style="left:${Math.min(100,Math.round((fc.lo/(fc.hi*1.15))*100))}%;width:${Math.min(100,Math.round(((fc.hi-fc.lo)/(fc.hi*1.15))*100))}%;"></div>
           </div>
           <div class="yield-fc-labels">
-            <span>${fc.lo}</span><span style="color:var(--accent);font-weight:700;">${fc.mid} ${fc.unit}</span><span>${fc.hi}</span>
+            <span>${fc.lo}</span><span style="color:var(--accent);font-weight:700;">${fc.lo} ${fc.unit}</span><span>${fc.hi}</span>
           </div>
         </div>
-        <div class="yield-fc-source">${lang === 'ru' ? '📐 Расчёт: база культуры · NDVI · регион' : '📐 Calc: crop base · NDVI · region'}</div>
+        <div class="yield-fc-source">${lang === 'ru' ? '📐 Пессимистичный прогноз: минимум культуры · NDVI · материк' : '📐 Pessimistic forecast: crop minimum · NDVI · continent'}</div>
       </div>`;
     })()}
 
@@ -5674,6 +5694,19 @@ function renderFieldDetailHTML(field) {
         style="width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:15px;font-family:inherit;cursor:pointer;outline:none;">
         <option value="" ${!fieldCropId ? 'selected' : ''}>${t('noCrop')}</option>
         ${CROPS.map(c => `<option value="${c.id}" ${fieldCropId === c.id ? 'selected' : ''}>${cropLabel(c)}</option>`).join('')}
+      </select>
+    </div>
+
+    <!-- ЗАДАЧА 1: Выбор материка/региона для прогноза урожая -->
+    <div class="section-title">${lang === 'ru' ? 'Местоположение (материк)' : 'Location (continent)'}</div>
+    <div style="padding: 0 0 16px;">
+      <select class="modal-select" id="detail-continent-select"
+        onchange="updateFieldMeta('${field.id}', 'continent', this.value)"
+        style="width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:15px;font-family:inherit;cursor:pointer;outline:none;">
+        <option value="" ${!field.continent ? 'selected' : ''}>${lang === 'ru' ? '— Авто (по широте) —' : '— Auto (by latitude) —'}</option>
+        ${Object.entries(CONTINENT_COEFFS).map(([key, val]) =>
+          `<option value="${key}" ${field.continent === key ? 'selected' : ''}>${lang === 'ru' ? val.label_ru : val.label_en}</option>`
+        ).join('')}
       </select>
     </div>
 
@@ -5733,7 +5766,33 @@ function updateFieldMeta(fieldId, key, value) {
   if (f) {
     f[key] = value;
     saveFields(fields);
+    // If continent changed, re-render the detail view to update forecast
+    if (key === 'continent') {
+      openFieldDetail(fieldId);
+    }
   }
+}
+
+// ЗАДАЧА 2: Обновить дату посева поля (сохраняет как sowingDate + добавляет/обновляет событие посева)
+function updateFieldSowingDate(fieldId, dateStr) {
+  const fields = loadFields();
+  const f = fields.find(x => x.id === fieldId);
+  if (!f) return;
+  f.sowingDate = dateStr;
+  // Также добавляем или обновляем событие посева в season
+  if (!f.season) f.season = [];
+  const existingSow = f.season.find(e => e.type === 'sowing');
+  if (existingSow) {
+    existingSow.date = dateStr;
+  } else if (dateStr) {
+    f.season.unshift({ type: 'sowing', date: dateStr, note: '' });
+  }
+  saveFields(fields);
+  // Обновить отображение стадии вегетации
+  const stageEl = document.querySelector('#screen-field-detail .stat-card-sm .stat-value[style*="accent"]');
+  if (stageEl) stageEl.textContent = getVegetationStage(f);
+  // Re-render detail for full consistency
+  openFieldDetail(fieldId);
 }
 
 function deleteCurrentField() {
@@ -6901,7 +6960,7 @@ function renderProfile() {
           </div>
         </div>
         <span class="ai-open-badge">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          <svg width="16" height="16" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7,7 17,7 17,17"/></svg>
         </span>
       </a>
     </div>
@@ -6939,7 +6998,7 @@ function renderProfile() {
     <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
       <div class="about-block">
-        <div class="about-logo">Hectar</div>
+        <div class="about-logo">Hectar 2.0</div>
         <div>${t('aboutTagline')}</div>
         <div class="about-version">${t('version')} ${APP_VERSION}</div>
       </div>
@@ -7262,8 +7321,156 @@ function renderSeasonsList() {
 }
 
 // ════════════════════════════════════════════════════
-// ЗАПУСК ПРИЛОЖЕНИЯ
+// ЗАДАЧА 4: УПРАВЛЕНИЕ СЕЗОНАМИ (Season Manager)
+// Поля остаются, обнуляются только агрономические данные
 // ════════════════════════════════════════════════════
+
+function loadSeasonManagerData() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_PREFIX + '-seasons-mgr') || '[]');
+  } catch { return []; }
+}
+function saveSeasonManagerData(data) {
+  localStorage.setItem(STORAGE_PREFIX + '-seasons-mgr', JSON.stringify(data));
+}
+function loadActiveSeason() {
+  return localStorage.getItem(STORAGE_PREFIX + '-active-season') || 'Сезон 2026';
+}
+function saveActiveSeason(name) {
+  localStorage.setItem(STORAGE_PREFIX + '-active-season', name);
+}
+
+function updateSeasonLabel() {
+  const label = document.getElementById('current-season-label');
+  if (label) label.textContent = loadActiveSeason();
+}
+
+function openSeasonManagerModal() {
+  // Update labels based on current language
+  const isRu = lang === 'ru';
+  const titleEl = document.getElementById('season-mgr-title');
+  if (titleEl) titleEl.textContent = '🗓 ' + (isRu ? 'Сезоны' : 'Seasons');
+  const newBtn = document.getElementById('season-mgr-new-btn');
+  if (newBtn) newBtn.textContent = '+ ' + (isRu ? 'Новый' : 'New');
+  const formTitle = document.getElementById('new-season-form-title');
+  if (formTitle) formTitle.textContent = isRu ? 'Новый сезон' : 'New Season';
+  const formLabel = document.getElementById('new-season-label');
+  if (formLabel) formLabel.textContent = isRu ? 'Название сезона' : 'Season name';
+  const cancelBtn = document.getElementById('new-season-cancel-btn');
+  if (cancelBtn) cancelBtn.textContent = isRu ? 'Отмена' : 'Cancel';
+  const createBtn = document.getElementById('new-season-create-btn');
+  if (createBtn) createBtn.textContent = isRu ? 'Создать' : 'Create';
+
+  renderSeasonManagerList();
+  openModal('modal-season-manager');
+}
+
+function openCreateSeasonForm() {
+  const form = document.getElementById('new-season-form');
+  if (form) { form.style.display = 'block'; }
+  const inp = document.getElementById('new-season-name');
+  if (inp) { inp.value = ''; inp.focus(); }
+}
+
+function createNewSeason() {
+  const inp = document.getElementById('new-season-name');
+  const name = inp ? inp.value.trim() : '';
+  if (!name) { showToast(lang === 'ru' ? 'Введите название сезона' : 'Enter season name'); return; }
+  const seasons = loadSeasonManagerData();
+  if (seasons.find(s => s.name === name)) {
+    showToast(lang === 'ru' ? 'Такой сезон уже существует' : 'Season already exists'); return;
+  }
+  seasons.push({ name, createdAt: new Date().toISOString().split('T')[0] });
+  saveSeasonManagerData(seasons);
+  activateSeason(name);
+  document.getElementById('new-season-form').style.display = 'none';
+}
+
+function activateSeason(name) {
+  const prev = loadActiveSeason();
+  if (prev === name) {
+    closeModal('modal-season-manager');
+    showToast((lang === 'ru' ? 'Уже активен: ' : 'Already active: ') + name);
+    return;
+  }
+  // Save current field agronomic data under the current season snapshot
+  const fields = loadFields();
+  const snapshot = fields.map(f => ({
+    id: f.id, crop: f.crop, sowingDate: f.sowingDate,
+    yieldForecast: f.yieldForecast, season: f.season || [],
+    continent: f.continent
+  }));
+  const seasons = loadSeasonManagerData();
+  const oldSeason = seasons.find(s => s.name === prev);
+  if (oldSeason) oldSeason.snapshot = snapshot;
+  // Save snapshot for previous season
+  saveSeasonManagerData(seasons);
+  saveActiveSeason(name);
+
+  // Restore snapshot for new season (if exists), else reset agronomic data
+  const newSeason = seasons.find(s => s.name === name);
+  const newSnap = newSeason && newSeason.snapshot;
+  const updatedFields = fields.map(f => {
+    const snap = newSnap ? newSnap.find(s => s.id === f.id) : null;
+    if (snap) {
+      return { ...f, crop: snap.crop || '', sowingDate: snap.sowingDate || '',
+                yieldForecast: snap.yieldForecast || '', season: snap.season || [],
+                continent: snap.continent || '' };
+    }
+    // New season — reset only agronomic data, keep geometry
+    return { ...f, crop: '', sowingDate: '', yieldForecast: '', season: [], continent: f.continent || '' };
+  });
+  saveFields(updatedFields);
+  renderFieldsList();
+  updateSeasonLabel();
+  closeModal('modal-season-manager');
+  showToast((lang === 'ru' ? '✅ Сезон активирован: ' : '✅ Season activated: ') + name);
+}
+
+function deleteSeasonFromManager(name) {
+  if (name === loadActiveSeason()) {
+    showToast(lang === 'ru' ? 'Нельзя удалить активный сезон' : 'Cannot delete active season');
+    return;
+  }
+  if (!confirm((lang === 'ru' ? 'Удалить сезон ' : 'Delete season ') + name + '?')) return;
+  const seasons = loadSeasonManagerData().filter(s => s.name !== name);
+  saveSeasonManagerData(seasons);
+  renderSeasonManagerList();
+  showToast((lang === 'ru' ? 'Сезон удалён: ' : 'Season deleted: ') + name);
+}
+
+function renderSeasonManagerList() {
+  const container = document.getElementById('season-manager-list');
+  if (!container) return;
+  const seasons = loadSeasonManagerData();
+  const active = loadActiveSeason();
+
+  // Ensure current active season is in the list
+  if (!seasons.find(s => s.name === active)) {
+    seasons.unshift({ name: active, createdAt: new Date().toISOString().split('T')[0] });
+    saveSeasonManagerData(seasons);
+  }
+
+  container.innerHTML = '';
+  seasons.forEach(s => {
+    const isActive = s.name === active;
+    const card = document.createElement('div');
+    card.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:14px;border-radius:var(--radius-sm);background:${isActive ? 'rgba(76,175,80,0.12)' : 'var(--bg2)'};border:1px solid ${isActive ? 'rgba(76,175,80,0.4)' : 'var(--border)'};`;
+    card.innerHTML = `
+      <div>
+        <div style="font-size:15px;font-weight:600;${isActive ? 'color:var(--accent);' : ''}">${s.name} ${isActive ? '✓' : ''}</div>
+        <div style="font-size:11px;color:var(--text3);">${s.createdAt || ''}</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        ${!isActive ? `<button onclick="activateSeason('${s.name}')" style="padding:8px 16px;border-radius:var(--radius-sm);background:var(--accent);color:#fff;border:none;font-size:13px;font-weight:600;cursor:pointer;">${lang === 'ru' ? 'Выбрать' : 'Select'}</button>` : `<span style="font-size:12px;color:var(--accent);font-weight:600;">${lang === 'ru' ? 'Активен' : 'Active'}</span>`}
+        ${!isActive ? `<button onclick="deleteSeasonFromManager('${s.name}')" style="padding:8px 12px;border-radius:var(--radius-sm);background:rgba(239,83,80,0.12);color:var(--danger);border:1px solid rgba(239,83,80,0.3);font-size:13px;cursor:pointer;">✕</button>` : ''}
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+// Init season label on load
+window.addEventListener('load', () => { setTimeout(updateSeasonLabel, 100); });
 function startApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('main-app').classList.add('visible');
@@ -7273,6 +7480,7 @@ function startApp() {
   applyTheme(settings.theme);
   initMap();
   renderFieldsList();
+  updateSeasonLabel();
   // Reset draw state safely after map is ready
   isDrawing = false;
   currentDrawPoints = [];
