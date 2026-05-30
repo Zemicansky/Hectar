@@ -253,11 +253,12 @@
     transform: translateX(-50%) translateZ(0);
     width: 100%;
     max-width: 430px;
-    /* Height = icon area + safe area (home indicator / bottom bar on iPhone) */
-    height: var(--nav-total);
-    /* Align icons at the top of the bar, safe-area padding fills the gap below */
-    padding-top: 8px;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* Высота задаётся контентом + отступы; safe-area заполняет низ под home-indicator */
+    height: auto;
+    min-height: var(--nav-h);
+    /* Иконки + подписи сверху, safe-area padding снизу */
+    padding-top: 10px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
     /* Landscape iPhone side safe-areas */
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
@@ -631,8 +632,8 @@
 
   .screen-header {
     padding: 16px 20px 0;
-    /* Учёт safe-top для notch/Dynamic Island */
-    padding-top: calc(var(--safe-top) + 12px);
+    /* Учёт safe-top для notch/Dynamic Island — увеличен отступ для iOS */
+    padding-top: calc(var(--safe-top) + 20px);
     background: var(--bg);
     flex-shrink: 0;
   }
@@ -1354,6 +1355,24 @@
     gap: 6px;
     flex-wrap: wrap;
     margin-top: 4px;
+    align-items: center;
+  }
+  .field-show-on-map-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: rgba(76,175,80,0.12);
+    border: 1px solid rgba(76,175,80,0.3);
+    border-radius: 100px;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: all 0.2s;
+    font-family: inherit;
+    align-self: flex-start;
   }
   .field-badge {
     display: inline-flex;
@@ -1517,22 +1536,27 @@
   /* ══════════════════════════════════════
      КНОПКА ПОКАЗАТЬ НА КАРТЕ (field card)
   ══════════════════════════════════════ */
-  .field-show-on-map-btn {
+  /* Компактная кнопка «На карте» — иконка + короткий текст, не переносится */
+  .field-map-icon-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
+    gap: 4px;
+    padding: 5px 10px;
     background: rgba(76,175,80,0.12);
     border: 1px solid rgba(76,175,80,0.3);
     border-radius: 100px;
     color: var(--accent);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     cursor: pointer;
-    margin-top: 10px;
-    transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
     font-family: inherit;
-    align-self: flex-start;
+    transition: all 0.2s;
+  }
+  .field-map-icon-btn:active {
+    background: rgba(76,175,80,0.25);
+    transform: scale(0.96);
   }
   .field-show-on-map-btn:active {
     background: rgba(76,175,80,0.25);
@@ -2601,7 +2625,7 @@
      to apply extra top padding so nothing hides under the status bar. */
   @media (display-mode: standalone) {
     .screen-header {
-      padding-top: calc(env(safe-area-inset-top, 20px) + 12px) !important;
+      padding-top: calc(env(safe-area-inset-top, 20px) + 20px) !important;
     }
     .screen {
       top: env(safe-area-inset-top, 20px) !important;
@@ -2612,7 +2636,7 @@
   }
   /* JS-detected standalone fallback for iOS where matchMedia doesn't always fire */
   html.pwa-standalone .screen-header {
-    padding-top: calc(var(--safe-top) + 12px);
+    padding-top: calc(var(--safe-top) + 20px);
   }
   html.pwa-standalone .screen {
     top: var(--safe-top);
@@ -3025,64 +3049,6 @@
   #draw-intersect-error.visible { display: block; }
   @keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
-  /* ══ FOREST POLYGON STYLES ══ */
-  .forest-toggle-bar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    background: rgba(27,94,32,0.18);
-    border: 1px solid rgba(76,175,80,0.25);
-    border-radius: var(--radius-sm);
-    margin: 0 16px 10px;
-    flex-shrink: 0;
-  }
-  .forest-toggle-label {
-    flex: 1;
-    font-size: 13px;
-    color: var(--text2);
-    line-height: 1.3;
-  }
-  .forest-toggle-label strong { color: var(--text); font-weight: 600; }
-  .forest-draw-btn {
-    background: rgba(27,94,32,0.5);
-    border: 1px solid rgba(76,175,80,0.4);
-    color: #4CAF50;
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.2s;
-  }
-  .forest-draw-btn:active { background: rgba(27,94,32,0.8); }
-  .forest-draw-btn.active-forest { background: #2e7d32; color: #fff; }
-  .forest-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 0 16px 8px;
-    flex-shrink: 0;
-  }
-  .forest-chip {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: rgba(27,94,32,0.25);
-    border: 1px solid rgba(76,175,80,0.3);
-    border-radius: 100px;
-    padding: 4px 10px;
-    font-size: 11px;
-    color: #81C784;
-  }
-  .forest-chip-del {
-    cursor: pointer;
-    opacity: 0.7;
-    font-size: 13px;
-    line-height: 1;
-  }
-  .forest-chip-del:hover { opacity: 1; color: var(--danger); }
   /* Firebase auth modal */
   .fb-auth-modal {
     position: fixed; inset: 0; z-index: 9999;
@@ -3374,37 +3340,6 @@
       </div>
     </div>
 
-    <!-- ЗАДАЧА 1: Режим рисования лесного полигона -->
-    <div id="forest-draw-mode-ui" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;z-index:var(--z-draw);pointer-events:none;">
-      <div class="draw-top-section" style="pointer-events:all;">
-        <div class="draw-top-bar">
-          <button type="button" class="draw-close-btn" onclick="cancelForestDrawMode()" aria-label="Close">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-          <div class="draw-mode-pill" style="background:rgba(27,94,32,0.95);">
-            <button type="button" style="flex:1;padding:10px 8px;border:none;background:transparent;color:#81C784;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;">
-              🌲 <span>Рисование леса</span>
-            </button>
-          </div>
-        </div>
-        <div class="draw-hint-inner visible" style="display:block;background:rgba(27,94,32,0.92);color:#a5d6a7;">Кликайте на карту, чтобы обозначить границу леса</div>
-      </div>
-      <div class="draw-toolbar" style="pointer-events:all;">
-        <button type="button" class="draw-toolbar-btn" onclick="cancelForestDrawMode()">
-          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          <span>Отмена</span>
-        </button>
-        <button type="button" class="draw-toolbar-btn" onclick="undoForestPoint()">
-          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 .49-3.7"/></svg>
-          <span>Отменить</span>
-        </button>
-        <button type="button" class="draw-toolbar-btn" onclick="finishForestDrawing()" style="background:#2e7d32;color:#fff;flex:1.4;flex-direction:column;gap:2px;">
-          <span>🌲 Сохранить лес</span>
-          <span class="area-label" id="forest-draw-area-label" style="font-size:11px;opacity:0.85;"></span>
-        </button>
-      </div>
-    </div>
-
     <!-- ════ ЭКРАН ПОЛЕЙ ════ -->
     <div id="screen-fields" class="screen">
       <div class="screen-header">
@@ -3440,21 +3375,6 @@
         <div class="fields-filter-row" id="fields-filter-row">
           <button class="filter-chip active" data-ffilter="all" onclick="setFieldFilter('all')">Все</button>
         </div>
-        <!-- ЗАДАЧА 1: Панель лесных полигонов -->
-        <div class="forest-toggle-bar" id="forest-toggle-bar">
-          <div style="font-size:18px;">🌲</div>
-          <div class="forest-toggle-label">
-            <strong id="forest-toggle-label-text">Исключить леса</strong><br>
-            <span id="forest-area-display" style="font-size:11px;color:var(--text3);">Нет лесных полигонов</span>
-          </div>
-          <label class="toggle-switch" style="flex-shrink:0;">
-            <input type="checkbox" id="forest-exclude-toggle" onchange="onForestToggleChange(this.checked)"/>
-            <span class="toggle-slider"></span>
-          </label>
-          <button class="forest-draw-btn" id="forest-draw-btn" onclick="startForestDrawMode()">+ Лес</button>
-        </div>
-        <!-- Chips for saved forest polygons -->
-        <div class="forest-chips" id="forest-chips-container"></div>
         <div class="fields-list" id="fields-list-container">
           <div class="empty-state" id="fields-empty">
             <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 3h18v18H3z" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
@@ -3603,7 +3523,7 @@
         </div>
         <div class="all-fields-link">
           <svg fill="currentColor" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
-          <span data-i18n="allFields">Все поля</span>
+          <span id="notes-season-label">Сезон 2026</span>
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6,9 12,15 18,9"/></svg>
         </div>
       </div>
@@ -3936,10 +3856,40 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-<!-- Firebase v10 compat SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<!-- Firebase v10 compat SDK — два CDN для надёжности -->
+<script>
+(function() {
+  var sdks = [
+    'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js',
+    'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js',
+    'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js'
+  ];
+  var fallbacks = [
+    'https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-app-compat.min.js',
+    'https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-auth-compat.min.js',
+    'https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-firestore-compat.min.js'
+  ];
+  function loadScript(src, fallback, cb) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = cb;
+    s.onerror = function() {
+      var s2 = document.createElement('script');
+      s2.src = fallback;
+      s2.onload = cb;
+      s2.onerror = cb; // continue even if both fail
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s);
+  }
+  var i = 0;
+  function loadNext() {
+    if (i >= sdks.length) { window._firebaseSdkReady = true; return; }
+    loadScript(sdks[i], fallbacks[i], function() { i++; loadNext(); });
+  }
+  loadNext();
+})();
+</script>
 
 <script>
 // ════════════════════════════════════════════════════
@@ -4527,45 +4477,74 @@ async function searchPlaces(query) {
 
   let results = [];
 
-  // FIX: Run Nominatim + Photon in parallel, use first that returns results
-  // Note: User-Agent cannot be set in browser fetch (forbidden header) — omitted
-  const tryNominatim = async () => {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=10&addressdetails=1&accept-language=${lang === 'ru' ? 'ru,en' : 'en,ru'}`;
-    const res = await fetch(url, { signal });
-    if (!res.ok) throw new Error('nom_fail');
-    const data = await res.json();
-    if (!data.length) throw new Error('nom_empty');
-    return data.map(r => ({
-      lat: parseFloat(r.lat),
-      lon: parseFloat(r.lon),
-      name: r.display_name.split(',')[0],
-      meta: r.display_name,
-      type: r.type
-    }));
-  };
+  // Парсинг результатов Nominatim
+  const parseNominatim = (data) => data.map(r => ({
+    lat: parseFloat(r.lat),
+    lon: parseFloat(r.lon),
+    name: r.display_name.split(',')[0],
+    meta: r.display_name,
+    type: r.type
+  }));
 
-  const tryPhoton = async () => {
-    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=10&lang=${lang === 'ru' ? 'ru' : 'en'}`;
-    const res = await fetch(url, { signal });
-    if (!res.ok) throw new Error('photon_fail');
-    const data = await res.json();
-    const feats = (data.features || []);
-    if (!feats.length) throw new Error('photon_empty');
-    return feats.map(f => {
-      const [lon, lat] = f.geometry.coordinates;
-      const p = f.properties || {};
-      const name = p.name || p.city || p.country || query;
-      const meta = formatPlaceLabel(p, name);
-      return { lat, lon, name, meta, type: p.type };
-    });
-  };
+  // Парсинг результатов Photon
+  const parsePhoton = (data) => (data.features || []).map(f => {
+    const [lon, lat] = f.geometry.coordinates;
+    const p = f.properties || {};
+    const name = p.name || p.city || p.country || query;
+    const meta = formatPlaceLabel(p, name);
+    return { lat, lon, name, meta, type: p.type };
+  });
 
-  // FIX: Try both in parallel — whichever resolves first with data wins
+  const nomQ = `format=json&q=${encodeURIComponent(query)}&limit=10&addressdetails=1&accept-language=${lang === 'ru' ? 'ru,en' : 'en,ru'}`;
+  const photonQ = `q=${encodeURIComponent(query)}&limit=10&lang=${lang === 'ru' ? 'ru' : 'en'}`;
+
+  // Все источники: прямые + через несколько CORS-прокси
+  const sources = [
+    // 1. Nominatim напрямую
+    async () => {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?${nomQ}`, { signal });
+      if (!res.ok) throw new Error('nom_direct');
+      const d = await res.json(); if (!d.length) throw new Error('nom_empty');
+      return parseNominatim(d);
+    },
+    // 2. Photon напрямую
+    async () => {
+      const res = await fetch(`https://photon.komoot.io/api/?${photonQ}`, { signal });
+      if (!res.ok) throw new Error('photon_direct');
+      const d = await res.json(); const r = parsePhoton(d); if (!r.length) throw new Error('photon_empty');
+      return r;
+    },
+    // 3. Nominatim через corsproxy.io
+    async () => {
+      const inner = encodeURIComponent(`https://nominatim.openstreetmap.org/search?${nomQ}`);
+      const res = await fetch(`https://corsproxy.io/?${inner}`, { signal });
+      if (!res.ok) throw new Error('proxy1_fail');
+      const d = await res.json(); if (!d.length) throw new Error('proxy1_empty');
+      return parseNominatim(d);
+    },
+    // 4. Nominatim через api.allorigins.win
+    async () => {
+      const inner = encodeURIComponent(`https://nominatim.openstreetmap.org/search?${nomQ}`);
+      const res = await fetch(`https://api.allorigins.win/get?url=${inner}`, { signal });
+      if (!res.ok) throw new Error('proxy2_fail');
+      const wrapper = await res.json();
+      const d = JSON.parse(wrapper.contents); if (!d.length) throw new Error('proxy2_empty');
+      return parseNominatim(d);
+    },
+    // 5. Photon через corsproxy.io
+    async () => {
+      const inner = encodeURIComponent(`https://photon.komoot.io/api/?${photonQ}`);
+      const res = await fetch(`https://corsproxy.io/?${inner}`, { signal });
+      if (!res.ok) throw new Error('proxy3_fail');
+      const d = await res.json(); const r = parsePhoton(d); if (!r.length) throw new Error('proxy3_empty');
+      return r;
+    },
+  ];
+
   try {
-    results = await Promise.any([tryNominatim(), tryPhoton()]);
+    results = await Promise.any(sources.map(fn => fn()));
   } catch (e) {
     if (e.name === 'AbortError' || (e.errors && e.errors.some(x => x.name === 'AbortError'))) return;
-    // Both failed — show error
     list.innerHTML = `<li class="search-empty">${t('searchError')}</li>`;
     return;
   }
@@ -5741,19 +5720,17 @@ function renderFieldsList() {
         </div>
       </div>
 
-      <!-- Бейджи с агроданными -->
-      <div class="field-card-badges">
-        <span class="field-badge blue">🌱 ${stage}</span>
-        <span class="field-badge">📅 Посев: ${sowDate}</span>
+      <!-- Бейджи + кнопка карты: бейджи слева, иконка-кнопка справа в одной строке -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:8px;">
+        <div style="display:flex;gap:6px;flex-wrap:nowrap;align-items:center;min-width:0;overflow:hidden;">
+          <span class="field-badge blue" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">🌱 ${stage}</span>
+          <span class="field-badge" style="white-space:nowrap;flex-shrink:0;">📅 ${sowDate}</span>
+        </div>
+        <button class="field-map-icon-btn" onclick="event.stopPropagation(); goToFieldOnMap('${field.id}')" title="Показать на карте">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span style="font-size:11px;font-weight:600;">На карте</span>
+        </button>
       </div>
-
-      <!-- FIX v1.9.1: NDVI mini-bar REMOVED from list cards — NDVI visible only in detail view and NDVI sub-tab -->
-
-      <!-- Кнопка показать на карте -->
-      <button class="field-show-on-map-btn" onclick="event.stopPropagation(); goToFieldOnMap('${field.id}')">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-        Показать на карте
-      </button>
     `;
     card.addEventListener('click', () => openFieldDetail(field.id));
     container.appendChild(card);
@@ -7738,6 +7715,8 @@ function saveActiveSeason(name) {
 function updateSeasonLabel() {
   const label = document.getElementById('current-season-label');
   if (label) label.textContent = loadActiveSeason();
+  const notesLabel = document.getElementById('notes-season-label');
+  if (notesLabel) notesLabel.textContent = loadActiveSeason();
 }
 
 // NEW: Автоматически формирует название из года
@@ -8169,342 +8148,19 @@ window.addEventListener('load', () => {
 });
 
 // ════════════════════════════════════════════════════
-// ЗАДАЧА 1: ЛЕСНЫЕ ПОЛИГОНЫ — исключение из расчёта площади
-// ════════════════════════════════════════════════════
-const FOREST_STORAGE_KEY = STORAGE_PREFIX + '-forests';
-let excludeForests = false;
-let isForestDrawing = false;
-let forestDrawPoints = [];
-let forestTempPolyline = null, forestTempPolygon = null, forestRubberBand = null;
-let drawnForestPolygons = {}; // id → leaflet layer
-
-function loadForests() {
-  try { return JSON.parse(localStorage.getItem(FOREST_STORAGE_KEY) || '[]'); } catch { return []; }
-}
-function saveForests(forests) {
-  localStorage.setItem(FOREST_STORAGE_KEY, JSON.stringify(forests));
-  if (fbCurrentUser) fbSaveForests(forests);
-}
-
-function startForestDrawMode() {
-  switchTab('map');
-  setTimeout(() => {
-    isForestDrawing = true;
-    isDrawing = false; // не смешиваем с режимом поля
-    forestDrawPoints = [];
-    clearForestTempLayers();
-    const ui = document.getElementById('forest-draw-mode-ui');
-    if (ui) ui.style.display = 'block';
-    const addBtn = document.getElementById('btn-add-field-map');
-    if (addBtn) addBtn.style.display = 'none';
-    // Убираем обычный draw UI если был открыт
-    const drawUi = document.getElementById('draw-mode-ui');
-    if (drawUi) drawUi.classList.remove('active');
-    showToast(lang === 'ru' ? '🌲 Кликайте на карту, чтобы обозначить лес' : '🌲 Click on map to draw forest boundary');
-  }, 350);
-}
-
-function cancelForestDrawMode() {
-  isForestDrawing = false;
-  forestDrawPoints = [];
-  clearForestTempLayers();
-  const ui = document.getElementById('forest-draw-mode-ui');
-  if (ui) ui.style.display = 'none';
-  const addBtn = document.getElementById('btn-add-field-map');
-  if (addBtn) addBtn.style.display = '';
-  showToast(lang === 'ru' ? 'Рисование отменено' : 'Drawing cancelled');
-}
-
-function clearForestTempLayers() {
-  if (!map) return;
-  if (forestRubberBand) { map.removeLayer(forestRubberBand); forestRubberBand = null; }
-  if (forestTempPolyline) { map.removeLayer(forestTempPolyline); forestTempPolyline = null; }
-  if (forestTempPolygon) { map.removeLayer(forestTempPolygon); forestTempPolygon = null; }
-}
-
-function updateForestTempDraw() {
-  clearForestTempLayers();
-  if (forestDrawPoints.length >= 2) {
-    forestTempPolyline = L.polyline(forestDrawPoints, {
-      color: '#388E3C', weight: 2.5, dashArray: '6,4', opacity: 0.9
-    }).addTo(map);
-  }
-  if (forestDrawPoints.length >= 3) {
-    forestTempPolygon = L.polygon(forestDrawPoints, {
-      color: '#388E3C', fillColor: '#2E7D32', fillOpacity: 0.25, weight: 2.5
-    }).addTo(map);
-  }
-  // Update area label
-  const label = document.getElementById('forest-draw-area-label');
-  if (label && forestDrawPoints.length >= 3) {
-    const coords = [...forestDrawPoints, forestDrawPoints[0]];
-    try {
-      const poly = turf.polygon([coords.map(c => [c[1], c[0]])]);
-      const ha = (turf.area(poly) / 10000).toFixed(1);
-      label.textContent = ha + ' га';
-    } catch(_) {}
-  }
-}
-
-function undoForestPoint() {
-  forestDrawPoints.pop();
-  updateForestTempDraw();
-}
-
-function finishForestDrawing() {
-  if (forestDrawPoints.length < 3) {
-    showToast(lang === 'ru' ? 'Добавьте минимум 3 точки' : 'Add at least 3 points');
-    return;
-  }
-  const coords = [...forestDrawPoints, forestDrawPoints[0]];
-  const poly = turf.polygon([coords.map(c => [c[1], c[0]])]);
-  const areaHa = (turf.area(poly) / 10000).toFixed(2);
-  const center = turf.center(poly).geometry.coordinates.reverse();
-
-  const forest = {
-    id: 'frst_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-    name: (lang === 'ru' ? 'Лес' : 'Forest') + ' ' + (loadForests().length + 1),
-    coordinates: forestDrawPoints,
-    area: parseFloat(areaHa),
-    center,
-    createdAt: new Date().toISOString().split('T')[0]
-  };
-
-  const forests = loadForests();
-  forests.push(forest);
-  saveForests(forests);
-  addForestToMap(forest);
-  cancelForestDrawMode();
-  renderForestChips();
-  renderFieldsList(); // recalculate net areas
-  showToast(`🌲 ${forest.name}: ${areaHa} га`);
-}
-
-// Инициализация обработчика клика карты для режима леса — вызывается после initMap
-function initForestMapClick() {
-  if (!map) return;
-  // Сохраняем ссылку на оригинальный onMapClick и перехватываем клики
-  map.off('click', onMapClick);
-  map.on('click', function(e) {
-    if (isForestDrawing) {
-      forestDrawPoints.push([e.latlng.lat, e.latlng.lng]);
-      updateForestTempDraw();
-    } else if (isDrawing) {
-      onMapClick(e);
-    }
-  });
-
-  // Добавляем резиновую линию для леса в mousemove
-  const _origMouseMove = onMapMouseMove;
-  map.off('mousemove', onMapMouseMove);
-  map.on('mousemove', function(e) {
-    if (isForestDrawing && forestDrawPoints.length > 0) {
-      // Резиновая линия для леса
-      const last = forestDrawPoints[forestDrawPoints.length - 1];
-      const cur = [e.latlng.lat, e.latlng.lng];
-      if (forestRubberBand) {
-        forestRubberBand.setLatLngs([last, cur]);
-      } else {
-        forestRubberBand = L.polyline([last, cur], {
-          color: '#388E3C', weight: 2, dashArray: '4,4', opacity: 0.7, interactive: false
-        }).addTo(map);
-      }
-      // Площадь в реальном времени
-      const pts = [...forestDrawPoints, cur];
-      if (pts.length >= 3) {
-        try {
-          const coords = [...pts, pts[0]].map(c => [c[1], c[0]]);
-          const ha = (turf.area(turf.polygon([coords])) / 10000).toFixed(1);
-          const label = document.getElementById('forest-draw-area-label');
-          if (label) label.textContent = ha + ' га';
-        } catch(_) {}
-      }
-    } else {
-      _origMouseMove(e);
-    }
-  });
-}
-
-function addForestToMap(forest) {
-  if (!forest.coordinates || forest.coordinates.length < 3 || !map) return;
-  const latlngs = forest.coordinates.map(c => [c[0], c[1]]);
-  const polygon = L.polygon(latlngs, {
-    color: '#388E3C', fillColor: '#2E7D32', fillOpacity: 0.2, weight: 2,
-    dashArray: '8,4'
-  }).addTo(map);
-  polygon.bindPopup(`<div class="popup-name">🌲 ${forest.name}</div><div class="popup-row">${forest.area} га</div>`);
-  drawnForestPolygons[forest.id] = polygon;
-}
-
-function removeForest(id) {
-  const forests = loadForests().filter(f => f.id !== id);
-  saveForests(forests);
-  if (drawnForestPolygons[id] && map) { map.removeLayer(drawnForestPolygons[id]); delete drawnForestPolygons[id]; }
-  renderForestChips();
-  renderFieldsList();
-}
-
-function onForestToggleChange(checked) {
-  excludeForests = checked;
-  localStorage.setItem(STORAGE_PREFIX + '-exclude-forests', checked ? '1' : '0');
-  renderFieldsList();
-  renderForestChips();
-}
-
-/** Returns total forest area (ha) that intersects with a given field polygon */
-function getForestAreaForField(field) {
-  if (!excludeForests) return 0;
-  const forests = loadForests();
-  if (!forests.length || !field.coordinates || field.coordinates.length < 3) return 0;
-  let totalIntersect = 0;
-  try {
-    const fieldCoords = [...field.coordinates, field.coordinates[0]].map(c => [c[1], c[0]]);
-    const fieldPoly = turf.polygon([fieldCoords]);
-    for (const forest of forests) {
-      if (!forest.coordinates || forest.coordinates.length < 3) continue;
-      try {
-        const forestCoords = [...forest.coordinates, forest.coordinates[0]].map(c => [c[1], c[0]]);
-        const forestPoly = turf.polygon([forestCoords]);
-        const intersection = turf.intersect(fieldPoly, forestPoly);
-        if (intersection) {
-          totalIntersect += turf.area(intersection) / 10000;
-        }
-      } catch(_) {}
-    }
-  } catch(_) {}
-  return parseFloat(totalIntersect.toFixed(2));
-}
-
-/** Returns net area of a field (field area minus intersecting forests) */
-function getNetFieldArea(field) {
-  const forestHa = getForestAreaForField(field);
-  return Math.max(0, parseFloat(field.area) - forestHa);
-}
-
-function renderForestChips() {
-  const container = document.getElementById('forest-chips-container');
-  const areaDisplay = document.getElementById('forest-area-display');
-  if (!container) return;
-  const forests = loadForests();
-  const toggle = document.getElementById('forest-exclude-toggle');
-  if (toggle) toggle.checked = excludeForests;
-
-  if (!forests.length) {
-    container.innerHTML = '';
-    if (areaDisplay) areaDisplay.textContent = lang === 'ru' ? 'Нет лесных полигонов' : 'No forest polygons';
-    return;
-  }
-  const totalForestHa = forests.reduce((s, f) => s + f.area, 0).toFixed(1);
-  if (areaDisplay) {
-    areaDisplay.textContent = excludeForests
-      ? (lang === 'ru' ? `Исключено: ${totalForestHa} га` : `Excluded: ${totalForestHa} ha`)
-      : (lang === 'ru' ? `${forests.length} полигон(ов), ${totalForestHa} га` : `${forests.length} polygon(s), ${totalForestHa} ha`);
-  }
-  container.innerHTML = forests.map(f =>
-    `<div class="forest-chip">🌲 ${f.name} (${f.area} га)<span class="forest-chip-del" onclick="removeForest('${f.id}')">✕</span></div>`
-  ).join('');
-}
-
-function initForests() {
-  excludeForests = localStorage.getItem(STORAGE_PREFIX + '-exclude-forests') === '1';
-  const toggle = document.getElementById('forest-exclude-toggle');
-  if (toggle) toggle.checked = excludeForests;
-  const forests = loadForests();
-  forests.forEach(f => addForestToMap(f));
-  renderForestChips();
-}
-
-// ════ ПАТЧ: после отрисовки оригинального renderFieldsList добавляем
-// лесную информацию в карточки и обновляем суммарную площадь ════
-// Перехватываем оригинал через обёртку
-(function() {
-  const _orig = renderFieldsList;
-  renderFieldsList = function() {
-    // Вызываем оригинал — он строит карточки через canvas и делает всё правильно
-    _orig.call(this);
-
-    // После рендера — исправляем totalLabel с учётом лесов
-    const fields = loadFields();
-    const totalLabel = document.getElementById('total-area-label');
-    if (totalLabel) {
-      if (excludeForests && loadForests().length > 0) {
-        const totalNet = fields.reduce((s, f) => s + getNetFieldArea(f), 0).toFixed(1);
-        totalLabel.textContent = `${totalNet} ${t('ha')} 🌲`;
-      }
-    }
-
-    // Добавляем лесную инфу в уже отрисованные карточки
-    if (excludeForests && loadForests().length > 0) {
-      const container = document.getElementById('fields-list-container');
-      if (!container) return;
-      // Находим карточки по классам field-card и field-card-expanded
-      const cards = container.querySelectorAll('.field-card, .field-card-expanded');
-      cards.forEach(card => {
-        // Получаем fieldId из onclick атрибута или data-id
-        let fieldId = null;
-        const onclickAttr = card.getAttribute('onclick') || '';
-        const match = onclickAttr.match(/openFieldDetail\('([^']+)'\)/);
-        if (match) fieldId = match[1];
-        // Также проверяем кнопку внутри карточки
-        if (!fieldId) {
-          const btn = card.querySelector('[onclick*="openFieldDetail"]');
-          if (btn) {
-            const m2 = (btn.getAttribute('onclick') || '').match(/openFieldDetail\('([^']+)'\)/);
-            if (m2) fieldId = m2[1];
-          }
-        }
-        // Для card-expanded — слушатель через addEventListener, нет onclick attr
-        // Пробуем по canvas id
-        if (!fieldId) {
-          const canvas = card.querySelector('canvas[id^="thumb-"]');
-          if (canvas) fieldId = canvas.id.replace('thumb-', '');
-        }
-        if (!fieldId) return;
-
-        const field = fields.find(f => f.id === fieldId);
-        if (!field) return;
-        const forestHa = getForestAreaForField(field);
-        if (forestHa <= 0) return;
-        const netArea = getNetFieldArea(field);
-
-        // Находим элемент площади в карточке и добавляем лесную пометку
-        const areaEl = card.querySelector('.field-card-area');
-        if (areaEl) {
-          // Простая карточка — заменяем площадь
-          areaEl.innerHTML = `<span style="color:var(--accent);font-weight:700;">${netArea}</span> ${t('ha')} <span style="font-size:11px;color:#81C784;">(−${forestHa} 🌲)</span>`;
-        } else {
-          // Расширенная карточка — ищем span с числом га
-          const infoDiv = card.querySelector('.field-card-info');
-          if (infoDiv) {
-            // Первый span с числом и единицей га
-            const spans = infoDiv.querySelectorAll('span');
-            if (spans.length >= 1) {
-              // Вставляем пометку после первого span с числом
-              const forestTag = document.createElement('span');
-              forestTag.style.cssText = 'font-size:11px;color:#81C784;margin-left:4px;';
-              forestTag.textContent = `(−${forestHa} 🌲)`;
-              if (spans[0].parentNode) spans[0].parentNode.appendChild(forestTag);
-            }
-          }
-        }
-      });
-    }
-  };
-})();
-
-// ════════════════════════════════════════════════════
 // ЗАДАЧА 2: FIREBASE AUTH + FIRESTORE SYNC
 // ════════════════════════════════════════════════════
 
 // ⚠️  ВАЖНО: Вставьте свой firebaseConfig после создания проекта Firebase.
 //    Шаги описаны в конце файла (поиск: "ШАГИ НАСТРОЙКИ FIREBASE").
 const FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDwi4i2MevorQPumSMKgZef0AJ_aec4P_I",
+  authDomain: "hectar-19422.firebaseapp.com",
+  projectId: "hectar-19422",
+  storageBucket: "hectar-19422.firebasestorage.app",
+  messagingSenderId: "823756967343",
+  appId: "1:823756967343:web:8b8a6d88891254b639335a",
+  measurementId: "G-77J1SZRHQM"
 };
 
 let fbApp = null, fbAuth = null, fbDb = null;
@@ -8514,7 +8170,6 @@ let fbAuthMode = 'login'; // 'login' | 'register'
 function initFirebase() {
   try {
     if (typeof firebase === 'undefined') return;
-    if (FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') return; // not configured yet
     fbApp = firebase.initializeApp(FIREBASE_CONFIG);
     fbAuth = firebase.auth();
     fbDb = firebase.firestore();
@@ -8537,9 +8192,12 @@ function initFirebase() {
 
 function openFbAuthModal(type) {
   if (!fbAuth) {
-    showToast(lang === 'ru' ? '⚙️ Firebase не настроен. Войдите как гость.' : '⚙️ Firebase not configured. Continue as guest.');
-    if (type === 'google' || type === 'email') startApp();
-    return;
+    // Попробуем инициализировать ещё раз перед показом ошибки
+    initFirebase();
+    if (!fbAuth) {
+      showToast(lang === 'ru' ? '🌐 Нет соединения с Firebase. Проверьте интернет.' : '🌐 No Firebase connection. Check internet.');
+      return;
+    }
   }
   fbAuthMode = 'login';
   const modal = document.getElementById('fb-auth-modal');
@@ -8647,18 +8305,6 @@ async function fbSaveFields(fields) {
   } catch(e) { console.warn('fbSaveFields error:', e); }
 }
 
-async function fbSaveForests(forests) {
-  const col = fbUserDoc('forests');
-  if (!col) return;
-  try {
-    const batch = fbDb.batch();
-    const snap = await col.get();
-    snap.forEach(d => batch.delete(d.ref));
-    forests.forEach(f => batch.set(col.doc(f.id), f));
-    await batch.commit();
-  } catch(e) { console.warn('fbSaveForests error:', e); }
-}
-
 async function fbSaveNotes(notes) {
   const col = fbUserDoc('notes');
   if (!col) return;
@@ -8678,38 +8324,62 @@ async function fbSaveSettings(settings) {
   } catch(e) {}
 }
 
+// ── Сохранение сезонов в Firestore ──
+async function fbSaveSeasonsMgr(seasons) {
+  if (!fbDb || !fbCurrentUser) return;
+  try {
+    await fbDb.collection('users').doc(fbCurrentUser.uid)
+      .set({ seasonsMgr: seasons }, { merge: true });
+  } catch(e) { console.warn('fbSaveSeasonsMgr error:', e); }
+}
+
+async function fbSaveActiveSeason(name) {
+  if (!fbDb || !fbCurrentUser) return;
+  try {
+    await fbDb.collection('users').doc(fbCurrentUser.uid)
+      .set({ activeSeason: name }, { merge: true });
+  } catch(e) { console.warn('fbSaveActiveSeason error:', e); }
+}
+
 async function fbSyncFromCloud() {
   if (!fbDb || !fbCurrentUser) return;
   try {
-    // Sync fields
+    // ── Поля ──
     const fieldsSnap = await fbUserDoc('fields').get();
     if (!fieldsSnap.empty) {
       const cloudFields = fieldsSnap.docs.map(d => d.data());
-      saveFields(cloudFields);
-      // Re-draw all polygons
+      localStorage.setItem(STORAGE_PREFIX + '-fields', JSON.stringify(cloudFields));
       if (map) {
         Object.values(drawnPolygons).forEach(p => map.removeLayer(p));
         drawnPolygons = {};
         cloudFields.forEach(f => addFieldToMap(f));
       }
     }
-    // Sync forests
-    const forestsSnap = await fbUserDoc('forests').get();
-    if (!forestsSnap.empty) {
-      const cloudForests = forestsSnap.docs.map(d => d.data());
-      localStorage.setItem(FOREST_STORAGE_KEY, JSON.stringify(cloudForests));
-      Object.values(drawnForestPolygons).forEach(p => map && map.removeLayer(p));
-      drawnForestPolygons = {};
-      cloudForests.forEach(f => addForestToMap(f));
-      renderForestChips();
-    }
-    // Sync settings
+
+    // ── Настройки, сезоны, активный сезон ──
     const userDoc = await fbDb.collection('users').doc(fbCurrentUser.uid).get();
-    if (userDoc.exists && userDoc.data().settings) {
-      const s = { ...loadSettings(), ...userDoc.data().settings };
-      saveSettings(s);
-      applyTheme(s.theme);
+    if (userDoc.exists) {
+      const data = userDoc.data();
+
+      // Настройки
+      if (data.settings) {
+        const s = { ...loadSettings(), ...data.settings };
+        localStorage.setItem(STORAGE_PREFIX + '-settings', JSON.stringify(s));
+        applyTheme(s.theme);
+      }
+
+      // Менеджер сезонов
+      if (data.seasonsMgr && Array.isArray(data.seasonsMgr)) {
+        localStorage.setItem(STORAGE_PREFIX + '-seasons-mgr', JSON.stringify(data.seasonsMgr));
+      }
+
+      // Активный сезон
+      if (data.activeSeason) {
+        localStorage.setItem(STORAGE_PREFIX + '-active-season', data.activeSeason);
+        updateSeasonLabel();
+      }
     }
+
     renderFieldsList();
     showToast('☁️ ' + (lang === 'ru' ? 'Данные загружены' : 'Data loaded'));
   } catch(e) { console.warn('fbSyncFromCloud error:', e); }
@@ -8728,6 +8398,20 @@ const _origSaveSettingsFb = saveSettings;
 saveSettings = function(settings) {
   localStorage.setItem(STORAGE_PREFIX + '-settings', JSON.stringify(settings));
   if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) fbSaveSettings(settings);
+};
+
+// Patch saveSeasonsMgr — синхронизация менеджера сезонов
+const _origSaveSeasonsMgr = saveSeasonsMgr;
+saveSeasonsMgr = function(data) {
+  localStorage.setItem(STORAGE_PREFIX + '-seasons-mgr', JSON.stringify(data));
+  if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) fbSaveSeasonsMgr(data);
+};
+
+// Patch saveActiveSeason — синхронизация активного сезона
+const _origSaveActiveSeason = saveActiveSeason;
+saveActiveSeason = function(name) {
+  localStorage.setItem(STORAGE_PREFIX + '-active-season', name);
+  if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) fbSaveActiveSeason(name);
 };
 
 // Patch renderProfile to show Firebase user info
@@ -8843,13 +8527,23 @@ function renderProfile() {
   `;
 }
 
-// Init Firebase + Forests after map is ready
+// Init Firebase — ждём загрузки SDK с polling (до 10 секунд)
 window.addEventListener('load', () => {
-  setTimeout(() => {
-    initFirebase();
-    initForests();
-    initForestMapClick();
-  }, 1500);
+  var attempts = 0;
+  var maxAttempts = 50; // 50 x 200ms = 10s
+  function tryInit() {
+    attempts++;
+    if (typeof firebase !== 'undefined' && firebase.app) {
+      initFirebase();
+      return;
+    }
+    if (attempts < maxAttempts) {
+      setTimeout(tryInit, 200);
+    } else {
+      console.warn('Firebase SDK не загрузился за 10 секунд. Работаем в offline-режиме.');
+    }
+  }
+  setTimeout(tryInit, 300);
 });
 
 /*
