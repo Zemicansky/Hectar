@@ -8380,6 +8380,18 @@ function initFirebase() {
     fbAuth = firebase.auth();
     fbDb = firebase.firestore();
 
+    // Обрабатываем результат после редиректа Google Sign-In
+    fbAuth.getRedirectResult().then(result => {
+      if (result && result.user) {
+        closeFbAuthModal();
+        startApp();
+        showToast('✅ Google');
+      }
+    }).catch(e => {
+      const err = document.getElementById('fb-auth-error');
+      if (err) err.textContent = e.message;
+    });
+
     fbAuth.onAuthStateChanged(user => {
       fbCurrentUser = user;
       if (user) {
@@ -8477,10 +8489,8 @@ async function fbSignInGoogle() {
   if (!fbAuth) return;
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
-    await fbAuth.signInWithPopup(provider);
-    closeFbAuthModal();
-    startApp();
-    showToast('✅ Google');
+    // Используем redirect вместо popup — popup не работает на GitHub Pages
+    await fbAuth.signInWithRedirect(provider);
   } catch(e) {
     const err = document.getElementById('fb-auth-error');
     if (err) err.textContent = e.message;
