@@ -8479,14 +8479,19 @@ async function fbSubmitEmail() {
   if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = fbAuthMode === 'login' ? (lang === 'ru' ? 'Войти' : 'Sign in') : (lang === 'ru' ? 'Зарегистрироваться' : 'Register'); }
 }
 
+let _googleSignInInProgress = false;
 async function fbSignInGoogle() {
-  if (!fbAuth) return;
-  const err = document.getElementById('fb-auth-error');
+  if (!fbAuth || _googleSignInInProgress) return;
+  _googleSignInInProgress = true;
+  const err = document.querySelector('#fb-auth-error');
+  const btn = document.querySelector('.fb-auth-btn.google');
+  if (btn) btn.disabled = true;
   try {
     const fb = window._fbFns;
     const provider = new fb.GoogleAuthProvider();
-    // signInWithPopup работает на GitHub Pages без проблем с cookies
-    // signInWithRedirect сломан в compat SDK из-за блокировки Google third-party cookies
+    provider.setCustomParameters({ prompt: 'select_account' });
+    provider.addScope('email');
+    provider.addScope('profile');
     const result = await fb.signInWithPopup(fbAuth, provider);
     if (result.user) {
       closeFbAuthModal();
@@ -8494,9 +8499,13 @@ async function fbSignInGoogle() {
       showToast('✅ Google: ' + (result.user.displayName || result.user.email));
     }
   } catch(e) {
-    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
-    if (err) err.textContent = e.message;
+    if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+      if (err) err.textContent = e.message;
+    }
     console.warn('Google Sign-In error:', e.code, e.message);
+  } finally {
+    _googleSignInInProgress = false;
+    if (btn) btn.disabled = false;
   }
 }
 
