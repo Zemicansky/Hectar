@@ -3877,39 +3877,39 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-<!-- Firebase v10 compat SDK — два CDN для надёжности -->
-<script>
-(function() {
-  var sdks = [
-    'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js',
-    'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js',
-    'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js'
-  ];
-  var fallbacks = [
-    'https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-app-compat.min.js',
-    'https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-auth-compat.min.js',
-    'https://cdn.jsdelivr.net/npm/firebase@10.12.2/firebase-firestore-compat.min.js'
-  ];
-  function loadScript(src, fallback, cb) {
-    var s = document.createElement('script');
-    s.src = src;
-    s.onload = cb;
-    s.onerror = function() {
-      var s2 = document.createElement('script');
-      s2.src = fallback;
-      s2.onload = cb;
-      s2.onerror = cb; // continue even if both fail
-      document.head.appendChild(s2);
-    };
-    document.head.appendChild(s);
-  }
-  var i = 0;
-  function loadNext() {
-    if (i >= sdks.length) { window._firebaseSdkReady = true; return; }
-    loadScript(sdks[i], fallbacks[i], function() { i++; loadNext(); });
-  }
-  loadNext();
-})();
+<!-- Firebase v10 Modular SDK — через esm shim для совместимости с обычными скриптами -->
+<!-- ИСПРАВЛЕНИЕ: compat SDK + signInWithRedirect сломан на GitHub Pages из-за блокировки
+     third-party cookies Google'ом в 2023. Modular SDK + signInWithPopup — единственный
+     надёжный вариант для статических хостингов без бэкенда. -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+  import {
+    getAuth,
+    GoogleAuthProvider,
+    signInWithPopup,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged
+  } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+  import {
+    getFirestore,
+    collection,
+    doc,
+    getDocs,
+    writeBatch,
+    setDoc,
+    getDoc
+  } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+  // Пробрасываем всё в window чтобы обычные <script> ниже могли использовать
+  window._fbModular = {
+    initializeApp, getAuth, GoogleAuthProvider, signInWithPopup,
+    signInWithEmailAndPassword, createUserWithEmailAndPassword,
+    signOut, onAuthStateChanged,
+    getFirestore, collection, doc, getDocs, writeBatch, setDoc, getDoc
+  };
+  window._firebaseSdkReady = true;
 </script>
 
 <script>
@@ -8375,27 +8375,19 @@ let fbAuthMode = 'login'; // 'login' | 'register'
 
 function initFirebase() {
   try {
-    if (typeof firebase === 'undefined') return;
-    fbApp = firebase.initializeApp(FIREBASE_CONFIG);
-    fbAuth = firebase.auth();
-    fbDb = firebase.firestore();
+    const fb = window._fbModular;
+    if (!fb) return;
 
-    // Обрабатываем результат после редиректа Google Sign-In
-    fbAuth.getRedirectResult().then(result => {
-      if (result && result.user) {
-        closeFbAuthModal();
-        startApp();
-        showToast('✅ Google');
-      }
-    }).catch(e => {
-      const err = document.getElementById('fb-auth-error');
-      if (err) err.textContent = e.message;
-    });
+    fbApp = fb.initializeApp(FIREBASE_CONFIG);
+    fbAuth = fb.getAuth(fbApp);
+    fbDb   = fb.getFirestore(fbApp);
 
-    fbAuth.onAuthStateChanged(user => {
+    // Сохраняем функции для использования в других методах
+    window._fbFns = fb;
+
+    fb.onAuthStateChanged(fbAuth, user => {
       fbCurrentUser = user;
       if (user) {
-        // User is signed in — sync from Firestore
         fbSyncFromCloud();
         renderProfile();
         showToast('☁️ ' + (lang === 'ru' ? 'Синхронизация...' : 'Syncing...'));
@@ -8456,7 +8448,8 @@ function fbToggleMode() {
 }
 
 async function fbSubmitEmail() {
-  if (!fbAuth) return;
+  if (!fbAuth || !window._fbFns) return;
+  const fb = window._fbFns;
   const email = document.getElementById('fb-auth-email')?.value?.trim();
   const password = document.getElementById('fb-auth-password')?.value;
   const err = document.getElementById('fb-auth-error');
@@ -8465,9 +8458,9 @@ async function fbSubmitEmail() {
   if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '...'; }
   try {
     if (fbAuthMode === 'register') {
-      await fbAuth.createUserWithEmailAndPassword(email, password);
+      await fb.createUserWithEmailAndPassword(fbAuth, email, password);
     } else {
-      await fbAuth.signInWithEmailAndPassword(email, password);
+      await fb.signInWithEmailAndPassword(fbAuth, email, password);
     }
     closeFbAuthModal();
     startApp();
@@ -8479,6 +8472,7 @@ async function fbSubmitEmail() {
       'auth/email-already-in-use': 'Email уже используется',
       'auth/weak-password': 'Пароль слишком короткий',
       'auth/invalid-email': 'Неверный формат email',
+      'auth/invalid-credential': 'Неверный email или пароль',
     };
     if (err) err.textContent = msgs[e.code] || e.message;
   }
@@ -8487,81 +8481,95 @@ async function fbSubmitEmail() {
 
 async function fbSignInGoogle() {
   if (!fbAuth) return;
+  const err = document.getElementById('fb-auth-error');
   try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    // Используем redirect вместо popup — popup не работает на GitHub Pages
-    await fbAuth.signInWithRedirect(provider);
+    const fb = window._fbFns;
+    const provider = new fb.GoogleAuthProvider();
+    // signInWithPopup работает на GitHub Pages без проблем с cookies
+    // signInWithRedirect сломан в compat SDK из-за блокировки Google third-party cookies
+    const result = await fb.signInWithPopup(fbAuth, provider);
+    if (result.user) {
+      closeFbAuthModal();
+      startApp();
+      showToast('✅ Google: ' + (result.user.displayName || result.user.email));
+    }
   } catch(e) {
-    const err = document.getElementById('fb-auth-error');
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
     if (err) err.textContent = e.message;
+    console.warn('Google Sign-In error:', e.code, e.message);
   }
 }
 
 function fbSignOut() {
-  if (fbAuth) { fbAuth.signOut(); }
+  if (fbAuth && window._fbFns) { window._fbFns.signOut(fbAuth); }
   logoutUser();
 }
 
 // ── Firestore sync helpers ──
 function fbUserDoc(subCollection) {
-  if (!fbDb || !fbCurrentUser) return null;
-  return fbDb.collection('users').doc(fbCurrentUser.uid).collection(subCollection);
+  if (!fbDb || !fbCurrentUser || !window._fbFns) return null;
+  const fb = window._fbFns;
+  return fb.collection(fbDb, 'users', fbCurrentUser.uid, subCollection);
 }
 
 async function fbSaveFields(fields) {
-  const col = fbUserDoc('fields');
-  if (!col) return;
+  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const fb = window._fbFns;
   try {
-    const batch = fbDb.batch();
-    // Clear existing
-    const snap = await col.get();
+    const col = fb.collection(fbDb, 'users', fbCurrentUser.uid, 'fields');
+    const snap = await fb.getDocs(col);
+    const batch = fb.writeBatch(fbDb);
     snap.forEach(d => batch.delete(d.ref));
-    fields.forEach(f => batch.set(col.doc(f.id), f));
+    fields.forEach(f => batch.set(fb.doc(fbDb, 'users', fbCurrentUser.uid, 'fields', f.id), f));
     await batch.commit();
   } catch(e) { console.warn('fbSaveFields error:', e); }
 }
 
 async function fbSaveNotes(notes) {
-  const col = fbUserDoc('notes');
-  if (!col) return;
+  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const fb = window._fbFns;
   try {
-    const batch = fbDb.batch();
-    const snap = await col.get();
+    const col = fb.collection(fbDb, 'users', fbCurrentUser.uid, 'notes');
+    const snap = await fb.getDocs(col);
+    const batch = fb.writeBatch(fbDb);
     snap.forEach(d => batch.delete(d.ref));
-    notes.forEach((n, i) => batch.set(col.doc('note_' + i), n));
+    notes.forEach((n, i) => batch.set(fb.doc(fbDb, 'users', fbCurrentUser.uid, 'notes', 'note_' + i), n));
     await batch.commit();
   } catch(e) { console.warn('fbSaveNotes error:', e); }
 }
 
 async function fbSaveSettings(settings) {
-  if (!fbDb || !fbCurrentUser) return;
+  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const fb = window._fbFns;
   try {
-    await fbDb.collection('users').doc(fbCurrentUser.uid).set({ settings }, { merge: true });
+    await fb.setDoc(fb.doc(fbDb, 'users', fbCurrentUser.uid), { settings }, { merge: true });
   } catch(e) {}
 }
 
 // ── Сохранение сезонов в Firestore ──
 async function fbSaveSeasonsMgr(seasons) {
-  if (!fbDb || !fbCurrentUser) return;
+  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const fb = window._fbFns;
   try {
-    await fbDb.collection('users').doc(fbCurrentUser.uid)
-      .set({ seasonsMgr: seasons }, { merge: true });
+    await fb.setDoc(fb.doc(fbDb, 'users', fbCurrentUser.uid), { seasonsMgr: seasons }, { merge: true });
   } catch(e) { console.warn('fbSaveSeasonsMgr error:', e); }
 }
 
 async function fbSaveActiveSeason(name) {
-  if (!fbDb || !fbCurrentUser) return;
+  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const fb = window._fbFns;
   try {
-    await fbDb.collection('users').doc(fbCurrentUser.uid)
-      .set({ activeSeason: name }, { merge: true });
+    await fb.setDoc(fb.doc(fbDb, 'users', fbCurrentUser.uid), { activeSeason: name }, { merge: true });
   } catch(e) { console.warn('fbSaveActiveSeason error:', e); }
 }
 
 async function fbSyncFromCloud() {
-  if (!fbDb || !fbCurrentUser) return;
+  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const fb = window._fbFns;
   try {
     // ── Поля ──
-    const fieldsSnap = await fbUserDoc('fields').get();
+    const fieldsCol = fb.collection(fbDb, 'users', fbCurrentUser.uid, 'fields');
+    const fieldsSnap = await fb.getDocs(fieldsCol);
     if (!fieldsSnap.empty) {
       const cloudFields = fieldsSnap.docs.map(d => d.data());
       localStorage.setItem(STORAGE_PREFIX + '-fields', JSON.stringify(cloudFields));
@@ -8573,23 +8581,21 @@ async function fbSyncFromCloud() {
     }
 
     // ── Настройки, сезоны, активный сезон ──
-    const userDoc = await fbDb.collection('users').doc(fbCurrentUser.uid).get();
-    if (userDoc.exists) {
-      const data = userDoc.data();
+    const userDocRef = fb.doc(fbDb, 'users', fbCurrentUser.uid);
+    const userDocSnap = await fb.getDoc(userDocRef);
+    if (userDocSnap.exists()) {
+      const data = userDocSnap.data();
 
-      // Настройки
       if (data.settings) {
         const s = { ...loadSettings(), ...data.settings };
         localStorage.setItem(STORAGE_PREFIX + '-settings', JSON.stringify(s));
         applyTheme(s.theme);
       }
 
-      // Менеджер сезонов
       if (data.seasonsMgr && Array.isArray(data.seasonsMgr)) {
         localStorage.setItem(STORAGE_PREFIX + '-seasons-mgr', JSON.stringify(data.seasonsMgr));
       }
 
-      // Активный сезон
       if (data.activeSeason) {
         localStorage.setItem(STORAGE_PREFIX + '-active-season', data.activeSeason);
         updateSeasonLabel();
@@ -8743,13 +8749,13 @@ function renderProfile() {
   `;
 }
 
-// Init Firebase — ждём загрузки SDK с polling (до 10 секунд)
+// Init Firebase — ждём загрузки Modular SDK (type="module" выполняется асинхронно)
 window.addEventListener('load', () => {
   var attempts = 0;
   var maxAttempts = 50; // 50 x 200ms = 10s
   function tryInit() {
     attempts++;
-    if (typeof firebase !== 'undefined' && firebase.app) {
+    if (window._firebaseSdkReady && window._fbModular) {
       initFirebase();
       return;
     }
@@ -8759,7 +8765,7 @@ window.addEventListener('load', () => {
       console.warn('Firebase SDK не загрузился за 10 секунд. Работаем в offline-режиме.');
     }
   }
-  setTimeout(tryInit, 300);
+  setTimeout(tryInit, 100);
 });
 
 /*
