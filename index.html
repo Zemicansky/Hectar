@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <!-- FIX 2: Full mobile/PWA adaptation — viewport-fit=cover ensures content fills notch/Dynamic Island area -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Hectar 2.1 — мониторинг полей</title>
+<title>Hectar 2.2 — мониторинг полей</title>
 
 <!-- FIX 2: PWA full-screen on iOS — black-translucent hides Safari URL bar when added to home screen -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2624,6 +2624,17 @@
      We use @media (display-mode: standalone) AND the JS-added class .pwa-standalone
      to apply extra top padding so nothing hides under the status bar. */
   @media (display-mode: standalone) {
+    html, body {
+      height: 100% !important;
+      height: -webkit-fill-available !important;
+      overflow: hidden !important;
+    }
+    #app-wrapper {
+      height: 100% !important;
+      height: -webkit-fill-available !important;
+      min-height: unset !important;
+      max-height: 100% !important;
+    }
     .screen-header {
       padding-top: calc(env(safe-area-inset-top, 20px) + 20px) !important;
     }
@@ -2635,6 +2646,15 @@
     }
   }
   /* JS-detected standalone fallback for iOS where matchMedia doesn't always fire */
+  html.pwa-standalone, html.pwa-standalone body {
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+  html.pwa-standalone #app-wrapper {
+    height: 100% !important;
+    min-height: unset !important;
+    max-height: 100% !important;
+  }
   html.pwa-standalone .screen-header {
     padding-top: calc(var(--safe-top) + 20px);
   }
@@ -3174,7 +3194,7 @@
     <div class="login-title">Hec<span>tar</span></div>
     <div class="login-subtitle" id="login-subtitle">
       Мониторинг сельскохозяйственных полей<br>
-      Agricultural field monitoring · v2.1
+      Agricultural field monitoring · v2.2
     </div>
 
     <button class="login-btn google" onclick="openFbAuthModal('google')">
@@ -3245,6 +3265,7 @@
       <!-- Переключатель слоёв -->
       <div id="layer-switcher">
         <button class="layer-btn active" id="layer-btn-satellite" onclick="setMapLayer('satellite')" data-i18n="satellite">Спутник</button>
+        <button class="layer-btn" id="layer-btn-eox" onclick="setMapLayer('eox')">Sentinel</button>
         <button class="layer-btn" id="layer-btn-osm" onclick="setMapLayer('osm')" data-i18n="streets">Карта</button>
       </div>
 
@@ -3313,8 +3334,8 @@
           </button>
           <div class="draw-mode-pill">
             <button type="button" id="draw-select-btn" onclick="setDrawModeSelect()">
-              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path d="M6 2L3 6v14l3 2 6-4 7 4 3-2V6l-3-4H6z"/></svg>
-              <span data-i18n="select">Select</span>
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path d="M2 12h20M12 2v20"/><circle cx="12" cy="12" r="3"/></svg>
+              <span data-i18n="select">Измерить</span>
             </button>
             <button type="button" id="draw-draw-btn" class="active" onclick="setDrawModeDraw()">
               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -3895,7 +3916,7 @@
 // ════════════════════════════════════════════════════
 // КОНСТАНТЫ ПРИЛОЖЕНИЯ
 // ════════════════════════════════════════════════════
-const APP_VERSION = '2.1';
+const APP_VERSION = '2.2';
 const STORAGE_PREFIX = 'hectar';
 const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
 const DEFAULT_MAP_ZOOM = 11;
@@ -3979,7 +4000,7 @@ const translations = {
     addFields: 'Добавить поле', satellite: 'Спутник', streets: 'Карта',
     signInGoogle: 'Войти через Google', signInEmail: 'Войти по Email',
     continueGuest: 'Продолжить как гость',
-    select: 'Выбрать', draw: 'Нарисовать', undo: 'Отменить',
+    select: 'Измерить', draw: 'Нарисовать', undo: 'Отменить',
     finishBoundary: 'Завершить границу поля',
     finishShort: 'Готово',
     drawHint: 'Нажмите на карту, чтобы добавить точки',
@@ -4030,7 +4051,7 @@ const translations = {
     addFields: 'Add field', satellite: 'Satellite', streets: 'Map',
     signInGoogle: 'Sign in with Google', signInEmail: 'Sign in with Email',
     continueGuest: 'Continue as Guest',
-    select: 'Select', draw: 'Draw', undo: 'Undo',
+    select: 'Measure', draw: 'Draw', undo: 'Undo',
     finishBoundary: 'Finish field boundary',
     finishShort: 'Finish',
     drawHint: 'Tap on map to add points',
@@ -4217,13 +4238,15 @@ function generateId() {
 // ════════════════════════════════════════════════════
 // КАРТА LEAFLET
 // ════════════════════════════════════════════════════
-let map, satelliteLayer, osmLayer, drawnPolygons = {};
+let map, satelliteLayer, osmLayer, eoxLayer, drawnPolygons = {};
 let countriesLayer = null, countryLabelsLayer = null, cityLabelsLayer = null;
 let countriesGeoData = null, citiesGeoData = null;
 let currentDrawPoints = [];
 let tempPolyline = null, tempPolygon = null;
 let currentLayer = 'satellite';
 let isDrawing = false;
+let isMeasureMode = false;
+let currentMeasurePoints = [];
 let currentFieldIdForPhotos = null;
 let currentNoteFilter = 'all';
 let searchDebounceTimer = null;
@@ -4599,25 +4622,53 @@ function _ensureOsmLayer() {
   }
 }
 
+
+// EOX Sentinel-2 Cloudless — официальный бесплатный сервис ESA, снимки 2023, 10м/пкс
+let _eoxLayerReady = false;
+function _ensureEoxLayer() {
+  if (_eoxLayerReady) return;
+  _eoxLayerReady = true;
+  // tiles.maps.eox.at — актуальный хост EOX (s2maps-tiles.eu устарел)
+  // Слой s2cloudless-2024_3857 — последний доступный годовой мозаик 10м/пкс
+  eoxLayer = L.tileLayer(
+    'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg',
+    {
+      ...TILE_OPTS,
+      maxNativeZoom: 14,
+      maxZoom: 18,
+      attribution: '<a href="https://s2maps.eu" target="_blank">Sentinel-2 cloudless 2024</a> &copy; <a href="https://eox.at" target="_blank">EOX IT Services GmbH</a> (Copernicus Sentinel data 2024)'
+    }
+  );
+  if (map._showTileLoader) {
+    eoxLayer.on('loading', () => map._showTileLoader());
+    eoxLayer.on('load',    () => map._hideTileLoader());
+    eoxLayer.on('tileerror', () => map._hideTileLoader());
+  }
+}
+
+
 function setMapLayer(type) {
+  // Remove all base layers
+  if (osmLayer && map.hasLayer(osmLayer)) osmLayer.removeFrom(map);
+  if (eoxLayer && map.hasLayer(eoxLayer)) eoxLayer.removeFrom(map);
+  if (map.hasLayer(satelliteLayer)) satelliteLayer.removeFrom(map);
+
   if (type === 'satellite') {
-    if (osmLayer && map.hasLayer(osmLayer)) osmLayer.removeFrom(map);
     satelliteLayer.addTo(map);
+  } else if (type === 'eox') {
+    _ensureEoxLayer();
+    eoxLayer.addTo(map);
+    setTimeout(() => { map.invalidateSize(); eoxLayer.redraw(); }, 100);
   } else {
-    _ensureOsmLayer(); // FIXED #2: create on first use
-    if (map.hasLayer(satelliteLayer)) satelliteLayer.removeFrom(map);
+    _ensureOsmLayer();
     osmLayer.addTo(map);
-    // Force tile repaint to ensure schematic tiles render
-    setTimeout(() => {
-      map.invalidateSize();
-      osmLayer.redraw();
-    }, 100);
+    setTimeout(() => { map.invalidateSize(); osmLayer.redraw(); }, 100);
   }
   currentLayer = type;
-  const satBtn = document.getElementById('layer-btn-satellite');
-  const osmBtn = document.getElementById('layer-btn-osm');
-  if (satBtn) satBtn.classList.toggle('active', type === 'satellite');
-  if (osmBtn) osmBtn.classList.toggle('active', type === 'osm');
+  ['satellite','osm','eox'].forEach(t => {
+    const btn = document.getElementById(`layer-btn-${t}`);
+    if (btn) btn.classList.toggle('active', t === type);
+  });
 }
 
 // ════════════════════════════════════════════════════
@@ -4732,23 +4783,57 @@ async function sampleNdviForField(field) {
           offCanvas.width = tileSize; offCanvas.height = tileSize;
           const offCtx = offCanvas.getContext('2d');
           offCtx.drawImage(img, 0, 0);
-          // Sample a small 5x5 area around the center pixel for averaging
-          const px = Math.min(Math.max(Math.round(xFrac), 2), tileSize - 3);
-          const py = Math.min(Math.max(Math.round(yFrac), 2), tileSize - 3);
-          const data = offCtx.getImageData(px - 2, py - 2, 5, 5).data;
+          // Sample a 9x9 area around the center pixel for better averaging
+          const px = Math.min(Math.max(Math.round(xFrac), 4), tileSize - 5);
+          const py = Math.min(Math.max(Math.round(yFrac), 4), tileSize - 5);
+          const data = offCtx.getImageData(px - 4, py - 4, 9, 9).data;
           let totalNdvi = 0, count = 0;
           for (let i = 0; i < data.length; i += 4) {
             const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
             if (a === 0) continue; // transparent = no data
-            // NASA GIBS NDVI colormap: decode NDVI from RGB
-            // The MODIS_Terra_NDVI colormap maps -0.2..1.0 to color palette
-            // Green channel dominant = high NDVI, red = low
-            // Approximate: ndvi ≈ (g - r) / (g + r + 1) * 2 - 0.2
-            const ndviEst = (g - r) / (g + r + b + 1);
-            totalNdvi += ndviEst * 1.4 + 0.15; // calibrate to -0.1..0.9 range
+            // NASA GIBS MODIS_Terra_NDVI uses the standard NDVI colormap:
+            // NDVI range: -0.2 to 1.0 mapped across the palette (256 colors)
+            // The colormap goes: dark-brown (low) → yellow → green → dark-green (high)
+            // Better decode: find hue in HSL space and map to NDVI
+            const rn = r / 255, gn = g / 255, bn = b / 255;
+            const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
+            const l = (max + min) / 2;
+            let h = 0;
+            if (max !== min) {
+              const d = max - min;
+              if (max === gn) h = ((bn - rn) / d + 2) / 6;
+              else if (max === bn) h = ((rn - gn) / d + 4) / 6;
+              else h = ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6;
+            }
+            // Hue mapping for NDVI colormap:
+            // h≈0.05–0.12 (yellow-orange) → low NDVI ~0–0.2
+            // h≈0.20–0.40 (green) → moderate NDVI ~0.3–0.6
+            // h≈0.38–0.45 (dark green) → high NDVI ~0.6–1.0
+            // Very low NDVI (bare soil, water): brownish/reddish, h near 0 or low l
+            let ndviEst;
+            if (l < 0.12) {
+              // Very dark → water or missing data, skip
+              continue;
+            } else if (h < 0.05 || h > 0.9) {
+              // Red/brown: bare soil, NDVI ~ -0.1 to 0.1
+              ndviEst = -0.1 + (1 - l) * 0.2;
+            } else if (h < 0.15) {
+              // Yellow-orange: sparse veg, NDVI ~ 0.1 to 0.3
+              ndviEst = 0.1 + (h - 0.05) / 0.10 * 0.2;
+            } else if (h < 0.30) {
+              // Light green: moderate, NDVI ~ 0.3 to 0.55
+              ndviEst = 0.3 + (h - 0.15) / 0.15 * 0.25;
+            } else {
+              // Deep green: dense, NDVI ~ 0.55 to 0.9
+              ndviEst = 0.55 + Math.min((h - 0.30) / 0.15, 1) * 0.35;
+            }
+            // Adjust by saturation — grey pixels are less reliable
+            const s = max === 0 ? 0 : (max - min) / max;
+            if (s < 0.2) continue; // skip near-grey pixels
+            totalNdvi += ndviEst;
             count++;
           }
-          resolve(count > 0 ? Math.max(-0.1, Math.min(0.95, totalNdvi / count)) : null);
+          resolve(count > 0 ? Math.max(-0.2, Math.min(0.95, totalNdvi / count)) : null);
         } catch (e) { resolve(null); }
       };
       img.onerror = () => { clearTimeout(timeout); resolve(null); };
@@ -5227,7 +5312,11 @@ function startDrawMode() {
 
 function cancelDrawMode() {
   isDrawing = false;
+  isMeasureMode = false;
   currentDrawPoints = [];
+  currentMeasurePoints = [];
+  if (window._rulerLine) { map.removeLayer(window._rulerLine); window._rulerLine = null; }
+  if (window._rulerMarkers) { window._rulerMarkers.forEach(m => map.removeLayer(m)); window._rulerMarkers = []; }
   clearRubberBand(); // FIX 1.8
   setDrawModeActive(false);
   clearTempDrawLayers();
@@ -5300,6 +5389,61 @@ function clearTempDrawLayers() {
 }
 
 function onMapClick(e) {
+  // Ruler / measure mode — unlimited points, shows segment + total distance
+  if (isMeasureMode) {
+    const pt = [e.latlng.lat, e.latlng.lng];
+    currentMeasurePoints.push(pt);
+    if (!window._rulerMarkers) window._rulerMarkers = [];
+
+    // Draw marker for this point
+    const isFirst = currentMeasurePoints.length === 1;
+    const marker = L.circleMarker([pt[0], pt[1]], {
+      radius: isFirst ? 6 : 5,
+      color: '#FFD700',
+      fillColor: isFirst ? '#FF8C00' : '#FFD700',
+      fillOpacity: 1,
+      weight: 2
+    }).addTo(map);
+    window._rulerMarkers.push(marker);
+
+    if (currentMeasurePoints.length === 1) {
+      const hint = document.getElementById('draw-hint');
+      if (hint) hint.textContent = lang === 'ru'
+        ? 'Добавляйте точки — маршрут накапливается. Кнопка сброса — "Отменить"'
+        : 'Keep adding points — route accumulates. Use "Undo" to reset';
+    }
+
+    if (currentMeasurePoints.length >= 2) {
+      // Redraw full polyline through all points
+      if (window._rulerLine) map.removeLayer(window._rulerLine);
+      window._rulerLine = L.polyline(currentMeasurePoints, {
+        color: '#FFD700', weight: 2.5, dashArray: '8,5', opacity: 0.95
+      }).addTo(map);
+
+      // Compute total distance along all segments
+      const line = turf.lineString(currentMeasurePoints.map(c => [c[1], c[0]]));
+      const totalKm = turf.length(line, { units: 'kilometers' });
+
+      // Also compute last segment distance
+      const lastTwo = currentMeasurePoints.slice(-2);
+      const segLine = turf.lineString(lastTwo.map(c => [c[1], c[0]]));
+      const segKm = turf.length(segLine, { units: 'kilometers' });
+
+      const label = document.getElementById('draw-area-label');
+      if (label) {
+        const fmtKm = (km) => km >= 1
+          ? km.toFixed(3) + (lang === 'ru' ? ' км' : ' km')
+          : (km * 1000).toFixed(0) + (lang === 'ru' ? ' м' : ' m');
+        const n = currentMeasurePoints.length;
+        if (n === 2) {
+          label.textContent = fmtKm(totalKm);
+        } else {
+          label.textContent = `${fmtKm(totalKm)} (${lang === 'ru' ? 'участок' : 'seg'}: ${fmtKm(segKm)}, ${n} ${lang === 'ru' ? 'точек' : 'pts'})`;
+        }
+      }
+    }
+    return;
+  }
   if (!isDrawing) return;
   // FIX 1.8: моментально убираем резиновую линию при клике (новая точка)
   clearRubberBand();
@@ -5387,7 +5531,7 @@ function updateDrawArea() {
     const perim = turf.length(line, { units: 'kilometers' });
     // FIX: Always km² first, then ha, then perimeter
     const areaKm2 = area / 100;
-    label.textContent = `${areaKm2.toFixed(2)} ${lang === 'ru' ? 'км²' : 'km²'} (${area.toFixed(1)} ${lang === 'ru' ? 'га' : 'ha'}) · ${perim.toFixed(2)} ${lang === 'ru' ? 'км' : 'km'}`;
+    label.textContent = `${areaKm2.toFixed(2)} ${lang === 'ru' ? 'км²' : 'km²'} (${area.toFixed(1)} ${lang === 'ru' ? 'га' : 'ha'})`;
   } else if (currentDrawPoints.length === 2) {
     const line = turf.lineString(currentDrawPoints.map(c => [c[1], c[0]]));
     const dist = turf.length(line, { units: 'kilometers' });
@@ -5398,6 +5542,47 @@ function updateDrawArea() {
 }
 
 function undoLastPoint() {
+  // Measure/ruler mode: remove last point and redraw
+  if (isMeasureMode) {
+    if (currentMeasurePoints.length === 0) return;
+    currentMeasurePoints.pop();
+    // Remove last marker
+    if (window._rulerMarkers && window._rulerMarkers.length > 0) {
+      const lastMarker = window._rulerMarkers.pop();
+      map.removeLayer(lastMarker);
+    }
+    // Redraw line
+    if (window._rulerLine) { map.removeLayer(window._rulerLine); window._rulerLine = null; }
+    if (currentMeasurePoints.length >= 2) {
+      window._rulerLine = L.polyline(currentMeasurePoints, {
+        color: '#FFD700', weight: 2.5, dashArray: '8,5', opacity: 0.95
+      }).addTo(map);
+      const line = turf.lineString(currentMeasurePoints.map(c => [c[1], c[0]]));
+      const totalKm = turf.length(line, { units: 'kilometers' });
+      const fmtKm = (km) => km >= 1
+        ? km.toFixed(3) + (lang === 'ru' ? ' км' : ' km')
+        : (km * 1000).toFixed(0) + (lang === 'ru' ? ' м' : ' m');
+      const label = document.getElementById('draw-area-label');
+      if (label) {
+        const n = currentMeasurePoints.length;
+        if (n === 2) {
+          label.textContent = fmtKm(totalKm);
+        } else {
+          const lastTwo = currentMeasurePoints.slice(-2);
+          const segKm = turf.length(turf.lineString(lastTwo.map(c => [c[1], c[0]])), { units: 'kilometers' });
+          label.textContent = `${fmtKm(totalKm)} (${lang === 'ru' ? 'участок' : 'seg'}: ${fmtKm(segKm)}, ${n} ${lang === 'ru' ? 'точек' : 'pts'})`;
+        }
+      }
+    } else {
+      const label = document.getElementById('draw-area-label');
+      if (label) label.textContent = '';
+    }
+    if (currentMeasurePoints.length === 0) {
+      const hint = document.getElementById('draw-hint');
+      if (hint) hint.textContent = lang === 'ru' ? 'Нажимайте на карту, чтобы добавить точки маршрута' : 'Tap on map to add route points';
+    }
+    return;
+  }
   if (currentDrawPoints.length > 0) {
     currentDrawPoints.pop();
     updateTempDraw();
@@ -5420,12 +5605,31 @@ function setDrawModeDraw() {
   document.getElementById('draw-draw-btn').classList.add('active');
   document.getElementById('draw-select-btn').classList.remove('active');
   isDrawing = true;
+  // Exit ruler mode if active
+  isMeasureMode = false;
+  currentMeasurePoints = [];
+  // Clear ruler line from map
+  if (window._rulerLine) { map.removeLayer(window._rulerLine); window._rulerLine = null; }
+  if (window._rulerMarkers) { window._rulerMarkers.forEach(m => map.removeLayer(m)); window._rulerMarkers = []; }
+  updateDrawArea();
+  const hint = document.getElementById('draw-hint');
+  if (hint) hint.textContent = lang === 'ru' ? 'Нажмите на карту, чтобы добавить точки' : 'Tap on map to add points';
 }
 
 function setDrawModeSelect() {
   document.getElementById('draw-select-btn').classList.add('active');
   document.getElementById('draw-draw-btn').classList.remove('active');
   isDrawing = false;
+  // Activate ruler/measure mode — clear field drawing
+  isMeasureMode = true;
+  currentMeasurePoints = [];
+  if (window._rulerLine) { map.removeLayer(window._rulerLine); window._rulerLine = null; }
+  if (window._rulerMarkers) { window._rulerMarkers.forEach(m => map.removeLayer(m)); window._rulerMarkers = []; }
+  const label = document.getElementById('draw-area-label');
+  if (label) label.textContent = '';
+  const hint = document.getElementById('draw-hint');
+  if (hint) hint.textContent = lang === 'ru' ? 'Нажимайте на карту, чтобы добавить точки маршрута' : 'Tap on map to add route points';
+  hint && hint.classList.add('visible');
 }
 
 // ════════════════════════════════════════════════════
@@ -7323,7 +7527,7 @@ function renderProfile() {
     <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
       <div class="about-block">
-        <div class="about-logo">Hectar 2.1</div>
+        <div class="about-logo">Hectar 2.2</div>
         <div>${t('aboutTagline')}</div>
         <div class="about-version">${t('version')} ${APP_VERSION}</div>
       </div>
@@ -8043,9 +8247,11 @@ function startApp() {
   // In standalone/PWA mode on iOS, env(safe-area-inset-top) correctly gives status bar height.
   // But we need to ensure the CSS var is set via JS for older devices where env() may be 0.
   function setVh() {
-    const vh = window.innerHeight * 0.01;
+    // Use visualViewport height when available (most accurate on iOS PWA)
+    const h = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+    const vh = h * 0.01;
     document.documentElement.style.setProperty('--vh', vh + 'px');
-    document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+    document.documentElement.style.setProperty('--app-height', h + 'px');
 
     // In PWA standalone: read actual safe-area from computed style (env() resolved value)
     if (isStandalone) {
@@ -8519,7 +8725,7 @@ function renderProfile() {
     <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
       <div class="about-block">
-        <div class="about-logo">Hectar 2.1</div>
+        <div class="about-logo">Hectar 2.2</div>
         <div>${t('aboutTagline')}</div>
         <div class="about-version">${t('version')} ${APP_VERSION}</div>
       </div>
