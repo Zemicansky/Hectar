@@ -3167,6 +3167,84 @@
     margin-top: 4px;
   }
 
+  /* ── Delete Account Button ── */
+  .delete-account-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--danger);
+    background: transparent;
+    color: var(--danger);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: background 0.2s, color 0.2s;
+  }
+  .delete-account-btn:hover { background: rgba(229,57,53,0.08); }
+  .delete-account-btn:active { transform: scale(0.98); }
+
+  /* ── Delete Account Captcha Modal ── */
+  .captcha-modal-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.72);
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .captcha-modal-overlay.open { display: flex; }
+  .captcha-modal-sheet {
+    background: var(--bg2);
+    border-radius: 20px;
+    padding: 28px 24px 24px;
+    max-width: 360px; width: 100%;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+  }
+  .captcha-modal-title {
+    font-size: 18px; font-weight: 700;
+    color: var(--danger); margin-bottom: 8px;
+  }
+  .captcha-modal-sub {
+    font-size: 13px; color: var(--text2); margin-bottom: 20px; line-height: 1.5;
+  }
+  .captcha-challenge {
+    background: var(--bg3);
+    border-radius: 10px; padding: 16px;
+    text-align: center; margin-bottom: 16px;
+  }
+  .captcha-question {
+    font-size: 22px; font-weight: 700; color: var(--text1);
+    letter-spacing: 2px; margin-bottom: 10px;
+    user-select: none;
+  }
+  .captcha-input {
+    width: 100%; padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text1); font-size: 16px;
+    text-align: center; outline: none;
+    box-sizing: border-box;
+  }
+  .captcha-input:focus { border-color: var(--danger); }
+  .captcha-error {
+    color: var(--danger); font-size: 12px;
+    text-align: center; min-height: 16px;
+    margin-bottom: 8px;
+  }
+  .captcha-btns { display: flex; gap: 10px; }
+  .captcha-cancel-btn {
+    flex: 1; padding: 13px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text2); font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .captcha-confirm-btn {
+    flex: 1; padding: 13px; border-radius: var(--radius-sm);
+    border: none; background: var(--danger);
+    color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .captcha-confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
   /* ══════════════════════════════════════
      NDVI НАСТРОЙКИ И СТАТУС
   ══════════════════════════════════════ */
@@ -3243,20 +3321,20 @@
 
     <div class="login-title">Hec<span>tar</span></div>
     <div class="login-subtitle" id="login-subtitle">
-      Agricultural field monitoring<br>
-      v2.4
+      Мониторинг сельскохозяйственных полей<br>
+      Agricultural field monitoring · v2.5
     </div>
 
     <button class="login-btn google" onclick="openFbAuthModal('google')">
       <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-      <span data-i18n="signInGoogle">Sign in with Google</span>
+      <span data-i18n="signInGoogle">Войти через Google</span>
     </button>
     <button class="login-btn email" onclick="openFbAuthModal('email')">
       <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-      <span data-i18n="signInEmail">Sign in with Email</span>
+      <span data-i18n="signInEmail">Войти по Email</span>
     </button>
     <button class="login-btn guest" onclick="startApp()">
-      <span data-i18n="continueGuest">Continue as Guest</span>
+      <span data-i18n="continueGuest">Продолжить как гость</span>
     </button>
   </div>
 
@@ -3264,14 +3342,14 @@
   <div id="fb-auth-modal" style="display:none;" class="fb-auth-modal" onclick="if(event.target===this)closeFbAuthModal()">
     <div class="fb-auth-sheet">
       <div class="fb-auth-title" id="fb-auth-title">Sign in to Hectar</div>
-      <div class="fb-auth-sub" id="fb-auth-sub">Your fields sync to the cloud</div>
+      <div class="fb-auth-sub" id="fb-auth-sub">Your data syncs to the cloud</div>
       <div class="fb-auth-error" id="fb-auth-error"></div>
       <div id="fb-auth-google-section">
         <button class="fb-auth-btn google" onclick="fbSignInGoogle()">
           <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
           Sign in with Google
         </button>
-        <div style="text-align:center;color:var(--text3);font-size:12px;margin:10px 0;">— or —</div>
+        <div style="text-align:center;color:var(--text3);font-size:12px;margin:10px 0;">— или —</div>
       </div>
       <div id="fb-auth-email-section">
         <input class="fb-auth-input" id="fb-auth-email" type="email" placeholder="Email" autocomplete="email"/>
@@ -3368,7 +3446,7 @@
         pointer-events:none;
         box-shadow:0 4px 16px rgba(0,0,0,0.4);">
         <span class="spinner" style="width:12px;height:12px;border-width:2px;flex-shrink:0;"></span>
-        <span id="map-tile-loader-text">Loading map…</span>
+        <span id="map-tile-loader-text">Загрузка карты…</span>
       </div>
 
       <!-- Геолокация -->
@@ -3425,7 +3503,7 @@
     <div id="screen-fields" class="screen">
       <div class="screen-header">
         <div class="screen-header-row">
-          <div class="screen-title" data-i18n="fields">Поля</div>
+          <div class="screen-title" data-i18n="fields">Fields</div>
           <div class="header-actions">
             <button class="icon-btn" onclick="openSearchModal()">
               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -3433,16 +3511,16 @@
             <button class="icon-btn" onclick="switchTab('map'); startDrawMode()">
               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
-            <button class="icon-btn" onclick="showToast('Меню coming soon')">
+            <button class="icon-btn" onclick="showToast('Menu coming soon')">
               <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/></svg>
             </button>
           </div>
         </div>
         <!-- Sub-tabs: Fields list | NDVI | Seasons -->
         <div class="fields-subtab-row">
-          <button class="fields-subtab active" id="subtab-list" onclick="setFieldsSubTab('list')" data-i18n="allFields">Список полей</button>
+          <button class="fields-subtab active" id="subtab-list" onclick="setFieldsSubTab('list')" data-i18n="allFields">All Fields</button>
           <button class="fields-subtab" id="subtab-ndvi" onclick="setFieldsSubTab('ndvi')">🌿 NDVI</button>
-          <button class="fields-subtab" id="subtab-seasons" onclick="setFieldsSubTab('seasons')">📊 Сезоны</button>
+          <button class="fields-subtab" id="subtab-seasons" onclick="setFieldsSubTab('seasons')">📊 Seasons</button>
         </div>
       </div>
 
@@ -3521,7 +3599,7 @@
         <!-- FAB -->
         <button class="add-season-fab" onclick="openAddSeasonModal()">
           <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          <span id="add-season-fab-label">Добавить сезон</span>
+          <span id="add-season-fab-label">Add Season</span>
         </button>
       </div>
     </div>
@@ -3530,7 +3608,7 @@
     <div id="screen-weather" class="screen">
       <div class="screen-header">
         <div class="screen-header-row">
-          <div class="screen-title" data-i18n="weather">Погода</div>
+          <div class="screen-title" data-i18n="weather">Weather</div>
           <button class="icon-btn" onclick="loadWeather()" title="Refresh">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 .49-3.7"/></svg>
           </button>
@@ -3600,7 +3678,7 @@
     <div id="screen-notes" class="screen">
       <div class="screen-header">
         <div class="screen-header-row">
-          <div class="screen-title" data-i18n="notes">Заметки</div>
+          <div class="screen-title" data-i18n="notes">Notes</div>
         </div>
         <div class="all-fields-link">
           <svg fill="currentColor" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
@@ -3631,7 +3709,7 @@
     <div id="screen-profile" class="screen">
       <div class="screen-header">
         <div class="screen-header-row">
-          <div class="screen-title" data-i18n="profile">Профиль</div>
+          <div class="screen-title" data-i18n="profile">Profile</div>
         </div>
       </div>
       <div class="profile-scroll" id="profile-content">
@@ -3645,31 +3723,31 @@
         <div class="tab-icon-wrap">
           <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         </div>
-        <span data-i18n="map">Карта</span>
+        <span data-i18n="map">Map</span>
       </button>
       <button class="tab-btn" id="tab-fields" onclick="switchTab('fields')">
         <div class="tab-icon-wrap">
           <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
         </div>
-        <span data-i18n="fields">Поля</span>
+        <span data-i18n="fields">Fields</span>
       </button>
       <button class="tab-btn" id="tab-weather" onclick="switchTab('weather')">
         <div class="tab-icon-wrap">
           <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
         </div>
-        <span data-i18n="weather">Погода</span>
+        <span data-i18n="weather">Weather</span>
       </button>
       <button class="tab-btn" id="tab-notes" onclick="switchTab('notes')">
         <div class="tab-icon-wrap">
           <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         </div>
-        <span data-i18n="notes">Заметки</span>
+        <span data-i18n="notes">Notes</span>
       </button>
       <button class="tab-btn" id="tab-profile" onclick="switchTab('profile')">
         <div class="tab-icon-wrap">
           <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         </div>
-        <span data-i18n="profile">Профиль</span>
+        <span data-i18n="profile">Profile</span>
       </button>
     </div>
   </div>
@@ -3703,22 +3781,22 @@
       <div class="modal-handle"></div>
       <!-- FIX v1.9.1: Added header row with × close button for clear dismiss behavior -->
       <div class="modal-header-row" style="margin-bottom:4px;">
-        <button class="modal-cancel-btn" onclick="closeModal('modal-save-field'); cancelDrawMode();" data-i18n="cancel">Cancel</button>
-        <div class="modal-title" style="margin:0" data-i18n="newField">New field</div>
-        <button class="modal-action-btn" onclick="saveNewField()" data-i18n="save">Save</button>
+        <button class="modal-cancel-btn" onclick="closeModal('modal-save-field'); cancelDrawMode();" data-i18n="cancel">Отмена</button>
+        <div class="modal-title" style="margin:0" data-i18n="newField">Новое поле</div>
+        <button class="modal-action-btn" onclick="saveNewField()" data-i18n="save">Сохранить</button>
       </div>
       <div class="modal-form-group">
-        <label class="modal-label" data-i18n="fieldName">Field name</label>
-        <input class="modal-input" id="new-field-name" type="text" placeholder="Field 1"/>
+        <label class="modal-label" data-i18n="fieldName">Название поля</label>
+        <input class="modal-input" id="new-field-name" type="text" placeholder="Поле 1"/>
       </div>
       <div class="modal-form-group">
-        <label class="modal-label" data-i18n="crop">Crop</label>
+        <label class="modal-label" data-i18n="crop">Культура</label>
         <select class="modal-select" id="new-field-crop">
           <option value="" data-i18n="noCrop">No crop</option>
         </select>
       </div>
       <div class="modal-form-group" style="margin-bottom:0;">
-        <label class="modal-label" data-i18n="fieldColor">Color</label>
+        <label class="modal-label" data-i18n="fieldColor">Цвет</label>
         <div class="color-picker" id="new-field-colors" style="margin-bottom:0;">
           <!-- Цвета генерируются JS -->
         </div>
@@ -3732,26 +3810,26 @@
   <div class="modal-overlay" id="modal-add-event">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <div class="modal-title" data-i18n="addEvent">Add event</div>
+      <div class="modal-title" data-i18n="addEvent">Добавить событие</div>
       <div class="modal-form-group">
-        <label class="modal-label" data-i18n="eventType">Type</label>
+        <label class="modal-label" data-i18n="eventType">Тип</label>
         <select class="modal-select" id="event-type">
-          <option value="sowing" data-i18n="sowing">Sowing</option>
-          <option value="harvest" data-i18n="harvest">Harvest</option>
-          <option value="watering" data-i18n="watering">Watering</option>
-          <option value="spraying" data-i18n="spraying">Spraying</option>
+          <option value="sowing" data-i18n="sowing">Посев</option>
+          <option value="harvest" data-i18n="harvest">Уборка</option>
+          <option value="watering" data-i18n="watering">Полив</option>
+          <option value="spraying" data-i18n="spraying">Опрыскивание</option>
         </select>
       </div>
       <div class="modal-form-group">
-        <label class="modal-label" data-i18n="date">Date</label>
+        <label class="modal-label" data-i18n="date">Дата</label>
         <input class="modal-input" id="event-date" type="date"/>
       </div>
       <div class="modal-form-group">
-        <label class="modal-label" data-i18n="note">Note</label>
-        <textarea class="modal-textarea" id="event-note" placeholder="Note..."></textarea>
+        <label class="modal-label" data-i18n="note">Заметка</label>
+        <textarea class="modal-textarea" id="event-note" placeholder="Заметка..."></textarea>
       </div>
-      <button class="modal-btn primary" onclick="saveEvent()" data-i18n="add">Add</button>
-      <button class="modal-btn secondary" onclick="closeModal('modal-add-event')" data-i18n="cancel">Cancel</button>
+      <button class="modal-btn primary" onclick="saveEvent()" data-i18n="add">Добавить</button>
+      <button class="modal-btn secondary" onclick="closeModal('modal-add-event')" data-i18n="cancel">Отмена</button>
     </div>
   </div>
 
@@ -3762,32 +3840,32 @@
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-header-row">
-        <button class="modal-cancel-btn" onclick="closeModal('modal-add-note'); _editingNoteFieldId=null; _editingNoteSeasonIndex=null; const s=document.getElementById('note-field-select'); if(s) s.disabled=false;" data-i18n="cancel">Cancel</button>
-        <div class="modal-title" style="margin:0" data-i18n="newNote">New note</div>
-        <button class="modal-action-btn" onclick="saveNote()" data-i18n="add">Add</button>
+        <button class="modal-cancel-btn" onclick="closeModal('modal-add-note'); _editingNoteFieldId=null; _editingNoteSeasonIndex=null; const s=document.getElementById('note-field-select'); if(s) s.disabled=false;" data-i18n="cancel">Отмена</button>
+        <div class="modal-title" style="margin:0" data-i18n="newNote">Новая заметка</div>
+        <button class="modal-action-btn" onclick="saveNote()" data-i18n="add">Добавить</button>
       </div>
       <div class="modal-form-group">
-        <label class="modal-label" data-i18n="field">Field</label>
+        <label class="modal-label" data-i18n="field">Поле</label>
         <select class="modal-select" id="note-field-select">
-          <option value="" data-i18n="selectField">Select field...</option>
+          <option value="" data-i18n="selectField">Выбрать поле...</option>
         </select>
       </div>
       <div class="modal-form-group">
-        <label class="modal-label" data-i18n="eventType">Event type</label>
+        <label class="modal-label" data-i18n="eventType">Тип события</label>
         <select class="modal-select" id="note-event-type">
-          <option value="sowing" data-i18n="sowing">Sowing</option>
-          <option value="harvest" data-i18n="harvest">Harvest</option>
-          <option value="watering" data-i18n="watering">Watering</option>
-          <option value="spraying" data-i18n="spraying">Spraying</option>
+          <option value="sowing" data-i18n="sowing">Посев</option>
+          <option value="harvest" data-i18n="harvest">Уборка</option>
+          <option value="watering" data-i18n="watering">Полив</option>
+          <option value="spraying" data-i18n="spraying">Опрыскивание</option>
         </select>
       </div>
       <div class="modal-form-group">
-        <label class="modal-label" data-i18n="date">Date</label>
+        <label class="modal-label" data-i18n="date">Дата</label>
         <input class="modal-input" id="note-date" type="date"/>
       </div>
       <div class="modal-form-group">
-        <label class="modal-label" data-i18n="note">Note</label>
-        <textarea class="modal-textarea" id="note-text" placeholder="Description..."></textarea>
+        <label class="modal-label" data-i18n="note">Заметка</label>
+        <textarea class="modal-textarea" id="note-text" placeholder="Описание..."></textarea>
       </div>
     </div>
   </div>
@@ -3801,10 +3879,10 @@
   <div class="modal-overlay" id="modal-search">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <div class="modal-title" data-i18n="searchPlace">Search place</div>
+      <div class="modal-title" data-i18n="searchPlace">Поиск места</div>
       <div class="search-input-wrap">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="search-input" placeholder="City, country..." autocomplete="off" data-i18n-placeholder="searchPlaceholder"/>
+        <input type="text" id="search-input" placeholder="Город, страна..." autocomplete="off" data-i18n-placeholder="searchPlaceholder"/>
       </div>
       <div class="search-results-wrap">
         <ul class="search-results" id="search-results" role="listbox"></ul>
@@ -3820,7 +3898,7 @@
       <div class="modal-handle"></div>
       <div class="modal-header-row">
         <button class="modal-cancel-btn" onclick="closeModal('modal-add-season')" data-i18n="cancel">Cancel</button>
-        <div class="modal-title" style="margin:0" id="modal-season-title">Add season</div>
+        <div class="modal-title" style="margin:0" id="modal-season-title">Add Season</div>
         <button class="modal-action-btn" onclick="saveSeasonRecord()">Save</button>
       </div>
       <div class="modal-sheet-body">
@@ -3839,7 +3917,7 @@
         <input class="modal-input" id="season-yield" type="number" min="0" max="20" step="0.1" placeholder="3.5"/>
       </div>
       <div class="modal-form-group">
-        <label class="modal-label">Season rainfall (mm)</label>
+        <label class="modal-label">Seasonal rainfall (mm)</label>
         <input class="modal-input" id="season-rainfall" type="number" min="0" max="2000" step="1" placeholder="350"/>
       </div>
       <div class="modal-form-group">
@@ -3868,30 +3946,30 @@
       <div class="modal-handle"></div>
       <div class="modal-header-row">
         <button class="modal-cancel-btn" onclick="closeModal('modal-season-manager')">✕</button>
-        <div class="modal-title" style="margin:0;" id="season-mgr-title">🗓 Сезоны</div>
-        <button class="modal-action-btn" onclick="openCreateSeasonForm()" id="season-mgr-new-btn">+ Новый</button>
+        <div class="modal-title" style="margin:0;" id="season-mgr-title">🗓 Seasons</div>
+        <button class="modal-action-btn" onclick="openCreateSeasonForm()" id="season-mgr-new-btn">+ New</button>
       </div>
       <!-- NEW: Форма создания нового сезона — только год + дата начала; дата окончания добавляется позже -->
       <div id="new-season-form" style="display:none;background:var(--bg3);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;">
-        <div id="new-season-form-title" style="font-size:14px;font-weight:600;margin-bottom:10px;">Новый сезон</div>
+        <div id="new-season-form-title" style="font-size:14px;font-weight:600;margin-bottom:10px;">New Season</div>
         <!-- NEW: Preview label показывает как будет выглядеть название -->
         <div id="new-season-preview" style="font-size:12px;color:var(--accent);margin-bottom:8px;min-height:16px;"></div>
         <div class="modal-form-group">
           <!-- NEW: Поле только для года (число 4 цифры) -->
-          <label class="modal-label" id="new-season-label">Год сезона</label>
+          <label class="modal-label" id="new-season-label">Season year</label>
           <input class="modal-input" id="new-season-year" type="number" min="1990" max="2099" placeholder="2026" oninput="updateSeasonNamePreview()"/>
         </div>
         <div class="modal-form-group" style="margin-bottom:0;">
           <!-- NEW: Только дата начала при создании; дата окончания — через редактирование -->
-          <label class="modal-label" id="new-season-start-label">Дата начала *</label>
+          <label class="modal-label" id="new-season-start-label">Start date *</label>
           <input class="modal-input" id="new-season-start" type="date" style="margin-bottom:0;"/>
         </div>
         <div style="display:flex;gap:8px;margin-top:10px;">
           <button class="modal-btn secondary" style="margin-top:0;flex:1;" id="new-season-cancel-btn" onclick="document.getElementById('new-season-form').style.display='none'">
-            Отмена
+            Cancel
           </button>
           <button class="modal-btn primary" style="margin-top:0;flex:1;" id="new-season-create-btn" onclick="createNewSeason()">
-            Создать
+            Create
           </button>
         </div>
       </div>
@@ -3905,42 +3983,41 @@
     <div class="modal-sheet" style="padding-bottom:max(env(safe-area-inset-bottom, 16px), 24px);">
       <div class="modal-handle"></div>
       <div class="modal-header-row">
-        <button class="modal-cancel-btn" onclick="closeModal('modal-edit-season')" id="edit-season-cancel-btn">Отмена</button>
-        <div class="modal-title" style="margin:0;" id="edit-season-modal-title">Редактировать сезон</div>
-        <button class="modal-action-btn" onclick="saveEditedSeason()" id="edit-season-save-btn">Сохранить</button>
+        <button class="modal-cancel-btn" onclick="closeModal('modal-edit-season')" id="edit-season-cancel-btn">Cancel</button>
+        <div class="modal-title" style="margin:0;" id="edit-season-modal-title">Edit Season</div>
+        <button class="modal-action-btn" onclick="saveEditedSeason()" id="edit-season-save-btn">Save</button>
       </div>
       <input type="hidden" id="edit-season-name-hidden"/>
       <div class="modal-form-group">
-        <label class="modal-label" id="edit-season-name-label">Сезон</label>
+        <label class="modal-label" id="edit-season-name-label">Season</label>
         <div id="edit-season-name-display" style="padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);font-size:15px;font-weight:600;color:var(--accent);"></div>
       </div>
       <div class="modal-form-group">
-        <label class="modal-label" id="edit-season-start-label">Дата начала *</label>
+        <label class="modal-label" id="edit-season-start-label">Start date *</label>
         <input class="modal-input" id="edit-season-start" type="date"/>
       </div>
       <div class="modal-form-group" style="margin-bottom:0;">
-        <label class="modal-label" id="edit-season-end-label">Дата окончания</label>
+        <label class="modal-label" id="edit-season-end-label">End date</label>
         <input class="modal-input" id="edit-season-end" type="date"/>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px;" id="edit-season-end-hint">Можно оставить пустым</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;" id="edit-season-end-hint">Can be left empty</div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════
-       МОДАЛЬНОЕ ОКНО: УДАЛЕНИЕ АККАУНТА
-  ══════════════════════════════════════ -->
-  <div class="modal-overlay" id="modal-delete-account">
-    <div class="modal-sheet">
-      <div class="modal-handle"></div>
-      <div class="modal-title" style="color:var(--danger);">⚠️ Delete account</div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6;">This will permanently delete your account and all cloud data. This action cannot be undone.</p>
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;">
-        <div style="font-size:13px;color:var(--text2);margin-bottom:10px;">To confirm, solve this: <strong id="captcha-question" style="color:var(--text);"></strong></div>
-        <input class="fb-auth-input" id="captcha-answer" type="number" placeholder="Your answer" style="margin-bottom:0;"/>
-        <div id="captcha-error" style="color:var(--danger);font-size:12px;min-height:16px;margin-top:6px;"></div>
+  <!-- ── Delete Account Captcha Modal ── -->
+  <div class="captcha-modal-overlay" id="delete-account-modal">
+    <div class="captcha-modal-sheet">
+      <div class="captcha-modal-title">⚠️ Delete Account</div>
+      <div class="captcha-modal-sub">This action is <strong>irreversible</strong>. All your fields, notes and settings will be permanently deleted. Solve the math problem to confirm.</div>
+      <div class="captcha-challenge">
+        <div class="captcha-question" id="captcha-question"></div>
+        <input class="captcha-input" id="captcha-answer" type="number" placeholder="Your answer" autocomplete="off" oninput="validateCaptchaInput()"/>
       </div>
-      <button onclick="submitDeleteAccount()" style="width:100%;padding:14px;border-radius:var(--radius-sm);background:var(--danger);color:#fff;border:none;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;">Delete my account</button>
-      <button onclick="closeModal('modal-delete-account')" class="fb-auth-btn secondary">Cancel</button>
+      <div class="captcha-error" id="captcha-error"></div>
+      <div class="captcha-btns">
+        <button class="captcha-cancel-btn" onclick="closeDeleteAccountModal()">Cancel</button>
+        <button class="captcha-confirm-btn" id="captcha-confirm-btn" onclick="confirmDeleteAccount()" disabled>Delete</button>
+      </div>
     </div>
   </div>
 
@@ -3970,7 +4047,10 @@
     signOut,
     onAuthStateChanged,
     sendPasswordResetEmail,
-    deleteUser
+    deleteUser,
+    reauthenticateWithPopup,
+    reauthenticateWithCredential,
+    EmailAuthProvider
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
   import {
     getFirestore,
@@ -3979,15 +4059,20 @@
     getDocs,
     writeBatch,
     setDoc,
-    getDoc
+    getDoc,
+    onSnapshot,
+    deleteDoc,
+    query
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
   // Пробрасываем всё в window чтобы обычные <script> ниже могли использовать
   window._fbModular = {
     initializeApp, getAuth, GoogleAuthProvider, signInWithPopup,
     signInWithEmailAndPassword, createUserWithEmailAndPassword,
-    signOut, onAuthStateChanged, sendPasswordResetEmail, deleteUser,
-    getFirestore, collection, doc, getDocs, writeBatch, setDoc, getDoc
+    signOut, onAuthStateChanged, sendPasswordResetEmail,
+    deleteUser, reauthenticateWithPopup, reauthenticateWithCredential, EmailAuthProvider,
+    getFirestore, collection, doc, getDocs, writeBatch, setDoc, getDoc,
+    onSnapshot, deleteDoc, query
   };
   window._firebaseSdkReady = true;
 </script>
@@ -6042,7 +6127,7 @@ function renderFieldsList() {
         </div>
         <button class="field-map-icon-btn" onclick="event.stopPropagation(); goToFieldOnMap('${field.id}')" title="Показать на карте">
           <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-          <span style="font-size:11px;font-weight:600;">On map</span>
+          <span style="font-size:11px;font-weight:600;">На карте</span>
         </button>
       </div>
     `;
@@ -8703,74 +8788,6 @@ function fbSignOut() {
   showToast(lang === 'ru' ? '👋 Вы вышли из аккаунта. Работаем как гость.' : '👋 Signed out. Continuing as guest.');
 }
 
-// ── Delete Account ──
-let _captchaA = 0, _captchaB = 0;
-function openDeleteAccountModal() {
-  _captchaA = Math.floor(Math.random() * 10) + 2;
-  _captchaB = Math.floor(Math.random() * 10) + 2;
-  const q = document.getElementById('captcha-question');
-  const ans = document.getElementById('captcha-answer');
-  const err = document.getElementById('captcha-error');
-  if (q) q.textContent = `${_captchaA} + ${_captchaB} = ?`;
-  if (ans) ans.value = '';
-  if (err) err.textContent = '';
-  openModal('modal-delete-account');
-}
-
-async function submitDeleteAccount() {
-  const ans = document.getElementById('captcha-answer');
-  const err = document.getElementById('captcha-error');
-  const userAnswer = parseInt(ans?.value);
-  if (isNaN(userAnswer) || userAnswer !== (_captchaA + _captchaB)) {
-    if (err) err.textContent = lang === 'ru' ? 'Неверный ответ. Попробуйте снова.' : 'Wrong answer. Try again.';
-    if (ans) ans.value = '';
-    // Refresh captcha
-    _captchaA = Math.floor(Math.random() * 10) + 2;
-    _captchaB = Math.floor(Math.random() * 10) + 2;
-    const q = document.getElementById('captcha-question');
-    if (q) q.textContent = `${_captchaA} + ${_captchaB} = ?`;
-    return;
-  }
-  if (!fbCurrentUser || !window._fbFns?.deleteUser) {
-    if (err) err.textContent = lang === 'ru' ? 'Ошибка: пользователь не авторизован' : 'Error: user not authenticated';
-    return;
-  }
-  try {
-    // Delete Firestore user data
-    if (fbDb) {
-      const fb = window._fbFns;
-      const uid = fbCurrentUser.uid;
-      // Delete fields subcollection
-      try {
-        const fieldsCol = fb.collection(fbDb, 'users', uid, 'fields');
-        const fieldsSnap = await fb.getDocs(fieldsCol);
-        const batch = fb.writeBatch(fbDb);
-        fieldsSnap.forEach(d => batch.delete(d.ref));
-        await batch.commit();
-      } catch(_) {}
-      // Delete user document
-      try {
-        const { deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
-        await deleteDoc(fb.doc(fbDb, 'users', uid));
-      } catch(_) {}
-    }
-    // Delete the Auth user
-    await window._fbFns.deleteUser(fbCurrentUser);
-    // Clear local data
-    localStorage.removeItem(STORAGE_PREFIX + '-fields');
-    localStorage.removeItem(STORAGE_PREFIX + '-settings');
-    localStorage.removeItem(STORAGE_PREFIX + '-auth');
-    closeModal('modal-delete-account');
-    fbCurrentUser = null;
-    renderProfile();
-    showToast(lang === 'ru' ? '✅ Аккаунт удалён' : '✅ Account deleted');
-  } catch(e) {
-    if (err) err.textContent = (e.code === 'auth/requires-recent-login')
-      ? (lang === 'ru' ? 'Войдите заново, затем повторите удаление' : 'Please sign in again, then retry deletion')
-      : (e.message || 'Error');
-  }
-}
-
 // ── Firestore sync helpers ──
 function fbUserDoc(subCollection) {
   if (!fbDb || !fbCurrentUser || !window._fbFns) return null;
@@ -8956,7 +8973,7 @@ function renderProfile() {
         <div class="profile-role">Hectar · ${t('agronomist')}</div>
         <div class="fb-sync-badge">☁️ ${lang === 'ru' ? 'Синхронизация включена' : 'Cloud sync active'}</div>
         <button class="profile-logout-btn" onclick="fbSignOut()" style="margin-top:10px;">${t('signOut')}</button>
-        <button onclick="openDeleteAccountModal()" style="width:100%;margin-top:10px;padding:12px;border-radius:var(--radius-sm);border:1px solid rgba(239,83,80,0.45);background:rgba(239,83,80,0.08);color:var(--danger);font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(239,83,80,0.18)'" onmouseout="this.style.background='rgba(239,83,80,0.08)'">${lang === 'ru' ? '🗑 Удалить аккаунт' : '🗑 Delete account'}</button>
+        <button class="delete-account-btn" onclick="openDeleteAccountModal()" style="margin-top:6px;">${lang === 'ru' ? '🗑 Удалить аккаунт' : '🗑 Delete Account'}</button>
       </div>
     `;
   } else if (localLoggedIn) {
@@ -9046,6 +9063,391 @@ function renderProfile() {
   `;
 }
 
+// ════════════════════════════════════════════════════
+// FIX 2.4 PATCH 1: DELETE ACCOUNT WITH MATH CAPTCHA
+// ════════════════════════════════════════════════════
+
+let _captchaAnswer = null;
+
+function openDeleteAccountModal() {
+  if (!fbCurrentUser) return;
+  // Generate a simple math captcha: a + b or a * b
+  const ops = ['+', '-', '×'];
+  const op = ops[Math.floor(Math.random() * ops.length)];
+  let a, b, answer;
+  if (op === '+') { a = Math.floor(Math.random()*40)+10; b = Math.floor(Math.random()*40)+10; answer = a + b; }
+  else if (op === '-') { a = Math.floor(Math.random()*40)+30; b = Math.floor(Math.random()*20)+5; answer = a - b; }
+  else { a = Math.floor(Math.random()*9)+2; b = Math.floor(Math.random()*9)+2; answer = a * b; }
+  _captchaAnswer = answer;
+  document.getElementById('captcha-question').textContent = `${a} ${op} ${b} = ?`;
+  document.getElementById('captcha-answer').value = '';
+  document.getElementById('captcha-error').textContent = '';
+  document.getElementById('captcha-confirm-btn').disabled = true;
+  document.getElementById('delete-account-modal').classList.add('open');
+  setTimeout(() => { const el = document.getElementById('captcha-answer'); if (el) el.focus(); }, 200);
+}
+
+function closeDeleteAccountModal() {
+  document.getElementById('delete-account-modal').classList.remove('open');
+  _captchaAnswer = null;
+}
+
+function validateCaptchaInput() {
+  const val = parseInt(document.getElementById('captcha-answer').value);
+  const btn = document.getElementById('captcha-confirm-btn');
+  const err = document.getElementById('captcha-error');
+  if (val === _captchaAnswer) {
+    btn.disabled = false;
+    err.textContent = '';
+  } else {
+    btn.disabled = true;
+    err.textContent = '';
+  }
+}
+
+async function confirmDeleteAccount() {
+  const val = parseInt(document.getElementById('captcha-answer').value);
+  if (val !== _captchaAnswer) {
+    document.getElementById('captcha-error').textContent = lang === 'ru' ? 'Неверный ответ. Попробуйте снова.' : 'Wrong answer. Try again.';
+    return;
+  }
+  const btn = document.getElementById('captcha-confirm-btn');
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const fb = window._fbFns;
+    const user = fbCurrentUser;
+    if (!fb || !user) throw new Error('Not authenticated');
+    // Delete all Firestore user data first
+    if (fbDb) {
+      try {
+        const fieldsCol = fb.collection(fbDb, 'users', user.uid, 'fields');
+        const fieldsSnap = await fb.getDocs(fieldsCol);
+        const batch = fb.writeBatch(fbDb);
+        fieldsSnap.forEach(d => batch.delete(d.ref));
+        const notesCol = fb.collection(fbDb, 'users', user.uid, 'notes');
+        const notesSnap = await fb.getDocs(notesCol);
+        notesSnap.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        // Delete user root doc
+        await fb.deleteDoc(fb.doc(fbDb, 'users', user.uid));
+      } catch(e) { console.warn('Firestore cleanup error:', e); }
+    }
+    // Delete Firebase Auth user
+    await fb.deleteUser(user);
+    // Clear local storage
+    Object.keys(localStorage).filter(k => k.startsWith(STORAGE_PREFIX)).forEach(k => localStorage.removeItem(k));
+    closeDeleteAccountModal();
+    fbCurrentUser = null;
+    renderProfile();
+    showToast(lang === 'ru' ? '✅ Аккаунт удалён' : '✅ Account deleted');
+  } catch(e) {
+    console.warn('deleteAccount error:', e);
+    const errEl = document.getElementById('captcha-error');
+    if (e.code === 'auth/requires-recent-login') {
+      errEl.textContent = lang === 'ru' ? 'Выйдите и войдите снова, затем повторите.' : 'Please sign out and sign in again, then retry.';
+    } else {
+      errEl.textContent = (lang === 'ru' ? 'Ошибка: ' : 'Error: ') + (e.message || e.code);
+    }
+    btn.disabled = false;
+    btn.textContent = lang === 'ru' ? 'Удалить' : 'Delete';
+  }
+}
+
+// Close captcha modal on overlay click
+document.getElementById('delete-account-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeDeleteAccountModal();
+});
+
+// ════════════════════════════════════════════════════
+// FIX 2.4: PATCH — saveSeasonManagerData → Firebase
+// (была пропущена в предыдущих патчах)
+// ════════════════════════════════════════════════════
+const _origSaveSeasonManagerData = saveSeasonManagerData;
+saveSeasonManagerData = function(data) {
+  localStorage.setItem(STORAGE_PREFIX + '-seasons-mgr', JSON.stringify(data));
+  if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) {
+    fbSaveSeasonsMgr(data).catch(e => console.warn('[fbSaveSeasonsMgr via saveSeasonManagerData]', e));
+  }
+};
+
+// ════════════════════════════════════════════════════
+// FIX 2.4: REAL-TIME FIRESTORE SYNC (onSnapshot)
+// Слушаем изменения в Firestore и сразу обновляем UI
+// ════════════════════════════════════════════════════
+
+let _fbUnsubscribeFields = null;
+let _fbUnsubscribeUserDoc = null;
+// Флаг: true пока идёт первичная загрузка (чтобы onSnapshot не перезаписал локальные данные раньше времени)
+let _fbInitialSyncDone = false;
+
+function startRealtimeSync(uid) {
+  if (!fbDb || !window._fbFns) return;
+  const fb = window._fbFns;
+  if (typeof fb.onSnapshot !== 'function') {
+    console.warn('[Hectar] onSnapshot not available');
+    return;
+  }
+
+  stopRealtimeSync(); // снимаем старые подписки
+
+  // ── 1. Поля (+ заметки, которые хранятся внутри field.season) ──
+  const fieldsCol = fb.collection(fbDb, 'users', uid, 'fields');
+  _fbUnsubscribeFields = fb.onSnapshot(
+    fieldsCol,
+    { includeMetadataChanges: true },
+    (snap) => {
+      // Пропускаем события от локальных записей (чтобы не было рекурсии)
+      if (snap.metadata.hasPendingWrites) return;
+      // Пропускаем первый вызов ДО завершения первичного fbSyncFromCloud
+      if (!_fbInitialSyncDone) return;
+
+      const cloudFields = snap.docs.map(d => d.data());
+      const localJson = localStorage.getItem(STORAGE_PREFIX + '-fields');
+      const localFields = localJson ? JSON.parse(localJson) : [];
+
+      // Обновляем только если данные реально изменились
+      if (JSON.stringify(cloudFields.map(f => ({...f, _ts: undefined})).sort((a,b) => a.id > b.id ? 1 : -1))
+          !== JSON.stringify(localFields.map(f => ({...f, _ts: undefined})).sort((a,b) => a.id > b.id ? 1 : -1))) {
+        localStorage.setItem(STORAGE_PREFIX + '-fields', JSON.stringify(cloudFields));
+        // Перерисовываем карту
+        if (typeof map !== 'undefined' && map && typeof drawnPolygons !== 'undefined') {
+          try {
+            Object.values(drawnPolygons).forEach(p => { try { map.removeLayer(p); } catch(_) {} });
+            drawnPolygons = {};
+            cloudFields.forEach(f => { try { addFieldToMap(f); } catch(_) {} });
+          } catch(e) { console.warn('[onSnapshot fields map]', e); }
+        }
+        if (typeof renderFieldsList === 'function') renderFieldsList();
+        if (typeof renderNotesList === 'function') renderNotesList();
+        showToast('🔄 ' + (lang === 'ru' ? 'Поля обновлены' : 'Fields updated'));
+      }
+    },
+    (err) => { console.warn('[onSnapshot fields error]', err); }
+  );
+
+  // ── 2. Пользовательский документ (настройки, сезоны, активный сезон, seasonRecords) ──
+  const userDocRef = fb.doc(fbDb, 'users', uid);
+  _fbUnsubscribeUserDoc = fb.onSnapshot(
+    userDocRef,
+    { includeMetadataChanges: true },
+    (snap) => {
+      if (!snap.exists()) return;
+      if (snap.metadata.hasPendingWrites) return;
+      if (!_fbInitialSyncDone) return;
+
+      const data = snap.data();
+
+      if (data.settings) {
+        const merged = { ...loadSettings(), ...data.settings };
+        localStorage.setItem(STORAGE_PREFIX + '-settings', JSON.stringify(merged));
+        if (typeof applyTheme === 'function') applyTheme(merged.theme);
+      }
+      if (data.seasonsMgr && Array.isArray(data.seasonsMgr)) {
+        const localMgr = localStorage.getItem(STORAGE_PREFIX + '-seasons-mgr');
+        if (JSON.stringify(data.seasonsMgr) !== localMgr) {
+          localStorage.setItem(STORAGE_PREFIX + '-seasons-mgr', JSON.stringify(data.seasonsMgr));
+        }
+      }
+      if (data.activeSeason) {
+        localStorage.setItem(STORAGE_PREFIX + '-active-season', data.activeSeason);
+        if (typeof updateSeasonLabel === 'function') updateSeasonLabel();
+      }
+      if (data.seasonRecords && Array.isArray(data.seasonRecords)) {
+        const localRec = localStorage.getItem(SEASONS_STORAGE_KEY);
+        if (JSON.stringify(data.seasonRecords) !== localRec) {
+          localStorage.setItem(SEASONS_STORAGE_KEY, JSON.stringify(data.seasonRecords));
+          if (typeof renderSeasonsList === 'function') renderSeasonsList();
+          showToast('🔄 ' + (lang === 'ru' ? 'Сезоны обновлены' : 'Seasons updated'));
+        }
+      }
+    },
+    (err) => { console.warn('[onSnapshot userDoc error]', err); }
+  );
+
+  console.log('[Hectar] Real-time sync started for uid:', uid);
+}
+
+function stopRealtimeSync() {
+  if (_fbUnsubscribeFields)  { try { _fbUnsubscribeFields();  } catch(_){} _fbUnsubscribeFields  = null; }
+  if (_fbUnsubscribeUserDoc) { try { _fbUnsubscribeUserDoc(); } catch(_){} _fbUnsubscribeUserDoc = null; }
+  _fbInitialSyncDone = false;
+}
+
+// ── Переписываем fbSyncFromCloud: загрузка + запуск onSnapshot ──
+// Заменяем старую функцию полностью
+fbSyncFromCloud = async function() {
+  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const fb = window._fbFns;
+  const uid = fbCurrentUser.uid;
+  _fbInitialSyncDone = false;
+
+  try {
+    showToast('☁️ ' + (lang === 'ru' ? 'Синхронизация...' : 'Syncing...'));
+
+    // ── Поля ──
+    const fieldsCol = fb.collection(fbDb, 'users', uid, 'fields');
+    const fieldsSnap = await fb.getDocs(fieldsCol);
+    if (!fieldsSnap.empty) {
+      const cloudFields = fieldsSnap.docs.map(d => d.data());
+      localStorage.setItem(STORAGE_PREFIX + '-fields', JSON.stringify(cloudFields));
+      if (typeof map !== 'undefined' && map && typeof drawnPolygons !== 'undefined') {
+        try {
+          Object.values(drawnPolygons).forEach(p => { try { map.removeLayer(p); } catch(_) {} });
+          drawnPolygons = {};
+          cloudFields.forEach(f => { try { addFieldToMap(f); } catch(_) {} });
+        } catch(e) {}
+      }
+    } else {
+      // Облако пустое — загружаем локальные данные в облако
+      const localFields = loadFields();
+      if (localFields && localFields.length > 0) {
+        await fbSaveFields(localFields);
+      }
+    }
+
+    // ── Настройки, сезоны, сезонные записи ──
+    const userDocRef = fb.doc(fbDb, 'users', uid);
+    const userDocSnap = await fb.getDoc(userDocRef);
+
+    if (userDocSnap.exists()) {
+      const data = userDocSnap.data();
+      if (data.settings) {
+        const s = { ...loadSettings(), ...data.settings };
+        localStorage.setItem(STORAGE_PREFIX + '-settings', JSON.stringify(s));
+        if (typeof applyTheme === 'function') applyTheme(s.theme);
+      }
+      if (data.seasonsMgr && Array.isArray(data.seasonsMgr)) {
+        localStorage.setItem(STORAGE_PREFIX + '-seasons-mgr', JSON.stringify(data.seasonsMgr));
+      }
+      if (data.activeSeason) {
+        localStorage.setItem(STORAGE_PREFIX + '-active-season', data.activeSeason);
+        if (typeof updateSeasonLabel === 'function') updateSeasonLabel();
+      }
+      if (data.seasonRecords && Array.isArray(data.seasonRecords)) {
+        localStorage.setItem(SEASONS_STORAGE_KEY, JSON.stringify(data.seasonRecords));
+      }
+    } else {
+      // Документа нет — загружаем локальные данные в облако
+      const localSettings = loadSettings();
+      const localSeasonsMgr = JSON.parse(localStorage.getItem(STORAGE_PREFIX + '-seasons-mgr') || '[]');
+      const localActiveSeason = localStorage.getItem(STORAGE_PREFIX + '-active-season');
+      const localSeasonRecords = loadSeasonRecords();
+      const uploadData = {};
+      if (localSettings) uploadData.settings = localSettings;
+      if (localSeasonsMgr && localSeasonsMgr.length > 0) uploadData.seasonsMgr = localSeasonsMgr;
+      if (localActiveSeason) uploadData.activeSeason = localActiveSeason;
+      if (localSeasonRecords && localSeasonRecords.length > 0) uploadData.seasonRecords = localSeasonRecords;
+      if (Object.keys(uploadData).length > 0) {
+        await fb.setDoc(userDocRef, uploadData, { merge: true });
+      }
+    }
+
+    if (typeof renderFieldsList === 'function') renderFieldsList();
+    if (typeof renderNotesList === 'function') renderNotesList();
+    if (typeof renderSeasonsList === 'function') renderSeasonsList();
+    if (typeof renderProfile === 'function') renderProfile();
+
+    showToast('✅ ' + (lang === 'ru' ? 'Данные синхронизированы' : 'Data synced'));
+  } catch(e) {
+    console.warn('[fbSyncFromCloud error]', e);
+    showToast('⚠️ ' + (lang === 'ru' ? 'Ошибка синхронизации' : 'Sync error'));
+  } finally {
+    // Разрешаем onSnapshot реагировать на ВНЕШНИЕ изменения
+    _fbInitialSyncDone = true;
+    // Запускаем realtime-слушатели
+    startRealtimeSync(uid);
+  }
+};
+
+// ── Останавливаем realtime sync при выходе ──
+const _origFbSignOut_rt = fbSignOut;
+fbSignOut = function() {
+  stopRealtimeSync();
+  _origFbSignOut_rt();
+};
+
+// ════════════════════════════════════════════════════
+// FIX 2.4 PATCH 3: SERVICE WORKER REGISTRATION
+// Offline caching via inline Service Worker blob
+// ════════════════════════════════════════════════════
+
+(function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+
+  // Inline SW as a blob — works even for file:// and single-file HTML
+  const swCode = `
+const CACHE_NAME = 'hectar-v2.4';
+const CACHE_URLS = [self.location.href || '/'];
+
+self.addEventListener('install', evt => {
+  evt.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(CACHE_URLS).catch(() => {});
+    })
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', evt => {
+  evt.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', evt => {
+  const url = evt.request.url;
+  // Don't intercept Firebase API, tile servers
+  if (url.includes('firebaseio.com') || url.includes('googleapis.com') || url.includes('gstatic.com')) return;
+  if (evt.request.method !== 'GET') return;
+
+  evt.respondWith(
+    caches.match(evt.request).then(cached => {
+      const network = fetch(evt.request).then(resp => {
+        if (resp && resp.status === 200 && resp.type !== 'opaque') {
+          const clone = resp.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(evt.request, clone));
+        }
+        return resp;
+      }).catch(() => null);
+      return cached || network;
+    })
+  );
+});
+`;
+
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+
+  navigator.serviceWorker.register(swUrl, { scope: '/' })
+    .then(reg => {
+      console.log('[Hectar SW] Registered, scope:', reg.scope);
+      // Cache the current page HTML once SW is active
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'activated') {
+            caches.open('hectar-v2.4').then(cache => {
+              cache.add(location.href).catch(() => {});
+            });
+          }
+        });
+      });
+    })
+    .catch(err => {
+      // Blob URL scope limitation — fallback: cache page manually
+      if ('caches' in window) {
+        caches.open('hectar-v2.4').then(cache => {
+          cache.add(location.href).catch(() => {});
+        });
+      }
+      console.warn('[Hectar SW] Could not register SW via blob:', err.message);
+    });
+})();
+
 // Init Firebase — ждём загрузки Modular SDK (type="module" выполняется асинхронно)
 window.addEventListener('load', () => {
   var attempts = 0;
@@ -9067,147 +9469,61 @@ window.addEventListener('load', () => {
 
 /*
 ════════════════════════════════════════════════════
-ШАГИ НАСТРОЙКИ FIREBASE (сделайте это после открытия файла):
+ШАГИ НАСТРОЙКИ FIREBASE ДЛЯ МЕЖУСТРОЙСТВЕННОЙ СИНХРОНИЗАЦИИ:
 
 1. Перейдите на https://console.firebase.google.com/
 2. Нажмите "Создать проект" → введите имя (напр. "hectar-app")
+   ⚠️ Google Analytics — можно отключить
+
 3. В проекте: "Добавить приложение" → выберите "</>" (Веб)
 4. Имя: "Hectar Web" → нажмите "Зарегистрировать"
-5. Скопируйте объект firebaseConfig из появившегося кода
-6. Вставьте значения в переменную FIREBASE_CONFIG в начале блока JS выше
-   (замените "YOUR_API_KEY", "YOUR_PROJECT_ID" и т.д.)
+5. Скопируйте объект firebaseConfig и вставьте в переменную
+   FIREBASE_CONFIG в начале JS-блока (замените YOUR_API_KEY и т.д.)
 
-7. В Firebase Console:
-   - Перейдите в Authentication → Sign-in method
-   - Включите "Email/password" и "Google"
+6. Authentication → Sign-in method:
+   - Включите "Email/Password"
+   - Включите "Google" → выберите Project support email → Save
+   ⚠️ Без Google Sign-In кнопка "Google" в приложении работать не будет
 
-8. Перейдите в Firestore Database:
-   - Нажмите "Создать базу данных"
-   - Выберите "Начать в тестовом режиме" (затем настройте правила безопасности)
+7. Firestore Database → "Создать базу данных":
+   - Выберите регион (europe-west или us-central)
+   - Нажмите "Начать в тестовом режиме" (30 дней open access)
 
-9. Правила Firestore (вставьте в вкладке Rules):
+8. Firestore → Rules → Вставьте эти правила и нажмите Publish:
+
    rules_version = '2';
    service cloud.firestore {
      match /databases/{database}/documents {
        match /users/{userId}/{document=**} {
-         allow read, write: if request.auth != null && request.auth.uid == userId;
+         allow read, write: if request.auth != null
+                            && request.auth.uid == userId;
        }
      }
    }
 
-10. Сохраните HTML файл и откройте снова — Firebase Auth будет работать!
+   ✅ Это даёт каждому пользователю доступ ТОЛЬКО к своим данным.
+   ✅ С этими правилами синхронизация между устройствами работает полностью.
+
+9. Google Cloud Console (для Google Sign-In):
+   - Откройте https://console.cloud.google.com/
+   - Выберите ваш Firebase проект
+   - APIs & Services → Credentials → OAuth 2.0 Client IDs
+   - Нажмите на Web client → Authorized JavaScript origins:
+     добавьте домен вашего сайта (напр. https://yourname.github.io)
+   - Если открываете локально как файл — добавьте: http://localhost
+
+10. Сохраните HTML файл и откройте — синхронизация работает!
+
+КАК РАБОТАЕТ СИНХРОНИЗАЦИЯ:
+- При входе: данные из Firestore загружаются на устройство (cloud wins)
+- При изменении поля/заметки/настройки: данные сразу пишутся в Firestore
+- onSnapshot: при изменении данных на другом устройстве — UI обновляется
+  автоматически в реальном времени без перезагрузки страницы
 ════════════════════════════════════════════════════
 */
 </script>
 
 
-
-
-<script>
-// ════════════════════════════════════════════════════
-// SERVICE WORKER — offline caching (point 5)
-// Registers an inline SW via Blob URL so it works from
-// a single HTML file without a separate sw.js file.
-// After the first online visit the page loads from cache.
-// ════════════════════════════════════════════════════
-(function registerInlineSW() {
-  if (!('serviceWorker' in navigator)) return;
-
-  const SW_VERSION = 'hectar-v2.4';
-
-  const swCode = `
-const CACHE_NAME = '${SW_VERSION}';
-
-// On install: cache the page itself
-self.addEventListener('install', function(event) {
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(function(cache) {
-      // Cache the SW registration origin (the HTML page)
-      return cache.addAll([
-        self.registration.scope
-      ]).catch(function() {});
-    })
-  );
-});
-
-// On activate: delete old caches
-self.addEventListener('activate', function(event) {
-  event.waitUntil(
-    caches.keys().then(function(keys) {
-      return Promise.all(
-        keys.filter(function(k) { return k !== CACHE_NAME; })
-            .map(function(k) { return caches.delete(k); })
-      );
-    }).then(function() { return self.clients.claim(); })
-  );
-});
-
-// On fetch: cache-first for navigation, network-first with cache fallback for assets
-self.addEventListener('fetch', function(event) {
-  var req = event.request;
-  // Only handle GET requests
-  if (req.method !== 'GET') return;
-
-  // Navigation requests (the HTML page itself) — cache-first
-  if (req.mode === 'navigate') {
-    event.respondWith(
-      caches.match(req).then(function(cached) {
-        var networkFetch = fetch(req).then(function(response) {
-          if (response && response.status === 200) {
-            var clone = response.clone();
-            caches.open(CACHE_NAME).then(function(cache) { cache.put(req, clone); });
-          }
-          return response;
-        }).catch(function() { return cached; });
-        return cached || networkFetch;
-      })
-    );
-    return;
-  }
-
-  // Static assets (JS, CSS, images, fonts) — network-first, cache as fallback
-  var url = req.url;
-  var isAsset = /\.(js|css|png|jpg|jpeg|svg|ico|woff2?|ttf|eot|gif|webp)(\?|$)/.test(url)
-             || url.includes('unpkg.com')
-             || url.includes('cdnjs.cloudflare.com')
-             || url.includes('cdn.jsdelivr.net')
-             || url.includes('gstatic.com/firebasejs');
-
-  if (isAsset) {
-    event.respondWith(
-      fetch(req).then(function(response) {
-        if (response && response.status === 200) {
-          var clone = response.clone();
-          caches.open(CACHE_NAME).then(function(cache) { cache.put(req, clone); });
-        }
-        return response;
-      }).catch(function() {
-        return caches.match(req);
-      })
-    );
-  }
-});
-`;
-
-  try {
-    var blob = new Blob([swCode], { type: 'application/javascript' });
-    var swUrl = URL.createObjectURL(blob);
-    navigator.serviceWorker.register(swUrl, { scope: '/' })
-      .then(function(reg) {
-        console.log('[Hectar SW] Registered, scope:', reg.scope);
-      })
-      .catch(function(err) {
-        // Blob-URL scope restriction on some browsers — try without explicit scope
-        navigator.serviceWorker.register(swUrl)
-          .then(function(reg) { console.log('[Hectar SW] Registered (no scope):', reg.scope); })
-          .catch(function(e) { console.warn('[Hectar SW] Registration failed:', e.message); });
-      });
-  } catch(e) {
-    console.warn('[Hectar SW] Could not create SW blob:', e.message);
-  }
-})();
-</script>
 
 </body>
 </html>
