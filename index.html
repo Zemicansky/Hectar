@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <!-- FIX 2: Full mobile/PWA adaptation — viewport-fit=cover ensures content fills notch/Dynamic Island area -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Hectar 2.3 — мониторинг полей</title>
+<title>Hectar 2.4 — мониторинг полей</title>
 
 <!-- FIX 2: PWA full-screen on iOS — black-translucent hides Safari URL bar when added to home screen -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1267,13 +1267,52 @@
 
   /* Карта в popup */
   .leaflet-popup-content-wrapper {
-    background: rgba(15,25,35,0.95) !important;
-    border: 1px solid var(--border) !important;
+    background: rgba(13,20,28,0.97) !important;
+    border: 1px solid rgba(76,175,80,0.25) !important;
     color: var(--text) !important;
-    border-radius: 14px !important;
-    backdrop-filter: blur(12px);
+    border-radius: 16px !important;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(76,175,80,0.1) !important;
+    padding: 0 !important;
   }
-  .leaflet-popup-tip { background: rgba(15,25,35,0.95) !important; }
+  .leaflet-popup-content { margin: 0 !important; width: auto !important; }
+  .leaflet-popup-tip-container { display: none; }
+  .leaflet-popup-close-button { display: none !important; }
+
+  .agri-popup-inner { padding: 14px 14px 12px; min-width: 200px; }
+  .agri-popup-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  }
+  .agri-popup-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    box-shadow: 0 0 6px currentColor;
+  }
+  .agri-popup-name {
+    font-size: 15px; font-weight: 700; flex: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .agri-popup-close {
+    background: none; border: none; color: var(--text3);
+    font-size: 14px; cursor: pointer; padding: 2px 4px; line-height: 1;
+    border-radius: 6px; transition: color 0.15s;
+  }
+  .agri-popup-close:hover { color: var(--text); }
+  .agri-popup-rows { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  .agri-popup-row {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12.5px; color: var(--text2);
+  }
+  .agri-popup-icon { font-size: 13px; flex-shrink: 0; }
+  .agri-popup-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; padding: 8px 12px;
+    background: rgba(76,175,80,0.15); border: 1px solid rgba(76,175,80,0.35);
+    color: var(--accent); border-radius: 10px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s, transform 0.1s;
+  }
+  .agri-popup-btn:hover { background: rgba(76,175,80,0.25); transform: scale(1.02); }
+  .agri-popup-btn:active { transform: scale(0.98); }
+
   .popup-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
   .popup-row { font-size: 13px; color: #8fa8c0; }
 
@@ -3074,12 +3113,13 @@
     position: fixed; inset: 0; z-index: 9999;
     background: rgba(0,0,0,0.7);
     display: flex; align-items: flex-end; justify-content: center;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* FIX 2.4: lift sheet above bottom nav bar so "Cancel" is fully visible */
+    padding-bottom: calc(var(--nav-total, 64px) + env(safe-area-inset-bottom, 0px));
   }
   .fb-auth-sheet {
     background: var(--bg2);
     border-radius: 24px 24px 0 0;
-    padding: 24px 24px 36px;
+    padding: 24px 24px 28px;
     width: 100%; max-width: 480px;
     border: 1px solid var(--border);
     border-bottom: none;
@@ -3194,7 +3234,7 @@
     <div class="login-title">Hec<span>tar</span></div>
     <div class="login-subtitle" id="login-subtitle">
       Мониторинг сельскохозяйственных полей<br>
-      Agricultural field monitoring · v2.3
+      Agricultural field monitoring · v2.4
     </div>
 
     <button class="login-btn google" onclick="openFbAuthModal('google')">
@@ -5263,18 +5303,43 @@ function addFieldToMap(field) {
     weight: 2
   }).addTo(map);
 
-  // Попап при клике
-  polygon.on('click', () => {
+  // Попап при клике — FIX 2.4: не показываем информацию о поле во время рисования/измерения
+  polygon.on('click', (e) => {
+    if (isDrawing || isMeasureMode) return; // блокируем во время активного режима
     const ndvi = estimateFieldNdvi(field);
     const health = getHealthStatus(ndvi);
-    L.popup({ className: 'agri-popup' })
+    const ndviColor = getNdviColor(ndvi);
+    const colorDot = field.color || '#4CAF50';
+    const popupContent = `
+      <div class="agri-popup-inner">
+        <div class="agri-popup-header">
+          <span class="agri-popup-dot" style="background:${colorDot};"></span>
+          <span class="agri-popup-name">${escapeHtml(field.name)}</span>
+          <button class="agri-popup-close" onclick="map.closePopup()" title="Закрыть">✕</button>
+        </div>
+        <div class="agri-popup-rows">
+          <div class="agri-popup-row">
+            <span class="agri-popup-icon">🌱</span>
+            <span>${field.crop ? cropDisplayName(field.crop) : (lang === 'ru' ? 'Без культуры' : 'No crop')}</span>
+          </div>
+          <div class="agri-popup-row">
+            <span class="agri-popup-icon">📐</span>
+            <span>${field.area} ${t('ha')} &nbsp;·&nbsp; ${field.perimeter} ${t('km')}</span>
+          </div>
+          <div class="agri-popup-row">
+            <span class="agri-popup-icon">🌿</span>
+            <span style="color:${ndviColor};font-weight:600;">NDVI ${ndvi} · ${health.label}</span>
+          </div>
+        </div>
+        <button class="agri-popup-btn" onclick="map.closePopup(); switchTab('fields'); setTimeout(() => openFieldDetail('${field.id}'), 150);">
+          ${lang === 'ru' ? 'Подробнее' : 'View details'}
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-left:4px;"><polyline points="9,18 15,12 9,6"/></svg>
+        </button>
+      </div>
+    `;
+    L.popup({ className: 'agri-popup', maxWidth: 260, minWidth: 220, offset: [0, -6] })
       .setLatLng([field.center[0], field.center[1]])
-      .setContent(`
-        <div class="popup-name">${field.name}</div>
-        <div class="popup-row">${field.crop ? cropDisplayName(field.crop) : t('noCrop')}</div>
-        <div class="popup-row">${field.area} ${t('ha')} · ${field.perimeter} ${t('km')}</div>
-        <div class="popup-row" style="color:${getNdviColor(ndvi)};font-weight:600;">NDVI ${ndvi} · ${health.label}</div>
-      `)
+      .setContent(popupContent)
       .openOn(map);
   });
 
@@ -5615,23 +5680,28 @@ function undoLastPoint() {
 function setDrawModeDraw() {
   document.getElementById('draw-draw-btn').classList.add('active');
   document.getElementById('draw-select-btn').classList.remove('active');
-  isDrawing = true;
-  // Exit ruler mode if active
+  // FIX 2.4: fully clear measure mode before starting draw mode
   isMeasureMode = false;
   currentMeasurePoints = [];
-  // Clear ruler line from map
   if (window._rulerLine) { map.removeLayer(window._rulerLine); window._rulerLine = null; }
   if (window._rulerMarkers) { window._rulerMarkers.forEach(m => map.removeLayer(m)); window._rulerMarkers = []; }
+  // Reset draw points too for a clean slate
+  currentDrawPoints = [];
+  clearTempDrawLayers();
+  isDrawing = true;
   updateDrawArea();
   const hint = document.getElementById('draw-hint');
-  if (hint) hint.textContent = lang === 'ru' ? 'Нажмите на карту, чтобы добавить точки' : 'Tap on map to add points';
+  if (hint) { hint.textContent = lang === 'ru' ? 'Нажмите на карту, чтобы добавить точки' : 'Tap on map to add points'; hint.classList.add('visible'); }
 }
 
 function setDrawModeSelect() {
   document.getElementById('draw-select-btn').classList.add('active');
   document.getElementById('draw-draw-btn').classList.remove('active');
+  // FIX 2.4: fully clear draw mode before starting measure mode
   isDrawing = false;
-  // Activate ruler/measure mode — clear field drawing
+  currentDrawPoints = [];
+  clearTempDrawLayers();
+  // Activate ruler/measure mode
   isMeasureMode = true;
   currentMeasurePoints = [];
   if (window._rulerLine) { map.removeLayer(window._rulerLine); window._rulerLine = null; }
@@ -7657,6 +7727,10 @@ function loadSeasonRecords() {
 
 function saveSeasonRecords(records) {
   localStorage.setItem(SEASONS_STORAGE_KEY, JSON.stringify(records));
+  // FIX 2.5: sync season records to Firebase if logged in
+  if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) {
+    fbSaveSeasonRecords(records).catch(e => console.warn('[fbSaveSeasonRecords]', e));
+  }
 }
 
 let currentSeasonsMetric = 'yield';
@@ -8399,6 +8473,14 @@ function initFirebase() {
     fb.onAuthStateChanged(fbAuth, user => {
       fbCurrentUser = user;
       if (user) {
+        // FIX 2.4: если пользователь уже авторизован — сразу запускаем приложение
+        // без показа экрана логина повторно
+        const loginScreen = document.getElementById('login-screen');
+        const mainApp = document.getElementById('main-app');
+        if (loginScreen && loginScreen.style.display !== 'none') {
+          // Приложение ещё не запущено — запускаем автоматически
+          startApp();
+        }
         fbSyncFromCloud();
         renderProfile();
         showToast('☁️ ' + (lang === 'ru' ? 'Синхронизация...' : 'Syncing...'));
@@ -8573,7 +8655,11 @@ async function fbSignInGoogle() {
 
 function fbSignOut() {
   if (fbAuth && window._fbFns) { window._fbFns.signOut(fbAuth); }
-  logoutUser();
+  // FIX 2.4: после выхода остаёмся в приложении в режиме гостя
+  // Не вызываем logoutUser (он перенаправляет на экран входа)
+  fbCurrentUser = null;
+  renderProfile();
+  showToast(lang === 'ru' ? '👋 Вы вышли из аккаунта. Работаем как гость.' : '👋 Signed out. Continuing as guest.');
 }
 
 // ── Firestore sync helpers ──
@@ -8634,6 +8720,15 @@ async function fbSaveActiveSeason(name) {
   } catch(e) { console.warn('fbSaveActiveSeason error:', e); }
 }
 
+// FIX 2.5: save season statistics records (fields tab → Сезоны) to Firestore
+async function fbSaveSeasonRecords(records) {
+  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const fb = window._fbFns;
+  try {
+    await fb.setDoc(fb.doc(fbDb, 'users', fbCurrentUser.uid), { seasonRecords: records }, { merge: true });
+  } catch(e) { console.warn('fbSaveSeasonRecords error:', e); }
+}
+
 async function fbSyncFromCloud() {
   if (!fbDb || !fbCurrentUser || !window._fbFns) return;
   const fb = window._fbFns;
@@ -8642,12 +8737,20 @@ async function fbSyncFromCloud() {
     const fieldsCol = fb.collection(fbDb, 'users', fbCurrentUser.uid, 'fields');
     const fieldsSnap = await fb.getDocs(fieldsCol);
     if (!fieldsSnap.empty) {
+      // ── Облако имеет данные → загружаем с облака (cloud wins)
       const cloudFields = fieldsSnap.docs.map(d => d.data());
       localStorage.setItem(STORAGE_PREFIX + '-fields', JSON.stringify(cloudFields));
       if (map) {
         Object.values(drawnPolygons).forEach(p => map.removeLayer(p));
         drawnPolygons = {};
         cloudFields.forEach(f => addFieldToMap(f));
+      }
+    } else {
+      // FIX 2.5: облако пустое — загружаем локальные поля в облако (первый вход с нового устройства)
+      const localFields = loadFields();
+      if (localFields && localFields.length > 0) {
+        await fbSaveFields(localFields);
+        showToast('☁️ ' + (lang === 'ru' ? 'Локальные поля сохранены в облако' : 'Local fields uploaded to cloud'));
       }
     }
 
@@ -8670,6 +8773,11 @@ async function fbSyncFromCloud() {
       if (data.activeSeason) {
         localStorage.setItem(STORAGE_PREFIX + '-active-season', data.activeSeason);
         updateSeasonLabel();
+      }
+
+      // FIX 2.5: restore season statistics records from cloud
+      if (data.seasonRecords && Array.isArray(data.seasonRecords)) {
+        localStorage.setItem(SEASONS_STORAGE_KEY, JSON.stringify(data.seasonRecords));
       }
     }
 
@@ -8758,6 +8866,7 @@ function renderProfile() {
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;justify-content:center;">
           <button class="profile-login-btn" onclick="openFbAuthModal('google')">${lang === 'ru' ? 'Google' : 'Google'}</button>
           <button class="profile-login-btn" onclick="openFbAuthModal('email')">${lang === 'ru' ? 'Email / Пароль' : 'Email / Password'}</button>
+          <button class="profile-login-btn" onclick="showToast(lang === \'ru\' ? \'Вы уже в режиме гостя\' : \'Already in guest mode\')" style="opacity:0.6;">${lang === 'ru' ? 'Гость' : 'Guest'}</button>
         </div>
       </div>
     `;
