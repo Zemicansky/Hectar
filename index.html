@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <!-- FIX 2: Full mobile/PWA adaptation — viewport-fit=cover ensures content fills notch/Dynamic Island area -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Hectar 2.4 — мониторинг полей</title>
+<title>Hectar 2.5 — мониторинг полей</title>
 
 <!-- FIX 2: PWA full-screen on iOS — black-translucent hides Safari URL bar when added to home screen -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1758,8 +1758,17 @@
     margin-bottom: 12px;
   }
   .profile-avatar svg { width: 32px; height: 32px; color: var(--accent); }
-  .profile-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-  .profile-role { font-size: 14px; color: var(--text2); margin-bottom: 16px; }
+  .profile-name {
+    font-size: 18px; font-weight: 700; margin-bottom: 2px;
+    word-break: break-word; overflow-wrap: break-word;
+    max-width: 100%; text-align: center;
+  }
+  .profile-email {
+    font-size: 12px; color: var(--text3); margin-bottom: 4px;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; text-align: center;
+  }
+  .profile-role { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
   .profile-login-btn {
     width: 100%;
     padding: 16px;
@@ -2813,6 +2822,7 @@
     border: 1px solid rgba(0,0,0,0.09);
   }
   .light-theme .profile-name { color: #1a2332; }
+  .light-theme .profile-email { color: #8a9fb0; }
   .light-theme .profile-role { color: #7a8fa0; }
   .light-theme .settings-group {
     background: #ffffff;
@@ -3234,7 +3244,7 @@
     <div class="login-title">Hec<span>tar</span></div>
     <div class="login-subtitle" id="login-subtitle">
       Мониторинг сельскохозяйственных полей<br>
-      Agricultural field monitoring · v2.4
+      Agricultural field monitoring · v2.5
     </div>
 
     <button class="login-btn google" onclick="openFbAuthModal('google')">
@@ -8306,7 +8316,11 @@ function renderSeasonManagerList() {
 
 // Init season label on load
 window.addEventListener('load', () => { setTimeout(updateSeasonLabel, 100); });
+
+let _appStarted = false; // FIX 2.5: guard against double-init
 function startApp() {
+  if (_appStarted) return; // уже запущено — пропускаем
+  _appStarted = true;
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('main-app').classList.add('visible');
   initLanguage();
@@ -8473,16 +8487,24 @@ function initFirebase() {
     fb.onAuthStateChanged(fbAuth, user => {
       fbCurrentUser = user;
       if (user) {
-        // FIX 2.4: если пользователь уже авторизован — сразу запускаем приложение
-        // без показа экрана логина повторно
+        // FIX 2.5: если приложение ещё не запущено — запускаем
         const loginScreen = document.getElementById('login-screen');
-        const mainApp = document.getElementById('main-app');
         if (loginScreen && loginScreen.style.display !== 'none') {
-          // Приложение ещё не запущено — запускаем автоматически
           startApp();
         }
-        fbSyncFromCloud();
-        renderProfile();
+        // FIX 2.5: ждём инициализации карты перед синхронизацией полей
+        // map инициализируется в startApp → initMap(), это синхронно,
+        // но нам нужна небольшая задержка чтобы DOM успел отрисоваться
+        const doSync = () => {
+          fbSyncFromCloud();
+          renderProfile();
+        };
+        if (map) {
+          doSync();
+        } else {
+          // карта ещё не готова — ждём
+          setTimeout(doSync, 300);
+        }
         showToast('☁️ ' + (lang === 'ru' ? 'Синхронизация...' : 'Syncing...'));
       } else {
         renderProfile();
@@ -8607,7 +8629,7 @@ async function fbSubmitEmail() {
       await fb.signInWithEmailAndPassword(fbAuth, email, password);
     }
     closeFbAuthModal();
-    startApp();
+    // FIX 2.5: startApp() вызывается через onAuthStateChanged — не дублируем
     showToast('✅ ' + (lang === 'ru' ? 'Вход выполнен!' : 'Signed in!'));
   } catch(e) {
     const msgs = {
@@ -8639,7 +8661,7 @@ async function fbSignInGoogle() {
     const result = await fb.signInWithPopup(fbAuth, provider);
     if (result.user) {
       closeFbAuthModal();
-      startApp();
+      // FIX 2.5: startApp() вызывается через onAuthStateChanged — не дублируем
       showToast('✅ Google: ' + (result.user.displayName || result.user.email));
     }
   } catch(e) {
@@ -8737,24 +8759,24 @@ async function fbSyncFromCloud() {
     const fieldsCol = fb.collection(fbDb, 'users', fbCurrentUser.uid, 'fields');
     const fieldsSnap = await fb.getDocs(fieldsCol);
     if (!fieldsSnap.empty) {
-      // ── Облако имеет данные → загружаем с облака (cloud wins)
+      // Облако имеет данные → загружаем с облака (cloud wins)
       const cloudFields = fieldsSnap.docs.map(d => d.data());
       localStorage.setItem(STORAGE_PREFIX + '-fields', JSON.stringify(cloudFields));
+      // FIX 2.5: перерисовываем карту только если map инициализирована
       if (map) {
-        Object.values(drawnPolygons).forEach(p => map.removeLayer(p));
+        Object.values(drawnPolygons).forEach(p => { try { map.removeLayer(p); } catch(_) {} });
         drawnPolygons = {};
         cloudFields.forEach(f => addFieldToMap(f));
       }
     } else {
-      // FIX 2.5: облако пустое — загружаем локальные поля в облако (первый вход с нового устройства)
+      // FIX 2.5: облако пустое — загружаем локальные поля в облако
       const localFields = loadFields();
       if (localFields && localFields.length > 0) {
         await fbSaveFields(localFields);
-        showToast('☁️ ' + (lang === 'ru' ? 'Локальные поля сохранены в облако' : 'Local fields uploaded to cloud'));
       }
     }
 
-    // ── Настройки, сезоны, активный сезон ──
+    // ── Настройки, сезоны, активный сезон, записи сезонов ──
     const userDocRef = fb.doc(fbDb, 'users', fbCurrentUser.uid);
     const userDocSnap = await fb.getDoc(userDocRef);
     if (userDocSnap.exists()) {
@@ -8775,15 +8797,19 @@ async function fbSyncFromCloud() {
         updateSeasonLabel();
       }
 
-      // FIX 2.5: restore season statistics records from cloud
+      // FIX 2.5: восстанавливаем статистику сезонов
       if (data.seasonRecords && Array.isArray(data.seasonRecords)) {
         localStorage.setItem(SEASONS_STORAGE_KEY, JSON.stringify(data.seasonRecords));
       }
     }
 
+    // FIX 2.5: обновляем список полей после загрузки
     renderFieldsList();
     showToast('☁️ ' + (lang === 'ru' ? 'Данные загружены' : 'Data loaded'));
-  } catch(e) { console.warn('fbSyncFromCloud error:', e); }
+  } catch(e) {
+    console.warn('fbSyncFromCloud error:', e);
+    showToast(lang === 'ru' ? '⚠️ Ошибка синхронизации' : '⚠️ Sync error');
+  }
 }
 
 // Patch saveFields to also sync to Firebase when logged in
@@ -8828,8 +8854,8 @@ function renderProfile() {
 
   let authHTML;
   if (fbUser) {
-    const displayName = fbUser.displayName || fbUser.email || 'Hectar User';
-    const isGuest = false;
+    const displayName = fbUser.displayName || 'Hectar User';
+    const email = fbUser.email || '';
     authHTML = `
       <div class="profile-card">
         <div class="profile-avatar">
@@ -8839,6 +8865,7 @@ function renderProfile() {
           }
         </div>
         <div class="profile-name">${escapeHtml(displayName)}</div>
+        ${email ? `<div class="profile-email" title="${escapeHtml(email)}">${escapeHtml(email)}</div>` : ''}
         <div class="profile-role">Hectar · ${t('agronomist')}</div>
         <div class="fb-sync-badge">☁️ ${lang === 'ru' ? 'Синхронизация включена' : 'Cloud sync active'}</div>
         <button class="profile-logout-btn" onclick="fbSignOut()" style="margin-top:10px;">${t('signOut')}</button>
