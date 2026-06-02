@@ -3962,7 +3962,9 @@
     signOut,
     onAuthStateChanged,
     sendPasswordResetEmail,
-    deleteUser
+    deleteUser,
+    setPersistence,
+    browserLocalPersistence
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
   import {
     getFirestore,
@@ -3972,7 +3974,9 @@
     writeBatch,
     setDoc,
     getDoc,
-    onSnapshot
+    onSnapshot,
+    enableNetwork,
+    disableNetwork
   } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
   // Пробрасываем всё в window чтобы обычные <script> ниже могли использовать
@@ -3980,7 +3984,9 @@
     initializeApp, getAuth, GoogleAuthProvider, signInWithPopup,
     signInWithEmailAndPassword, createUserWithEmailAndPassword,
     signOut, onAuthStateChanged, sendPasswordResetEmail, deleteUser,
-    getFirestore, collection, doc, getDocs, writeBatch, setDoc, getDoc, onSnapshot
+    setPersistence, browserLocalPersistence,
+    getFirestore, collection, doc, getDocs, writeBatch, setDoc, getDoc, onSnapshot,
+    enableNetwork, disableNetwork
   };
   window._firebaseSdkReady = true;
 </script>
@@ -8506,18 +8512,28 @@ function initFirebase() {
     // Сохраняем функции для использования в других методах
     window._fbFns = fb;
 
+    // ── Проблема 2: Persistent login ──
+    // Устанавливаем LOCAL persistence — сессия сохраняется в indexedDB
+    // и восстанавливается автоматически при следующем открытии сайта
+    fb.setPersistence(fbAuth, fb.browserLocalPersistence).catch(e => {
+      console.warn('[Firebase] setPersistence failed:', e.message);
+    });
+
+    // ── Проблема 2: Показываем «экран загрузки» пока Firebase проверяет сессию ──
+    // login-screen уже видим (CSS default). Добавляем индикатор и ждём.
+    _showAuthCheckState();
+
     fb.onAuthStateChanged(fbAuth, user => {
       fbCurrentUser = user;
       if (user) {
-        // FIX 2.5: если приложение ещё не запущено — запускаем
-        const loginScreen = document.getElementById('login-screen');
-        if (loginScreen && loginScreen.style.display !== 'none') {
-          startApp();
-        }
+        // Сессия восстановлена или пользователь только что вошёл
+        // Сразу запускаем приложение (скрываем login-screen)
+        startApp();
+
         // Ждём инициализации карты перед синхронизацией
         const doSync = async () => {
-          await fbSyncFromCloud();      // разовая начальная загрузка
-          fbStartRealtimeListeners();   // затем подписываемся на realtime обновления
+          await fbSyncFromCloud();
+          fbStartRealtimeListeners();
           renderProfile();
         };
         if (map) {
@@ -8527,14 +8543,39 @@ function initFirebase() {
         }
         showToast('☁️ ' + (lang === 'ru' ? 'Синхронизация...' : 'Syncing...'));
       } else {
-        // Выход — останавливаем listeners
+        // Нет сессии — показываем экран входа
+        _showLoginScreen();
         fbStopRealtimeListeners();
         renderProfile();
       }
     });
   } catch(e) {
     console.warn('Firebase init failed:', e.message);
+    // Firebase недоступен — показываем login-screen для ручного входа
+    _showLoginScreen();
   }
+}
+
+// Показывает login-screen с индикатором проверки сессии
+function _showAuthCheckState() {
+  const ls = document.getElementById('login-screen');
+  const btn = ls ? ls.querySelector('.login-btn') : null;
+  if (btn) {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+  }
+  // Убираем блокировку через 5с на случай если Firebase завис
+  setTimeout(() => {
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+  }, 5000);
+}
+
+// Показывает login-screen и снимает блокировку кнопки
+function _showLoginScreen() {
+  const ls = document.getElementById('login-screen');
+  if (ls) ls.style.display = '';
+  const btn = ls ? ls.querySelector('.login-btn') : null;
+  if (btn) { btn.disabled = false; btn.style.opacity = ''; }
 }
 
 function openFbAuthModal(type) {
@@ -8926,46 +8967,106 @@ async function fbSyncFromCloud() {
   _fbSyncInProgress = true;
   const fb = window._fbFns;
   try {
-    // ── Поля (subcollection) ──
+    // ── Поля (subcollection) — cloud всегда побеждает ──
+    // Никогда не заливаем локальные данные в облако при входе —
+    // это перетёрло бы данные созданные на другом устройстве.
     const fieldsCol = fb.collection(fbDb, 'users', fbCurrentUser.uid, 'fields');
     const fieldsSnap = await fb.getDocs(fieldsCol);
-
-    if (!fieldsSnap.empty) {
-      // Облако имеет поля → cloud wins
-      const cloudFields = fieldsSnap.docs.map(d => d.data());
-      _applyCloudFields(cloudFields);
-    } else {
-      // Firestore пуст → загружаем локальные поля в облако (первый вход)
-      const localFields = loadFields();
-      if (localFields && localFields.length > 0) {
-        await fbSaveFields(localFields);
-      }
-    }
+    const cloudFields = fieldsSnap.docs.map(d => d.data());
+    _applyCloudFields(cloudFields);
 
     // ── userDoc (settings, seasons, etc.) ──
     const userDocRef = fb.doc(fbDb, 'users', fbCurrentUser.uid);
     const userDocSnap = await fb.getDoc(userDocRef);
     if (userDocSnap.exists()) {
       _applyCloudUserDoc(userDocSnap.data());
-    } else {
-      // Первый вход — залить локальные настройки
-      const localSettings = loadSettings();
-      await fb.setDoc(userDocRef, {
-        settings: localSettings,
-        seasonsMgr: JSON.parse(localStorage.getItem(STORAGE_PREFIX + '-seasons-mgr') || '[]'),
-        activeSeason: localStorage.getItem(STORAGE_PREFIX + '-active-season') || '',
-        seasonRecords: JSON.parse(localStorage.getItem(SEASONS_STORAGE_KEY) || '[]'),
-      }, { merge: true });
     }
+
+    // ── Проблема 3: Офлайн-очередь — отправляем накопленные изменения ──
+    await _flushOfflineQueue();
 
     showToast('☁️ ' + (lang === 'ru' ? 'Данные загружены' : 'Data loaded'));
   } catch(e) {
     console.warn('[fbSyncFromCloud] error:', e);
-    showToast(lang === 'ru' ? '⚠️ Ошибка синхронизации' : '⚠️ Sync error');
+    // Не показываем ошибку если просто нет сети — работаем с локальными данными
+    if (!navigator.onLine) {
+      console.log('[Hectar] Offline — using local data');
+    } else {
+      showToast(lang === 'ru' ? '⚠️ Ошибка синхронизации' : '⚠️ Sync error');
+    }
   } finally {
     _fbSyncInProgress = false;
   }
 }
+
+// ════════════════════════════════════════════════════
+// ПРОБЛЕМА 3: ОФЛАЙН-РЕЖИМ И ОЧЕРЕДЬ СИНХРОНИЗАЦИИ
+// ════════════════════════════════════════════════════
+// Ключ в localStorage для хранения очереди несинхронизированных операций
+const OFFLINE_QUEUE_KEY = STORAGE_PREFIX + '-offline-queue';
+
+// Получить очередь
+function _getOfflineQueue() {
+  try { return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]'); } catch { return []; }
+}
+
+// Сохранить очередь
+function _setOfflineQueue(q) {
+  try { localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(q)); } catch(e) {}
+}
+
+// Добавить операцию в очередь (если нет интернета)
+// type: 'fields' | 'settings' | 'seasons' | 'activeSeason' | 'seasonRecords'
+function _enqueueOfflineOp(type, payload) {
+  const q = _getOfflineQueue();
+  // Заменяем предыдущую операцию того же типа — нам важно только последнее состояние
+  const idx = q.findIndex(op => op.type === type);
+  const op = { type, payload, ts: Date.now() };
+  if (idx >= 0) q[idx] = op; else q.push(op);
+  _setOfflineQueue(q);
+}
+
+// Отправить накопленную очередь в Firestore
+async function _flushOfflineQueue() {
+  if (!fbCurrentUser || !navigator.onLine) return;
+  const q = _getOfflineQueue();
+  if (!q.length) return;
+  console.log('[Hectar offline] Flushing', q.length, 'queued op(s)');
+  for (const op of q) {
+    try {
+      if (op.type === 'fields')        await fbSaveFields(op.payload);
+      else if (op.type === 'settings') await fbSaveSettings(op.payload);
+      else if (op.type === 'seasons')  await fbSaveSeasonsMgr(op.payload);
+      else if (op.type === 'activeSeason') await fbSaveActiveSeason(op.payload);
+      else if (op.type === 'seasonRecords') await fbSaveSeasonRecords(op.payload);
+    } catch(e) {
+      console.warn('[Hectar offline] flush op failed:', op.type, e);
+      return; // Остановимся — попробуем снова при следующем подключении
+    }
+  }
+  // Все операции успешно отправлены — очищаем очередь
+  _setOfflineQueue([]);
+  showToast('☁️ ' + (lang === 'ru' ? 'Офлайн-данные синхронизированы' : 'Offline data synced'));
+}
+
+// Мониторинг сети: при появлении соединения — синхронизируем очередь
+window.addEventListener('online', () => {
+  showToast('🌐 ' + (lang === 'ru' ? 'Сеть восстановлена' : 'Back online'));
+  if (fbCurrentUser) {
+    setTimeout(async () => {
+      await _flushOfflineQueue();
+      // Также перечитываем облако — могли появиться изменения с другого устройства
+      if (!_fbSyncInProgress) {
+        await fbSyncFromCloud();
+        fbStartRealtimeListeners();
+      }
+    }, 1000);
+  }
+});
+
+window.addEventListener('offline', () => {
+  showToast('📵 ' + (lang === 'ru' ? 'Нет сети — работаем офлайн' : 'No network — offline mode'));
+});
 
 // ── Запустить realtime listeners ──
 // Вызывается один раз после fbSyncFromCloud.
@@ -9011,20 +9112,27 @@ function fbStopRealtimeListeners() {
 
 // ── visibilitychange: при возврате в вкладку/PWA перечитать данные ──
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && fbCurrentUser && !_fbSyncInProgress) {
+  if (document.visibilityState === 'visible' && fbCurrentUser && !_fbSyncInProgress && navigator.onLine) {
     // Небольшая задержка чтобы избежать срабатывания при каждом скролле iOS
     setTimeout(() => {
-      if (fbCurrentUser) fbSyncFromCloud();
+      if (fbCurrentUser && navigator.onLine) fbSyncFromCloud();
     }, 500);
   }
 });
 
-// ── Патч saveFields — сохранить локально + в Firestore ──
+// ── Патч saveFields — сохранить локально + в Firestore (или в очередь если офлайн) ──
 const _origSaveFieldsFb = saveFields;
 saveFields = function(fields) {
   localStorage.setItem(STORAGE_PREFIX + '-fields', JSON.stringify(fields));
   if (fbCurrentUser) {
-    fbSaveFields(fields).catch(e => console.warn('[saveFields→FB]', e));
+    if (navigator.onLine) {
+      fbSaveFields(fields).catch(e => {
+        console.warn('[saveFields→FB]', e);
+        _enqueueOfflineOp('fields', fields);
+      });
+    } else {
+      _enqueueOfflineOp('fields', fields);
+    }
   }
 };
 
@@ -9033,7 +9141,14 @@ const _origSaveSettingsFb = saveSettings;
 saveSettings = function(settings) {
   localStorage.setItem(STORAGE_PREFIX + '-settings', JSON.stringify(settings));
   if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) {
-    fbSaveSettings(settings).catch(e => console.warn('[saveSettings→FB]', e));
+    if (navigator.onLine) {
+      fbSaveSettings(settings).catch(e => {
+        console.warn('[saveSettings→FB]', e);
+        _enqueueOfflineOp('settings', settings);
+      });
+    } else {
+      _enqueueOfflineOp('settings', settings);
+    }
   }
 };
 
@@ -9042,7 +9157,14 @@ const _origSaveSeasonsMgr = saveSeasonsMgr;
 saveSeasonsMgr = function(data) {
   localStorage.setItem(STORAGE_PREFIX + '-seasons-mgr', JSON.stringify(data));
   if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) {
-    fbSaveSeasonsMgr(data).catch(e => console.warn('[saveSeasonsMgr→FB]', e));
+    if (navigator.onLine) {
+      fbSaveSeasonsMgr(data).catch(e => {
+        console.warn('[saveSeasonsMgr→FB]', e);
+        _enqueueOfflineOp('seasons', data);
+      });
+    } else {
+      _enqueueOfflineOp('seasons', data);
+    }
   }
 };
 
@@ -9051,16 +9173,30 @@ const _origSaveActiveSeason = saveActiveSeason;
 saveActiveSeason = function(name) {
   localStorage.setItem(STORAGE_PREFIX + '-active-season', name);
   if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) {
-    fbSaveActiveSeason(name).catch(e => console.warn('[saveActiveSeason→FB]', e));
+    if (navigator.onLine) {
+      fbSaveActiveSeason(name).catch(e => {
+        console.warn('[saveActiveSeason→FB]', e);
+        _enqueueOfflineOp('activeSeason', name);
+      });
+    } else {
+      _enqueueOfflineOp('activeSeason', name);
+    }
   }
 };
 
-// ── Патч saveSeasonRecords (был пропущен — вот почему сезоны не синхронизировались) ──
+// ── Патч saveSeasonRecords ──
 const _origSaveSeasonRecordsFb = saveSeasonRecords;
 saveSeasonRecords = function(records) {
   localStorage.setItem(SEASONS_STORAGE_KEY, JSON.stringify(records));
   if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) {
-    fbSaveSeasonRecords(records).catch(e => console.warn('[saveSeasonRecords→FB]', e));
+    if (navigator.onLine) {
+      fbSaveSeasonRecords(records).catch(e => {
+        console.warn('[saveSeasonRecords→FB]', e);
+        _enqueueOfflineOp('seasonRecords', records);
+      });
+    } else {
+      _enqueueOfflineOp('seasonRecords', records);
+    }
   }
 };
 
