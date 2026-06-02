@@ -7862,7 +7862,7 @@ function loadSeasonRecords() {
 function saveSeasonRecords(records) {
   localStorage.setItem(SEASONS_STORAGE_KEY, JSON.stringify(records));
   // FIX 2.5: sync season records to Firebase if logged in
-  if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) {
+  if (typeof _fbGetUser === 'function' && _fbGetUser()) {
     fbSaveSeasonRecords(records).catch(e => console.warn('[fbSaveSeasonRecords]', e));
   }
 }
@@ -8894,68 +8894,82 @@ async function submitDeleteAccount() {
 
 // ── Firestore sync helpers ──
 function fbUserDoc(subCollection) {
-  if (!fbDb || !fbCurrentUser || !window._fbFns) return null;
+  const user = _fbGetUser();
+  if (!fbDb || !user || !window._fbFns) return null;
   const fb = window._fbFns;
-  return fb.collection(fbDb, 'users', fbCurrentUser.uid, subCollection);
+  return fb.collection(fbDb, 'users', user.uid, subCollection);
+}
+
+// ── FIX 2.5: всегда берём актуального пользователя через fbAuth.currentUser ──
+// Решает race-condition: fbCurrentUser может быть null, пока onAuthStateChanged ещё не отработал,
+// но fbAuth.currentUser уже содержит восстановленную сессию из localStorage/IndexedDB.
+function _fbGetUser() {
+  return fbCurrentUser || (fbAuth && fbAuth.currentUser) || null;
 }
 
 async function fbSaveFields(fields) {
-  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const user = _fbGetUser();
+  if (!fbDb || !user || !window._fbFns) return;
   const fb = window._fbFns;
   try {
-    const col = fb.collection(fbDb, 'users', fbCurrentUser.uid, 'fields');
+    const col = fb.collection(fbDb, 'users', user.uid, 'fields');
     const snap = await fb.getDocs(col);
     const batch = fb.writeBatch(fbDb);
     snap.forEach(d => batch.delete(d.ref));
-    fields.forEach(f => batch.set(fb.doc(fbDb, 'users', fbCurrentUser.uid, 'fields', f.id), f));
+    fields.forEach(f => batch.set(fb.doc(fbDb, 'users', user.uid, 'fields', f.id), f));
     await batch.commit();
   } catch(e) { console.warn('fbSaveFields error:', e); }
 }
 
 async function fbSaveNotes(notes) {
-  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const user = _fbGetUser();
+  if (!fbDb || !user || !window._fbFns) return;
   const fb = window._fbFns;
   try {
-    const col = fb.collection(fbDb, 'users', fbCurrentUser.uid, 'notes');
+    const col = fb.collection(fbDb, 'users', user.uid, 'notes');
     const snap = await fb.getDocs(col);
     const batch = fb.writeBatch(fbDb);
     snap.forEach(d => batch.delete(d.ref));
-    notes.forEach((n, i) => batch.set(fb.doc(fbDb, 'users', fbCurrentUser.uid, 'notes', 'note_' + i), n));
+    notes.forEach((n, i) => batch.set(fb.doc(fbDb, 'users', user.uid, 'notes', 'note_' + i), n));
     await batch.commit();
   } catch(e) { console.warn('fbSaveNotes error:', e); }
 }
 
 async function fbSaveSettings(settings) {
-  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const user = _fbGetUser();
+  if (!fbDb || !user || !window._fbFns) return;
   const fb = window._fbFns;
   try {
-    await fb.setDoc(fb.doc(fbDb, 'users', fbCurrentUser.uid), { settings }, { merge: true });
+    await fb.setDoc(fb.doc(fbDb, 'users', user.uid), { settings }, { merge: true });
   } catch(e) {}
 }
 
 // ── Сохранение сезонов в Firestore ──
 async function fbSaveSeasonsMgr(seasons) {
-  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const user = _fbGetUser();
+  if (!fbDb || !user || !window._fbFns) return;
   const fb = window._fbFns;
   try {
-    await fb.setDoc(fb.doc(fbDb, 'users', fbCurrentUser.uid), { seasonsMgr: seasons }, { merge: true });
+    await fb.setDoc(fb.doc(fbDb, 'users', user.uid), { seasonsMgr: seasons }, { merge: true });
   } catch(e) { console.warn('fbSaveSeasonsMgr error:', e); }
 }
 
 async function fbSaveActiveSeason(name) {
-  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const user = _fbGetUser();
+  if (!fbDb || !user || !window._fbFns) return;
   const fb = window._fbFns;
   try {
-    await fb.setDoc(fb.doc(fbDb, 'users', fbCurrentUser.uid), { activeSeason: name }, { merge: true });
+    await fb.setDoc(fb.doc(fbDb, 'users', user.uid), { activeSeason: name }, { merge: true });
   } catch(e) { console.warn('fbSaveActiveSeason error:', e); }
 }
 
 // FIX 2.5: save season statistics records (fields tab → Сезоны) to Firestore
 async function fbSaveSeasonRecords(records) {
-  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const user = _fbGetUser();
+  if (!fbDb || !user || !window._fbFns) return;
   const fb = window._fbFns;
   try {
-    await fb.setDoc(fb.doc(fbDb, 'users', fbCurrentUser.uid), { seasonRecords: records }, { merge: true });
+    await fb.setDoc(fb.doc(fbDb, 'users', user.uid), { seasonRecords: records }, { merge: true });
   } catch(e) { console.warn('fbSaveSeasonRecords error:', e); }
 }
 
@@ -9042,10 +9056,11 @@ function _applyCloudUserDoc(data) {
 // который блокировал realtime listeners после ошибки синхронизации.
 // Стратегия cloud-wins: данные из Firestore ВСЕГДА применяются при наличии.
 async function fbSyncFromCloud() {
-  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const user = _fbGetUser();
+  if (!fbDb || !user || !window._fbFns) return;
   _fbSyncInProgress = true;
   const fb = window._fbFns;
-  const uid = fbCurrentUser.uid;
+  const uid = user.uid;
   showToast('🔍 Читаю Firestore для uid: ' + uid.slice(0,8) + '...');
   try {
     const fieldsCol = fb.collection(fbDb, 'users', uid, 'fields');
@@ -9100,9 +9115,10 @@ async function fbSyncFromCloud() {
 // изменений с других устройств если первый sync завершился с ошибкой.
 // Теперь используем короткий debounce чтобы не мешать первой загрузке.
 function fbStartRealtimeListeners() {
-  if (!fbDb || !fbCurrentUser || !window._fbFns) return;
+  const user = _fbGetUser();
+  if (!fbDb || !user || !window._fbFns) return;
   const fb = window._fbFns;
-  const uid = fbCurrentUser.uid;
+  const uid = user.uid;
 
   // Отписаться от предыдущих listener-ов (если были)
   if (_fbFieldsUnsubscribe) { try { _fbFieldsUnsubscribe(); } catch(_) {} }
@@ -9153,10 +9169,10 @@ function fbStopRealtimeListeners() {
 
 // ── visibilitychange: при возврате в вкладку/PWA перечитать данные ──
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && fbCurrentUser && !_fbSyncInProgress) {
+  if (document.visibilityState === 'visible' && _fbGetUser() && !_fbSyncInProgress) {
     // Небольшая задержка чтобы избежать срабатывания при каждом скролле iOS
     setTimeout(() => {
-      if (fbCurrentUser) fbSyncFromCloud();
+      if (_fbGetUser()) fbSyncFromCloud();
     }, 500);
   }
 });
@@ -9164,7 +9180,8 @@ document.addEventListener('visibilitychange', () => {
 // ── Патч saveFields — сохранить локально + в Firestore ──
 saveFields = function(fields) {
   localStorage.setItem(STORAGE_PREFIX + '-fields', JSON.stringify(fields));
-  if (fbCurrentUser) {
+  const user = _fbGetUser();
+  if (user) {
     showToast('💾 Сохраняю в облако: ' + fields.length + ' полей...');
     fbSaveFields(fields)
       .then(() => showToast('✅ Облако: сохранено ' + fields.length + ' полей'))
@@ -9178,7 +9195,7 @@ saveFields = function(fields) {
 const _origSaveSettingsFb = saveSettings;
 saveSettings = function(settings) {
   localStorage.setItem(STORAGE_PREFIX + '-settings', JSON.stringify(settings));
-  if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) {
+  if (_fbGetUser()) {
     fbSaveSettings(settings).catch(e => console.warn('[saveSettings→FB]', e));
   }
 };
@@ -9187,7 +9204,7 @@ saveSettings = function(settings) {
 const _origSaveSeasonManagerData = saveSeasonManagerData;
 saveSeasonManagerData = function(data) {
   localStorage.setItem(STORAGE_PREFIX + '-seasons-mgr', JSON.stringify(data));
-  if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) {
+  if (_fbGetUser()) {
     fbSaveSeasonsMgr(data).catch(e => console.warn('[saveSeasonManagerData→FB]', e));
   }
 };
@@ -9196,7 +9213,7 @@ saveSeasonManagerData = function(data) {
 const _origSaveActiveSeason = saveActiveSeason;
 saveActiveSeason = function(name) {
   localStorage.setItem(STORAGE_PREFIX + '-active-season', name);
-  if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) {
+  if (_fbGetUser()) {
     fbSaveActiveSeason(name).catch(e => console.warn('[saveActiveSeason→FB]', e));
   }
 };
@@ -9205,7 +9222,7 @@ saveActiveSeason = function(name) {
 const _origSaveSeasonRecordsFb = saveSeasonRecords;
 saveSeasonRecords = function(records) {
   localStorage.setItem(SEASONS_STORAGE_KEY, JSON.stringify(records));
-  if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) {
+  if (_fbGetUser()) {
     fbSaveSeasonRecords(records).catch(e => console.warn('[saveSeasonRecords→FB]', e));
   }
 };
