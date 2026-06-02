@@ -231,6 +231,73 @@
   .login-btn.guest { background: var(--accent); color: #fff; margin-top: 4px; }
 
   /* ══════════════════════════════════════
+     SPLASH / LOADING SCREEN (v2.5)
+  ══════════════════════════════════════ */
+  #splash-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: linear-gradient(160deg, #0a1520 0%, #0f1923 40%, #0d2a1a 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    transition: opacity 0.4s ease;
+  }
+  #splash-screen.fade-out {
+    opacity: 0;
+    pointer-events: none;
+  }
+  #splash-screen.hidden { display: none; }
+
+  .splash-logo {
+    margin-bottom: 20px;
+    animation: splashPulse 2s ease-in-out infinite;
+  }
+  .splash-logo svg { width: 72px; height: 72px; }
+  @keyframes splashPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.85; }
+  }
+  .splash-title {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+    color: #fff;
+  }
+  .splash-title span { color: var(--accent); }
+  .splash-status {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 32px;
+    min-height: 18px;
+    text-align: center;
+    transition: opacity 0.2s;
+  }
+  .splash-progress-wrap {
+    width: 200px;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .splash-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.35s ease;
+  }
+  .splash-pct {
+    font-size: 12px;
+    color: var(--text3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ══════════════════════════════════════
      ОСНОВНОЙ ИНТЕРФЕЙС
   ══════════════════════════════════════ */
   #main-app {
@@ -3227,6 +3294,27 @@
   <!-- ══════════════════════════════════════
        ЭКРАН ВХОДА
   ══════════════════════════════════════ -->
+  <!-- SPLASH SCREEN v2.5: показывается пока Firebase проверяет сессию -->
+  <div id="splash-screen">
+    <div class="splash-logo">
+      <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="36" cy="36" r="36" fill="rgba(76,175,80,0.15)"/>
+        <path d="M36 16c0 0-18 10-18 24a18 18 0 0 0 36 0C54 26 36 16 36 16z" fill="#4CAF50" opacity="0.3"/>
+        <path d="M36 20c0 0-14 8-14 20a14 14 0 0 0 28 0C50 28 36 20 36 20z" fill="#4CAF50" opacity="0.5"/>
+        <path d="M36 26c0 0-8 5-8 14a8 8 0 0 0 16 0C44 31 36 26 36 26z" fill="#4CAF50"/>
+        <line x1="36" y1="26" x2="36" y2="54" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <path d="M36 38 L28 30" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <path d="M36 42 L44 34" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <div class="splash-title">Hec<span>tar</span></div>
+    <div class="splash-status" id="splash-status">Инициализация...</div>
+    <div class="splash-progress-wrap">
+      <div class="splash-progress-bar" id="splash-progress-bar"></div>
+    </div>
+    <div class="splash-pct" id="splash-pct">0%</div>
+  </div>
+
   <div id="login-screen">
 
     <div class="login-logo">
@@ -3956,9 +4044,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <!-- Firebase v10 Modular SDK — через esm shim для совместимости с обычными скриптами -->
-<!-- ИСПРАВЛЕНИЕ: compat SDK + signInWithRedirect сломан на GitHub Pages из-за блокировки
-     third-party cookies Google'ом в 2023. Modular SDK + signInWithPopup — единственный
-     надёжный вариант для статических хостингов без бэкенда. -->
+<!-- FIX v2.5: используем Promise-resolver вместо polling-loop.
+     type="module" выполняется асинхронно, но гарантированно ДО window.load.
+     Мы резолвим promise сразу после импорта — это быстрее 200мс polling. -->
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
   import {
@@ -3994,6 +4082,8 @@
     getFirestore, collection, doc, getDocs, writeBatch, setDoc, getDoc, onSnapshot
   };
   window._firebaseSdkReady = true;
+  // Резолвим Promise чтобы основной скрипт не ждал polling-loop
+  if (window._fbSdkResolve) window._fbSdkResolve();
 </script>
 
 <script>
@@ -8520,40 +8610,42 @@ function initFirebase() {
     // Сохраняем функции для использования в других методах
     window._fbFns = fb;
 
-    // ── FIX 2.5 Проблема 1: PERSISTENT SESSION ──
+    // ── FIX 2.5: PERSISTENT SESSION ──
     // browserLocalPersistence сохраняет сессию до явного signOut или очистки кэша.
-    // Это означает, что при повторном открытии сайта onAuthStateChanged сразу
-    // вернёт user без показа экрана авторизации.
     fb.setPersistence(fbAuth, fb.browserLocalPersistence).catch(e => {
-      console.warn('[Hectar] setPersistence failed (IndexedDB may be blocked):', e.message);
+      console.warn('[Hectar] setPersistence failed:', e.message);
     });
 
-    fb.onAuthStateChanged(fbAuth, user => {
+    fb.onAuthStateChanged(fbAuth, async user => {
       fbCurrentUser = user;
       if (user) {
         const loginScreen = document.getElementById('login-screen');
         const loginVisible = loginScreen && loginScreen.style.display !== 'none';
 
-        // Если login-screen ещё видим — автоматически запускаем приложение
-        // (восстановленная сессия: пользователь не выходил)
+        // Автовход: login-screen ещё показан (восстановленная сессия или новый вход)
         if (loginVisible) {
+          setSplashProgress(75, lang === 'ru' ? 'Загрузка данных...' : 'Loading data...');
           startApp();
         }
 
-        // Синхронизируем данные из Firestore
+        // ── FIX 2.5 Проблема 2: синхронизация между устройствами ──
+        // Запускаем sync в правильном порядке с обработкой ошибок
         const doSync = async () => {
-          await fbSyncFromCloud();
+          try {
+            await fbSyncFromCloud();
+          } catch(e) {
+            console.warn('[Hectar] Initial sync error:', e);
+          }
+          // Realtime listeners запускаем ПОСЛЕ первой загрузки
+          // (и независимо от результата — чтобы изменения с других устройств приходили)
           fbStartRealtimeListeners();
           renderProfile();
         };
+
         if (map) {
           doSync();
         } else {
           setTimeout(doSync, 300);
-        }
-        // Показываем тост только когда приложение уже видно (не при автовходе в фон)
-        if (!loginVisible) {
-          showToast('☁️ ' + (lang === 'ru' ? 'Синхронизация...' : 'Syncing...'));
         }
       } else {
         // Выход — останавливаем listeners
@@ -8948,40 +9040,48 @@ function _applyCloudUserDoc(data) {
 }
 
 // ── Разовая первоначальная загрузка с Firestore ──
-// Cloud wins: если в Firestore есть данные — берём оттуда.
-// Если Firestore пустой — загружаем локальные данные наверх.
+// FIX v2.5: переписана логика — убран race-condition флаг,
+// который блокировал realtime listeners после ошибки синхронизации.
+// Стратегия cloud-wins: данные из Firestore ВСЕГДА применяются при наличии.
 async function fbSyncFromCloud() {
   if (!fbDb || !fbCurrentUser || !window._fbFns) return;
-  if (_fbSyncInProgress) return;
   _fbSyncInProgress = true;
   const fb = window._fbFns;
+  const uid = fbCurrentUser.uid;
   try {
-    // ── Поля (subcollection) ──
-    const fieldsCol = fb.collection(fbDb, 'users', fbCurrentUser.uid, 'fields');
-    const fieldsSnap = await fb.getDocs(fieldsCol);
+    // ── Параллельная загрузка полей и userDoc ──
+    const fieldsCol = fb.collection(fbDb, 'users', uid, 'fields');
+    const userDocRef = fb.doc(fbDb, 'users', uid);
 
+    const [fieldsSnap, userDocSnap] = await Promise.all([
+      fb.getDocs(fieldsCol),
+      fb.getDoc(userDocRef)
+    ]);
+
+    // ── Поля: cloud wins если есть данные ──
     if (!fieldsSnap.empty) {
-      // Облако имеет поля → cloud wins
-      const cloudFields = fieldsSnap.docs.map(d => d.data());
+      // FIX v2.5: поле id уже содержится в data() (мы его туда пишем в fbSaveFields)
+      // Используем document ID как запасной вариант если data().id отсутствует
+      const cloudFields = fieldsSnap.docs.map(d => {
+        const data = d.data();
+        return data.id ? data : { ...data, id: d.id };
+      });
       _applyCloudFields(cloudFields);
     } else {
-      // Firestore пуст → загружаем локальные поля в облако (первый вход)
+      // Firestore пуст → загружаем локальные поля в облако (первый вход с нового устройства)
       const localFields = loadFields();
       if (localFields && localFields.length > 0) {
         await fbSaveFields(localFields);
       }
     }
 
-    // ── userDoc (settings, seasons, etc.) ──
-    const userDocRef = fb.doc(fbDb, 'users', fbCurrentUser.uid);
-    const userDocSnap = await fb.getDoc(userDocRef);
+    // ── userDoc: настройки, сезоны ──
     if (userDocSnap.exists()) {
       _applyCloudUserDoc(userDocSnap.data());
     } else {
       // Первый вход — залить локальные настройки
-      const localSettings = loadSettings();
       await fb.setDoc(userDocRef, {
-        settings: localSettings,
+        settings: loadSettings(),
         seasonsMgr: JSON.parse(localStorage.getItem(STORAGE_PREFIX + '-seasons-mgr') || '[]'),
         activeSeason: localStorage.getItem(STORAGE_PREFIX + '-active-season') || '',
         seasonRecords: JSON.parse(localStorage.getItem(SEASONS_STORAGE_KEY) || '[]'),
@@ -8993,36 +9093,51 @@ async function fbSyncFromCloud() {
     console.warn('[fbSyncFromCloud] error:', e);
     showToast(lang === 'ru' ? '⚠️ Ошибка синхронизации' : '⚠️ Sync error');
   } finally {
+    // FIX v2.5: всегда сбрасываем флаг — в т.ч. при ошибке
     _fbSyncInProgress = false;
   }
 }
 
 // ── Запустить realtime listeners ──
-// Вызывается один раз после fbSyncFromCloud.
-// onSnapshot срабатывает сразу при изменении данных на ЛЮБОМ устройстве.
+// FIX v2.5: убран if (_fbSyncInProgress) return — он блокировал получение
+// изменений с других устройств если первый sync завершился с ошибкой.
+// Теперь используем короткий debounce чтобы не мешать первой загрузке.
 function fbStartRealtimeListeners() {
   if (!fbDb || !fbCurrentUser || !window._fbFns) return;
   const fb = window._fbFns;
+  const uid = fbCurrentUser.uid;
 
   // Отписаться от предыдущих listener-ов (если были)
   if (_fbFieldsUnsubscribe) { try { _fbFieldsUnsubscribe(); } catch(_) {} }
   if (_fbUserDocUnsubscribe) { try { _fbUserDocUnsubscribe(); } catch(_) {} }
 
+  // Небольшая задержка чтобы первый getDocs в fbSyncFromCloud успел завершиться
+  // и onSnapshot не применил те же данные второй раз
+  let _skipFirstFieldsSnapshot = true;
+  let _skipFirstUserDocSnapshot = true;
+  setTimeout(() => {
+    _skipFirstFieldsSnapshot = false;
+    _skipFirstUserDocSnapshot = false;
+  }, 2000);
+
   // ── Listener 1: fields subcollection ──
-  // Срабатывает когда любое поле добавлено/изменено/удалено на другом устройстве
-  const fieldsCol = fb.collection(fbDb, 'users', fbCurrentUser.uid, 'fields');
+  const fieldsCol = fb.collection(fbDb, 'users', uid, 'fields');
   _fbFieldsUnsubscribe = fb.onSnapshot(fieldsCol, (snap) => {
-    if (_fbSyncInProgress) return; // не мешать первоначальной загрузке
-    const cloudFields = snap.docs.map(d => d.data());
+    if (_skipFirstFieldsSnapshot) return; // пропускаем первый снимок (уже применён)
+    const cloudFields = snap.docs.map(d => {
+      const data = d.data();
+      return data.id ? data : { ...data, id: d.id };
+    });
     _applyCloudFields(cloudFields);
+    showToast('☁️ ' + (lang === 'ru' ? 'Поля обновлены' : 'Fields updated'));
   }, (err) => {
     console.warn('[fbFieldsListener] error:', err);
   });
 
   // ── Listener 2: userDoc (settings, seasons, seasonRecords) ──
-  const userDocRef = fb.doc(fbDb, 'users', fbCurrentUser.uid);
+  const userDocRef = fb.doc(fbDb, 'users', uid);
   _fbUserDocUnsubscribe = fb.onSnapshot(userDocRef, (snap) => {
-    if (_fbSyncInProgress) return;
+    if (_skipFirstUserDocSnapshot) return;
     if (snap.exists()) {
       _applyCloudUserDoc(snap.data());
     }
@@ -9030,7 +9145,7 @@ function fbStartRealtimeListeners() {
     console.warn('[fbUserDocListener] error:', err);
   });
 
-  console.log('[Hectar sync] Realtime listeners started for uid:', fbCurrentUser.uid);
+  console.log('[Hectar sync] Realtime listeners started for uid:', uid);
 }
 
 // ── Остановить realtime listeners (при выходе из аккаунта) ──
@@ -9210,24 +9325,70 @@ function renderProfile() {
   `;
 }
 
-// Init Firebase — ждём загрузки Modular SDK (type="module" выполняется асинхронно)
-window.addEventListener('load', () => {
-  var attempts = 0;
-  var maxAttempts = 50; // 50 x 200ms = 10s
-  function tryInit() {
-    attempts++;
-    if (window._firebaseSdkReady && window._fbModular) {
-      initFirebase();
-      return;
-    }
-    if (attempts < maxAttempts) {
-      setTimeout(tryInit, 200);
-    } else {
-      console.warn('Firebase SDK не загрузился за 10 секунд. Работаем в offline-режиме.');
-    }
-  }
-  setTimeout(tryInit, 100);
+// ════════════════════════════════════════════════════
+// v2.5 FAST INIT: Promise-based SDK ready + splash progress
+// ════════════════════════════════════════════════════
+
+// Создаём Promise ДО загрузки module-скрипта.
+// Module-скрипт резолвит его сразу после импортов — без polling.
+let _fbSdkReadyPromise = new Promise(resolve => {
+  window._fbSdkResolve = resolve;
+  // Страховка: если SDK уже загружен (кэш браузера) — резолвим сразу
+  if (window._firebaseSdkReady && window._fbModular) resolve();
 });
+
+function setSplashProgress(pct, statusText) {
+  const bar = document.getElementById('splash-progress-bar');
+  const pctEl = document.getElementById('splash-pct');
+  const statusEl = document.getElementById('splash-status');
+  if (bar) bar.style.width = pct + '%';
+  if (pctEl) pctEl.textContent = pct + '%';
+  if (statusEl && statusText) statusEl.textContent = statusText;
+}
+
+function hideSplash() {
+  const splash = document.getElementById('splash-screen');
+  if (!splash) return;
+  splash.classList.add('fade-out');
+  setTimeout(() => splash.classList.add('hidden'), 450);
+}
+
+(async function fastInit() {
+  // Шаг 1: ждём Firebase SDK
+  setSplashProgress(10, lang === 'ru' ? 'Загрузка SDK...' : 'Loading SDK...');
+
+  await _fbSdkReadyPromise;
+  setSplashProgress(35, lang === 'ru' ? 'Подключение к Firebase...' : 'Connecting to Firebase...');
+
+  // Шаг 2: инициализируем Firebase (auth + firestore)
+  initFirebase();
+  setSplashProgress(60, lang === 'ru' ? 'Проверка сессии...' : 'Checking session...');
+
+  // Шаг 3: ждём первый ответ onAuthStateChanged (из кэша IndexedDB — обычно < 300мс)
+  // max 5s страховка от зависания (нет интернета / заблокирован IndexedDB)
+  await new Promise(resolve => {
+    const timeout = setTimeout(resolve, 5000);
+    if (!fbAuth || !window._fbFns) {
+      clearTimeout(timeout);
+      return resolve(null);
+    }
+    let unsubscribed = false;
+    const unsub = window._fbFns.onAuthStateChanged(fbAuth, user => {
+      if (unsubscribed) return;
+      unsubscribed = true;
+      clearTimeout(timeout);
+      try { unsub(); } catch(_) {}
+      resolve(user);
+    });
+  });
+
+  setSplashProgress(100, lang === 'ru' ? 'Готово!' : 'Ready!');
+
+  // Небольшая пауза чтобы 100% был виден
+  await new Promise(r => setTimeout(r, 280));
+
+  hideSplash();
+})();
 
 /*
 ════════════════════════════════════════════════════
