@@ -9046,8 +9046,8 @@ async function fbSyncFromCloud() {
   _fbSyncInProgress = true;
   const fb = window._fbFns;
   const uid = fbCurrentUser.uid;
+  showToast('🔍 Читаю Firestore для uid: ' + uid.slice(0,8) + '...');
   try {
-    // ── Параллельная загрузка полей и userDoc ──
     const fieldsCol = fb.collection(fbDb, 'users', uid, 'fields');
     const userDocRef = fb.doc(fbDb, 'users', uid);
 
@@ -9056,28 +9056,28 @@ async function fbSyncFromCloud() {
       fb.getDoc(userDocRef)
     ]);
 
-    // ── Поля: cloud wins если есть данные ──
+    showToast('📦 Firestore вернул: ' + fieldsSnap.size + ' полей');
+
     if (!fieldsSnap.empty) {
-      // FIX v2.5: поле id уже содержится в data() (мы его туда пишем в fbSaveFields)
-      // Используем document ID как запасной вариант если data().id отсутствует
       const cloudFields = fieldsSnap.docs.map(d => {
         const data = d.data();
         return data.id ? data : { ...data, id: d.id };
       });
       _applyCloudFields(cloudFields);
     } else {
-      // Firestore пуст → загружаем локальные поля в облако (первый вход с нового устройства)
+      showToast('⚠️ Firestore пуст — заливаю локальные поля');
       const localFields = loadFields();
       if (localFields && localFields.length > 0) {
         await fbSaveFields(localFields);
+        showToast('⬆️ Залито в Firestore: ' + localFields.length + ' полей');
+      } else {
+        showToast('📭 Нет локальных полей для заливки');
       }
     }
 
-    // ── userDoc: настройки, сезоны ──
     if (userDocSnap.exists()) {
       _applyCloudUserDoc(userDocSnap.data());
     } else {
-      // Первый вход — залить локальные настройки
       await fb.setDoc(userDocRef, {
         settings: loadSettings(),
         seasonsMgr: JSON.parse(localStorage.getItem(STORAGE_PREFIX + '-seasons-mgr') || '[]'),
@@ -9089,9 +9089,8 @@ async function fbSyncFromCloud() {
     showToast('☁️ ' + (lang === 'ru' ? 'Данные загружены' : 'Data loaded'));
   } catch(e) {
     console.warn('[fbSyncFromCloud] error:', e);
-    showToast(lang === 'ru' ? '⚠️ Ошибка синхронизации' : '⚠️ Sync error');
+    showToast('❌ Sync error: ' + e.message);
   } finally {
-    // FIX v2.5: всегда сбрасываем флаг — в т.ч. при ошибке
     _fbSyncInProgress = false;
   }
 }
@@ -9163,11 +9162,15 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ── Патч saveFields — сохранить локально + в Firestore ──
-const _origSaveFieldsFb = saveFields;
 saveFields = function(fields) {
   localStorage.setItem(STORAGE_PREFIX + '-fields', JSON.stringify(fields));
   if (fbCurrentUser) {
-    fbSaveFields(fields).catch(e => console.warn('[saveFields→FB]', e));
+    showToast('💾 Сохраняю в облако: ' + fields.length + ' полей...');
+    fbSaveFields(fields)
+      .then(() => showToast('✅ Облако: сохранено ' + fields.length + ' полей'))
+      .catch(e => showToast('❌ Ошибка записи: ' + e.message));
+  } else {
+    showToast('⚠️ Нет аккаунта — сохранено только локально');
   }
 };
 
