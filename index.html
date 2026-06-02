@@ -8820,8 +8820,32 @@ function fbSignOut() {
   fbStopRealtimeListeners();
   if (fbAuth && window._fbFns) { window._fbFns.signOut(fbAuth); }
   fbCurrentUser = null;
+
+  // FIX: очищаем все локальные данные пользователя при выходе.
+  // Без этого данные первого аккаунта заливались в Firestore второго аккаунта —
+  // fbSyncFromCloud видел непустой localStorage и загружал его в облако нового юзера.
+  const keysToRemove = [
+    STORAGE_PREFIX + '-fields',
+    STORAGE_PREFIX + '-settings',
+    STORAGE_PREFIX + '-active-season',
+    STORAGE_PREFIX + '-seasons-mgr',
+    STORAGE_PREFIX + '-fav-cities',
+    STORAGE_PREFIX + '-auth',
+    SEASONS_STORAGE_KEY,
+  ];
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+
+  // Очистить карту от полигонов предыдущего пользователя
+  if (typeof drawnPolygons !== 'undefined' && typeof map !== 'undefined' && map) {
+    Object.values(drawnPolygons).forEach(layer => {
+      try { map.removeLayer(layer); } catch(_) {}
+    });
+    drawnPolygons = {};
+  }
+  if (typeof renderFieldsList === 'function') renderFieldsList();
+
   renderProfile();
-  showToast(lang === 'ru' ? '👋 Вы вышли из аккаунта. Работаем как гость.' : '👋 Signed out. Continuing as guest.');
+  showToast(lang === 'ru' ? '\u{1F44B} Вы вышли из аккаунта. Работаем как гость.' : '\u{1F44B} Signed out. Continuing as guest.');
 }
 
 // ── Delete Account ──
