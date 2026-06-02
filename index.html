@@ -8907,6 +8907,46 @@ function _fbGetUser() {
   return fbCurrentUser || (fbAuth && fbAuth.currentUser) || null;
 }
 
+// ── FIX: Firestore не поддерживает вложенные массивы (nested arrays).
+// field.coordinates = [[lat,lng],[lat,lng],...] — это nested array.
+// field.center = [lat,lng] — тоже массив, но одноуровневый, его Firestore принимает.
+// Решение: сериализуем coordinates в строку JSON перед записью, восстанавливаем при чтении.
+function _fieldToFirestore(f) {
+  const doc = { ...f };
+  if (Array.isArray(doc.coordinates)) {
+    doc.coordinates = JSON.stringify(doc.coordinates);
+    doc._coordinatesSerialized = true;
+  }
+  // Рекурсивно проверяем другие поля на вложенные массивы (на всякий случай)
+  Object.keys(doc).forEach(key => {
+    if (key === 'coordinates' || key === '_coordinatesSerialized') return;
+    if (Array.isArray(doc[key]) && doc[key].some(v => Array.isArray(v))) {
+      doc[key] = JSON.stringify(doc[key]);
+      doc['_serialized_' + key] = true;
+    }
+  });
+  return doc;
+}
+
+function _fieldFromFirestore(doc) {
+  const f = { ...doc };
+  if (f._coordinatesSerialized && typeof f.coordinates === 'string') {
+    try { f.coordinates = JSON.parse(f.coordinates); } catch(_) {}
+    delete f._coordinatesSerialized;
+  }
+  // Восстанавливаем другие сериализованные поля
+  Object.keys(f).forEach(key => {
+    if (key.startsWith('_serialized_')) {
+      const origKey = key.replace('_serialized_', '');
+      if (typeof f[origKey] === 'string') {
+        try { f[origKey] = JSON.parse(f[origKey]); } catch(_) {}
+      }
+      delete f[key];
+    }
+  });
+  return f;
+}
+
 async function fbSaveFields(fields) {
   const user = _fbGetUser();
   if (!fbDb || !user || !window._fbFns) return;
@@ -8916,7 +8956,10 @@ async function fbSaveFields(fields) {
     const snap = await fb.getDocs(col);
     const batch = fb.writeBatch(fbDb);
     snap.forEach(d => batch.delete(d.ref));
-    fields.forEach(f => batch.set(fb.doc(fbDb, 'users', user.uid, 'fields', f.id), f));
+    fields.forEach(f => batch.set(
+      fb.doc(fbDb, 'users', user.uid, 'fields', f.id),
+      _fieldToFirestore(f)
+    ));
     await batch.commit();
   } catch(e) { console.warn('fbSaveFields error:', e); }
 }
@@ -8991,19 +9034,21 @@ let _fbSyncInProgress = false;     // guard против race conditions при 
 
 // ── Применить облачные поля к локальному состоянию ──
 function _applyCloudFields(cloudFields) {
-  localStorage.setItem(STORAGE_PREFIX + '-fields', JSON.stringify(cloudFields));
+  // Восстанавливаем сериализованные поля (coordinates и др.) после чтения из Firestore
+  const fields = cloudFields.map(_fieldFromFirestore);
+  localStorage.setItem(STORAGE_PREFIX + '-fields', JSON.stringify(fields));
   if (map) {
     // FIX 2.5 Проблема 3: удаляем и полигоны и метки
     Object.entries(drawnPolygons).forEach(([key, layer]) => {
       try { map.removeLayer(layer); } catch(_) {}
     });
     drawnPolygons = {};
-    cloudFields.forEach(f => addFieldToMap(f));
+    fields.forEach(f => addFieldToMap(f));
   }
   renderFieldsList();
   // Если открыт детальный экран поля — обновить и его
   if (typeof currentFieldId !== 'undefined' && currentFieldId) {
-    const still = cloudFields.find(f => f.id === currentFieldId);
+    const still = fields.find(f => f.id === currentFieldId);
     if (still) {
       const titleEl = document.getElementById('detail-field-title');
       if (titleEl) openFieldDetail(currentFieldId);
