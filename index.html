@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <!-- FIX 2: Full mobile/PWA adaptation — viewport-fit=cover ensures content fills notch/Dynamic Island area -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Hectar 2.4 — Field Monitoring</title>
+<title>Hectar 2.5 — Field Monitoring</title>
 
 <!-- FIX 2: PWA full-screen on iOS — black-translucent hides Safari URL bar when added to home screen -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1761,12 +1761,12 @@
   .profile-name {
     font-size: 18px; font-weight: 700; margin-bottom: 2px;
     word-break: break-word; overflow-wrap: break-word;
-    max-width: 100%; text-align: center;
+    max-width: 100%; text-align: left;
   }
   .profile-email {
     font-size: 12px; color: var(--text3); margin-bottom: 4px;
     max-width: 100%; overflow: hidden; text-overflow: ellipsis;
-    white-space: nowrap; text-align: center;
+    white-space: nowrap; text-align: left;
   }
   .profile-role { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
   .profile-login-btn {
@@ -3244,19 +3244,11 @@
     <div class="login-title">Hec<span>tar</span></div>
     <div class="login-subtitle" id="login-subtitle">
       Agricultural field monitoring<br>
-      v2.4
+      v2.5
     </div>
 
-    <button class="login-btn google" onclick="openFbAuthModal('google')">
-      <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-      <span data-i18n="signInGoogle">Sign in with Google</span>
-    </button>
-    <button class="login-btn email" onclick="openFbAuthModal('email')">
-      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-      <span data-i18n="signInEmail">Sign in with Email</span>
-    </button>
-    <button class="login-btn guest" onclick="startApp()">
-      <span data-i18n="continueGuest">Continue as Guest</span>
+    <button class="login-btn google" onclick="startApp()" style="background:var(--accent);color:#fff;">
+      <span data-i18n="continueBtn">Продолжить</span>
     </button>
   </div>
 
@@ -3997,7 +3989,7 @@
 // ════════════════════════════════════════════════════
 // КОНСТАНТЫ ПРИЛОЖЕНИЯ
 // ════════════════════════════════════════════════════
-const APP_VERSION = '2.4';
+const APP_VERSION = '2.5';
 const STORAGE_PREFIX = 'hectar';
 const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
 const DEFAULT_MAP_ZOOM = 11;
@@ -4080,7 +4072,7 @@ const translations = {
     allFields: 'Все поля', season2026: 'Сезон 2026',
     addFields: 'Добавить поле', satellite: 'Спутник', streets: 'Карта',
     signInGoogle: 'Войти через Google', signInEmail: 'Войти по Email',
-    continueGuest: 'Продолжить как гость',
+    continueGuest: 'Продолжить как гость', continueBtn: 'Продолжить',
     select: 'Измерить', draw: 'Нарисовать', undo: 'Отменить',
     finishBoundary: 'Завершить границу поля',
     finishShort: 'Готово',
@@ -4131,7 +4123,7 @@ const translations = {
     allFields: 'All fields', season2026: 'Season 2026',
     addFields: 'Add field', satellite: 'Satellite', streets: 'Map',
     signInGoogle: 'Sign in with Google', signInEmail: 'Sign in with Email',
-    continueGuest: 'Continue as Guest',
+    continueGuest: 'Continue as Guest', continueBtn: 'Continue',
     select: 'Measure', draw: 'Draw', undo: 'Undo',
     finishBoundary: 'Finish field boundary',
     finishShort: 'Finish',
@@ -4319,7 +4311,7 @@ function generateId() {
 // ════════════════════════════════════════════════════
 // КАРТА LEAFLET
 // ════════════════════════════════════════════════════
-let map, satelliteLayer, osmLayer, eoxLayer, drawnPolygons = {};
+let map, satelliteLayer, osmLayer, eoxLayer, drawnPolygons = {}, fieldLabelMarkers = {};
 let countriesLayer = null, countryLabelsLayer = null, cityLabelsLayer = null;
 let countriesGeoData = null, citiesGeoData = null;
 let currentDrawPoints = [];
@@ -5375,7 +5367,7 @@ function addFieldToMap(field) {
 
   // Подпись на поле
   const center = L.latLng(field.center[0], field.center[1]);
-  L.marker(center, {
+  const labelMarker = L.marker(center, {
     icon: L.divIcon({
       className: '',
       html: `<div style="color:#fff;font-size:12px;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,0.8);white-space:nowrap;">${field.name}</div>`,
@@ -5384,6 +5376,7 @@ function addFieldToMap(field) {
   }).addTo(map);
 
   drawnPolygons[field.id] = polygon;
+  fieldLabelMarkers[field.id] = labelMarker;
 }
 
 // ════════════════════════════════════════════════════
@@ -6440,6 +6433,10 @@ function deleteCurrentField() {
     drawnPolygons[currentFieldId].removeFrom(map);
     delete drawnPolygons[currentFieldId];
   }
+  if (fieldLabelMarkers[currentFieldId]) {
+    fieldLabelMarkers[currentFieldId].removeFrom(map);
+    delete fieldLabelMarkers[currentFieldId];
+  }
   closeFieldDetail();
   showToast(t('fieldDeleted'));
 }
@@ -7450,6 +7447,11 @@ function saveNote() {
 // ════════════════════════════════════════════════════
 let activeTab = 'map';
 function switchTab(tab) {
+  // FIX 2.5: Close fb-auth-modal if open so tab switching works
+  const fbModal = document.getElementById('fb-auth-modal');
+  if (fbModal && fbModal.style.display !== 'none') {
+    fbModal.style.display = 'none';
+  }
   // FIX: Close any open modal (e.g. season manager) when switching tabs
   closeAllModals();
   // FIX v1.8 R2: always close field detail screen when switching tabs —
@@ -7638,7 +7640,7 @@ function renderProfile() {
     <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
       <div class="about-block">
-        <div class="about-logo">Hectar 2.4</div>
+        <div class="about-logo">Hectar 2.5</div>
         <div>${t('aboutTagline')}</div>
         <div class="about-version">${t('version')} ${APP_VERSION}</div>
       </div>
@@ -8839,7 +8841,7 @@ async function fbSaveSeasonRecords(records) {
 }
 
 // ════════════════════════════════════════════════════
-// SYNC v2.4 — полная двусторонняя синхронизация
+// SYNC v2.5 — полная двусторонняя синхронизация
 // Стратегия:
 //   1. При входе — один раз читаем всё из Firestore (cloud wins)
 //   2. onSnapshot — realtime listener на fields и userDoc
@@ -8860,6 +8862,8 @@ function _applyCloudFields(cloudFields) {
   if (map) {
     Object.values(drawnPolygons).forEach(p => { try { map.removeLayer(p); } catch(_) {} });
     drawnPolygons = {};
+    Object.values(fieldLabelMarkers).forEach(m => { try { map.removeLayer(m); } catch(_) {} });
+    fieldLabelMarkers = {};
     cloudFields.forEach(f => addFieldToMap(f));
   }
   renderFieldsList();
@@ -9168,7 +9172,7 @@ function renderProfile() {
     <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
       <div class="about-block">
-        <div class="about-logo">Hectar 2.4</div>
+        <div class="about-logo">Hectar 2.5</div>
         <div>${t('aboutTagline')}</div>
         <div class="about-version">${t('version')} ${APP_VERSION}</div>
       </div>
@@ -9243,7 +9247,7 @@ window.addEventListener('load', () => {
 (function registerInlineSW() {
   if (!('serviceWorker' in navigator)) return;
 
-  const SW_VERSION = 'hectar-v2.4';
+  const SW_VERSION = 'hectar-v2.5';
 
   const swCode = `
 const CACHE_NAME = '${SW_VERSION}';
