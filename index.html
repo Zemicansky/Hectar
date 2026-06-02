@@ -210,6 +210,23 @@
     line-height: 1.5;
   }
 
+  /* ── Splash screen animations ── */
+  @keyframes splashFadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes splashFadeOut {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+  .splash-animate {
+    opacity: 0;
+    animation: splashFadeIn 0.5s ease forwards;
+  }
+  #login-screen.splash-out {
+    animation: splashFadeOut 0.4s ease forwards;
+    pointer-events: none;
+  }
   .login-btn {
     width: 100%;
     padding: 16px;
@@ -3229,7 +3246,7 @@
   ══════════════════════════════════════ -->
   <div id="login-screen">
 
-    <div class="login-logo">
+    <div class="login-logo splash-animate">
       <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="36" cy="36" r="36" fill="rgba(76,175,80,0.15)"/>
         <path d="M36 16c0 0-18 10-18 24a18 18 0 0 0 36 0C54 26 36 16 36 16z" fill="#4CAF50" opacity="0.3"/>
@@ -3241,15 +3258,12 @@
       </svg>
     </div>
 
-    <div class="login-title">Hec<span>tar</span></div>
-    <div class="login-subtitle" id="login-subtitle">
+    <div class="login-title splash-animate" style="animation-delay:0.15s;">Hec<span>tar</span></div>
+    <div class="login-subtitle splash-animate" id="login-subtitle" style="animation-delay:0.25s;">
       Agricultural field monitoring<br>
       v2.5
     </div>
 
-    <button class="login-btn google" onclick="startApp()" style="background:var(--accent);color:#fff;">
-      <span data-i18n="continueBtn">Продолжить</span>
-    </button>
   </div>
 
   <!-- Firebase Auth Modal -->
@@ -8345,11 +8359,24 @@ function renderSeasonManagerList() {
 // Init season label on load
 window.addEventListener('load', () => { setTimeout(updateSeasonLabel, 100); });
 
-let _appStarted = false; // FIX 2.5: guard against double-init
+let _appStarted = false;
 function startApp() {
-  if (_appStarted) return; // уже запущено — пропускаем
+  if (_appStarted) return;
   _appStarted = true;
-  document.getElementById('login-screen').style.display = 'none';
+  // Плавно скрываем заставку, затем показываем приложение
+  const splash = document.getElementById('login-screen');
+  if (splash) {
+    splash.classList.add('splash-out');
+    setTimeout(() => {
+      splash.style.display = 'none';
+      _launchApp();
+    }, 400);
+  } else {
+    _launchApp();
+  }
+}
+
+function _launchApp() {
   document.getElementById('main-app').classList.add('visible');
   initLanguage();
   const settings = loadSettings();
@@ -8358,9 +8385,9 @@ function startApp() {
   initMap();
   renderFieldsList();
   updateSeasonLabel();
-  // Reset draw state safely after map is ready
   isDrawing = false;
   currentDrawPoints = [];
+}
 }
 
 // Sets --app-height CSS var to window.innerHeight so layouts use actual visible height.
@@ -8508,75 +8535,44 @@ function initFirebase() {
     fbApp = fb.initializeApp(FIREBASE_CONFIG);
     fbAuth = fb.getAuth(fbApp);
     fbDb   = fb.getFirestore(fbApp);
-
-    // Сохраняем функции для использования в других методах
     window._fbFns = fb;
 
-    // ── Проблема 2: Persistent login ──
-    // Устанавливаем LOCAL persistence — сессия сохраняется в indexedDB
-    // и восстанавливается автоматически при следующем открытии сайта
+    // Persistent login — сессия сохраняется в IndexedDB браузера
     fb.setPersistence(fbAuth, fb.browserLocalPersistence).catch(e => {
       console.warn('[Firebase] setPersistence failed:', e.message);
     });
 
-    // ── Проблема 2: Показываем «экран загрузки» пока Firebase проверяет сессию ──
-    // login-screen уже видим (CSS default). Добавляем индикатор и ждём.
-    _showAuthCheckState();
+    // Таймер-гарантия: если Firebase не ответил за 2.5с — запускаем как гость
+    const splashTimer = setTimeout(() => {
+      startApp();
+    }, 2500);
 
     fb.onAuthStateChanged(fbAuth, user => {
       fbCurrentUser = user;
+      clearTimeout(splashTimer); // Firebase ответил — отменяем таймер
+      // В любом случае запускаем приложение (с сессией или без)
+      startApp();
       if (user) {
-        // Сессия восстановлена или пользователь только что вошёл
-        // Сразу запускаем приложение (скрываем login-screen)
-        startApp();
-
-        // Ждём инициализации карты перед синхронизацией
         const doSync = async () => {
           await fbSyncFromCloud();
           fbStartRealtimeListeners();
           renderProfile();
         };
-        if (map) {
-          doSync();
-        } else {
-          setTimeout(doSync, 300);
-        }
+        if (map) { doSync(); } else { setTimeout(doSync, 300); }
         showToast('☁️ ' + (lang === 'ru' ? 'Синхронизация...' : 'Syncing...'));
       } else {
-        // Нет сессии — показываем экран входа
-        _showLoginScreen();
         fbStopRealtimeListeners();
         renderProfile();
       }
     });
   } catch(e) {
     console.warn('Firebase init failed:', e.message);
-    // Firebase недоступен — показываем login-screen для ручного входа
-    _showLoginScreen();
+    startApp(); // Запускаем в любом случае
   }
 }
 
-// Показывает login-screen с индикатором проверки сессии
-function _showAuthCheckState() {
-  const ls = document.getElementById('login-screen');
-  const btn = ls ? ls.querySelector('.login-btn') : null;
-  if (btn) {
-    btn.disabled = true;
-    btn.style.opacity = '0.5';
-  }
-  // Убираем блокировку через 5с на случай если Firebase завис
-  setTimeout(() => {
-    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
-  }, 5000);
-}
-
-// Показывает login-screen и снимает блокировку кнопки
-function _showLoginScreen() {
-  const ls = document.getElementById('login-screen');
-  if (ls) ls.style.display = '';
-  const btn = ls ? ls.querySelector('.login-btn') : null;
-  if (btn) { btn.disabled = false; btn.style.opacity = ''; }
-}
+// Удалены _showAuthCheckState и _showLoginScreen — они больше не нужны,
+// так как заставка автоматически исчезает после проверки Firebase.
 
 function openFbAuthModal(type) {
   if (!fbAuth) {
@@ -9476,6 +9472,20 @@ self.addEventListener('fetch', function(event) {
   } catch(e) {
     console.warn('[Hectar SW] Could not create SW blob:', e.message);
   }
+})();
+</script>
+
+<!-- ── Гарантированный запуск заставки: независимо от Firebase ── -->
+<script>
+(function() {
+  function safeLaunch() {
+    if (typeof startApp === 'function') {
+      startApp(); // _appStarted=true внутри — повторный вызов безопасен
+    } else {
+      setTimeout(safeLaunch, 100);
+    }
+  }
+  setTimeout(safeLaunch, 2000); // 2 секунды — заставка уходит в любом случае
 })();
 </script>
 
