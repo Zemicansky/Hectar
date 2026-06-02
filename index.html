@@ -4082,8 +4082,6 @@
     getFirestore, collection, doc, getDocs, writeBatch, setDoc, getDoc, onSnapshot
   };
   window._firebaseSdkReady = true;
-  // Резолвим Promise чтобы основной скрипт не ждал polling-loop
-  if (window._fbSdkResolve) window._fbSdkResolve();
 </script>
 
 <script>
@@ -9182,12 +9180,12 @@ saveSettings = function(settings) {
   }
 };
 
-// ── Патч saveSeasonsMgr ──
-const _origSaveSeasonsMgr = saveSeasonsMgr;
-saveSeasonsMgr = function(data) {
+// ── Патч saveSeasonManagerData (FIX v2.5: была ошибка — функция называется saveSeasonManagerData) ──
+const _origSaveSeasonManagerData = saveSeasonManagerData;
+saveSeasonManagerData = function(data) {
   localStorage.setItem(STORAGE_PREFIX + '-seasons-mgr', JSON.stringify(data));
   if (typeof fbCurrentUser !== 'undefined' && fbCurrentUser) {
-    fbSaveSeasonsMgr(data).catch(e => console.warn('[saveSeasonsMgr→FB]', e));
+    fbSaveSeasonsMgr(data).catch(e => console.warn('[saveSeasonManagerData→FB]', e));
   }
 };
 
@@ -9326,16 +9324,8 @@ function renderProfile() {
 }
 
 // ════════════════════════════════════════════════════
-// v2.5 FAST INIT: Promise-based SDK ready + splash progress
+// v2.5 FAST INIT: splash progress + надёжный запуск
 // ════════════════════════════════════════════════════
-
-// Создаём Promise ДО загрузки module-скрипта.
-// Module-скрипт резолвит его сразу после импортов — без polling.
-let _fbSdkReadyPromise = new Promise(resolve => {
-  window._fbSdkResolve = resolve;
-  // Страховка: если SDK уже загружен (кэш браузера) — резолвим сразу
-  if (window._firebaseSdkReady && window._fbModular) resolve();
-});
 
 function setSplashProgress(pct, statusText) {
   const bar = document.getElementById('splash-progress-bar');
@@ -9348,46 +9338,86 @@ function setSplashProgress(pct, statusText) {
 
 function hideSplash() {
   const splash = document.getElementById('splash-screen');
-  if (!splash) return;
+  if (!splash || splash.classList.contains('hidden')) return;
   splash.classList.add('fade-out');
-  setTimeout(() => splash.classList.add('hidden'), 450);
+  setTimeout(() => splash.classList.add('hidden'), 420);
 }
 
-(async function fastInit() {
-  // Шаг 1: ждём Firebase SDK
-  setSplashProgress(10, lang === 'ru' ? 'Загрузка SDK...' : 'Loading SDK...');
+(function startWithSplash() {
+  setSplashProgress(10, lang === 'ru' ? 'Загрузка...' : 'Loading...');
 
-  await _fbSdkReadyPromise;
-  setSplashProgress(35, lang === 'ru' ? 'Подключение к Firebase...' : 'Connecting to Firebase...');
+  // Шаг 1: ждём Firebase SDK (polling 50мс, max 8с)
+  // type="module" выполняется после обычных script-тегов,
+  // поэтому SDK может быть уже готов (из кэша) или появится чуть позже.
+  var sdkAttempts = 0;
+  var sdkMax = 160; // 160 * 50ms = 8s
+  function waitForSdk() {
+    sdkAttempts++;
+    var pct = Math.min(10 + Math.round(sdkAttempts / sdkMax * 25), 35);
+    setSplashProgress(pct, lang === 'ru' ? 'Загрузка SDK...' : 'Loading SDK...');
 
-  // Шаг 2: инициализируем Firebase (auth + firestore)
-  initFirebase();
-  setSplashProgress(60, lang === 'ru' ? 'Проверка сессии...' : 'Checking session...');
-
-  // Шаг 3: ждём первый ответ onAuthStateChanged (из кэша IndexedDB — обычно < 300мс)
-  // max 5s страховка от зависания (нет интернета / заблокирован IndexedDB)
-  await new Promise(resolve => {
-    const timeout = setTimeout(resolve, 5000);
-    if (!fbAuth || !window._fbFns) {
-      clearTimeout(timeout);
-      return resolve(null);
+    if (window._firebaseSdkReady && window._fbModular) {
+      // SDK готов
+      setSplashProgress(40, lang === 'ru' ? 'Подключение к Firebase...' : 'Connecting to Firebase...');
+      initFirebase();
+      setSplashProgress(60, lang === 'ru' ? 'Проверка сессии...' : 'Checking session...');
+      waitForAuth();
+      return;
     }
-    let unsubscribed = false;
-    const unsub = window._fbFns.onAuthStateChanged(fbAuth, user => {
-      if (unsubscribed) return;
-      unsubscribed = true;
-      clearTimeout(timeout);
-      try { unsub(); } catch(_) {}
-      resolve(user);
-    });
-  });
+    if (sdkAttempts >= sdkMax) {
+      // SDK не загрузился — показываем login screen без Firebase
+      console.warn('[Hectar] Firebase SDK не загрузился. Работаем offline.');
+      setSplashProgress(100, lang === 'ru' ? 'Режим офлайн' : 'Offline mode');
+      setTimeout(hideSplash, 400);
+      return;
+    }
+    setTimeout(waitForSdk, 50);
+  }
 
-  setSplashProgress(100, lang === 'ru' ? 'Готово!' : 'Ready!');
+  // Шаг 2: ждём onAuthStateChanged (Firebase читает сессию из памяти браузера)
+  // Обычно < 500мс. Max 5с страховка.
+  function waitForAuth() {
+    var authAttempts = 0;
+    var authMax = 100; // 100 * 50ms = 5s
+    var authResolved = false;
 
-  // Небольшая пауза чтобы 100% был виден
-  await new Promise(r => setTimeout(r, 280));
+    // Слушаем первый ответ
+    if (fbAuth && window._fbFns) {
+      var unsub = window._fbFns.onAuthStateChanged(fbAuth, function(user) {
+        if (authResolved) return;
+        authResolved = true;
+        try { unsub(); } catch(e) {}
+        onAuthKnown(user);
+      });
+    }
 
-  hideSplash();
+    // Polling как страховка (если onAuthStateChanged не сработал)
+    function authPoll() {
+      if (authResolved) return;
+      authAttempts++;
+      var pct = Math.min(60 + Math.round(authAttempts / authMax * 35), 95);
+      setSplashProgress(pct, lang === 'ru' ? 'Проверка сессии...' : 'Checking session...');
+      if (authAttempts >= authMax) {
+        if (!authResolved) {
+          authResolved = true;
+          onAuthKnown(null);
+        }
+      } else {
+        setTimeout(authPoll, 50);
+      }
+    }
+    setTimeout(authPoll, 50);
+  }
+
+  function onAuthKnown(user) {
+    setSplashProgress(100, user
+      ? (lang === 'ru' ? 'Добро пожаловать!' : 'Welcome!')
+      : (lang === 'ru' ? 'Готово!' : 'Ready!'));
+    setTimeout(hideSplash, 300);
+  }
+
+  // Запуск
+  setTimeout(waitForSdk, 30);
 })();
 
 /*
