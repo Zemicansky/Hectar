@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <!-- FIX 2: Full mobile/PWA adaptation — viewport-fit=cover ensures content fills notch/Dynamic Island area -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Hectar 2.5 — Field Monitoring</title>
+<title>Hectar 2.6 — Field Monitoring</title>
 
 <!-- FIX 2: PWA full-screen on iOS — black-translucent hides Safari URL bar when added to home screen -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -116,6 +116,9 @@
     -webkit-touch-callout: none;
     /* FIX 2: prevent tap highlight flash */
     -webkit-tap-highlight-color: transparent;
+    /* FIX v2.6 пункт 3: touch-action:manipulation отключает встроенный
+       double-tap zoom в Safari iOS, устраняя зависание при двойном тапе */
+    touch-action: manipulation;
   }
 
   /* ══════════════════════════════════════
@@ -231,7 +234,7 @@
   .login-btn.guest { background: var(--accent); color: #fff; margin-top: 4px; }
 
   /* ══════════════════════════════════════
-     SPLASH / LOADING SCREEN (v2.5)
+     SPLASH / LOADING SCREEN (v2.6)
   ══════════════════════════════════════ */
   #splash-screen {
     position: fixed;
@@ -488,6 +491,8 @@
   #btn-geolocate:active { transform: scale(0.93); }
 
   /* Большая кнопка добавить поле — центр, на одном уровне с геолокацией и слоями */
+  /* FIX v2.6 пункт 6: уменьшен размер кнопки «Добавить поле», убран перекос.
+     Уменьшен padding, font-size и border-radius. Позиция — центр, чуть выше таббара. */
   #btn-add-field-map {
     position: absolute;
     bottom: 16px;
@@ -497,18 +502,18 @@
     background: var(--accent);
     color: #fff;
     border: none;
-    border-radius: 28px;
-    padding: 14px 28px;
-    font-size: 16px;
-    font-weight: 700;
+    border-radius: 22px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
-    display: flex; align-items: center; gap: 8px;
-    box-shadow: 0 4px 20px rgba(76,175,80,0.45);
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    box-shadow: 0 3px 14px rgba(76,175,80,0.40);
     transition: all 0.2s;
     white-space: nowrap;
   }
-  #btn-add-field-map:active { transform: translateX(-50%) scale(0.97); }
-  #btn-add-field-map svg { width: 20px; height: 20px; }
+  #btn-add-field-map:active { transform: translateX(-50%) scale(0.96); }
+  #btn-add-field-map svg { width: 16px; height: 16px; }
 
   /* Переключатель слоя карты — нижний левый, выше таббара */
   #layer-switcher {
@@ -3304,7 +3309,7 @@
   <!-- ══════════════════════════════════════
        ЭКРАН ВХОДА
   ══════════════════════════════════════ -->
-  <!-- SPLASH SCREEN v2.5: показывается пока Firebase проверяет сессию -->
+  <!-- SPLASH SCREEN v2.6: показывается пока Firebase проверяет сессию -->
   <div id="splash-screen">
     <div class="splash-logo">
       <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -3342,7 +3347,7 @@
     <div class="login-title">Hec<span>tar</span></div>
     <div class="login-subtitle" id="login-subtitle">
       Agricultural field monitoring<br>
-      v2.5
+      v2.6
     </div>
 
     <button class="login-btn google" onclick="openFbAuthModal('google')">
@@ -3635,6 +3640,7 @@
         </div>
 
         <!-- Weather mode toggle: Field vs City -->
+        <!-- FIX v2.6 пункт 2: тексты меток инициализируются через JS при открытии switchTab('weather') -->
         <div style="display:flex;gap:0;background:var(--bg3);border-radius:var(--radius-sm);padding:3px;margin-bottom:10px;">
           <button id="weather-mode-field-btn" onclick="setWeatherMode('field')"
             style="flex:1;padding:8px 10px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.18s;">
@@ -4027,18 +4033,20 @@
   <!-- ══════════════════════════════════════
        МОДАЛЬНОЕ ОКНО: УДАЛЕНИЕ АККАУНТА
   ══════════════════════════════════════ -->
+  <!-- FIX v2.6 пункт 1: все тексты модала удаления аккаунта вынесены в data-i18n-атрибуты
+       и обновляются при открытии через openDeleteAccountModal() -->
   <div class="modal-overlay" id="modal-delete-account">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <div class="modal-title" style="color:var(--danger);">⚠️ Delete account</div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6;">This will permanently delete your account and all cloud data. This action cannot be undone.</p>
+      <div class="modal-title" style="color:var(--danger);" id="del-acc-title">⚠️ Delete account</div>
+      <p id="del-acc-desc" style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6;">This will permanently delete your account and all cloud data. This action cannot be undone.</p>
       <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;">
-        <div style="font-size:13px;color:var(--text2);margin-bottom:10px;">To confirm, solve this: <strong id="captcha-question" style="color:var(--text);"></strong></div>
-        <input class="fb-auth-input" id="captcha-answer" type="number" placeholder="Your answer" style="margin-bottom:0;"/>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:10px;"><span id="del-acc-captcha-label">To confirm, solve this:</span> <strong id="captcha-question" style="color:var(--text);"></strong></div>
+        <input class="fb-auth-input" id="captcha-answer" type="number" id="del-acc-captcha-placeholder" placeholder="Your answer" style="margin-bottom:0;"/>
         <div id="captcha-error" style="color:var(--danger);font-size:12px;min-height:16px;margin-top:6px;"></div>
       </div>
-      <button onclick="submitDeleteAccount()" style="width:100%;padding:14px;border-radius:var(--radius-sm);background:var(--danger);color:#fff;border:none;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;">Delete my account</button>
-      <button onclick="closeModal('modal-delete-account')" class="fb-auth-btn secondary">Cancel</button>
+      <button id="del-acc-submit-btn" onclick="submitDeleteAccount()" style="width:100%;padding:14px;border-radius:var(--radius-sm);background:var(--danger);color:#fff;border:none;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;">Delete my account</button>
+      <button id="del-acc-cancel-btn" onclick="closeModal('modal-delete-account')" class="fb-auth-btn secondary">Cancel</button>
     </div>
   </div>
 
@@ -4054,7 +4062,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 <!-- Firebase v10 Modular SDK — через esm shim для совместимости с обычными скриптами -->
-<!-- FIX v2.5: используем Promise-resolver вместо polling-loop.
+<!-- FIX v2.6: используем Promise-resolver вместо polling-loop.
      type="module" выполняется асинхронно, но гарантированно ДО window.load.
      Мы резолвим promise сразу после импорта — это быстрее 200мс polling. -->
 <script type="module">
@@ -4098,7 +4106,7 @@
 // ════════════════════════════════════════════════════
 // КОНСТАНТЫ ПРИЛОЖЕНИЯ
 // ════════════════════════════════════════════════════
-const APP_VERSION = '2.5';
+const APP_VERSION = '2.6';
 const STORAGE_PREFIX = 'hectar';
 const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
 const DEFAULT_MAP_ZOOM = 11;
@@ -4182,7 +4190,7 @@ const translations = {
     addFields: 'Добавить поле', satellite: 'Спутник', streets: 'Карта',
     signInGoogle: 'Войти через Google', signInEmail: 'Войти по Email',
     continueGuest: 'Продолжить как гость',
-    select: 'Измерить', draw: 'Нарисовать', undo: 'Отменить',
+    select: 'Измерить', draw: 'Нарисовать', undo: 'Шаг назад',
     finishBoundary: 'Завершить границу поля',
     finishShort: 'Готово',
     drawHint: 'Нажмите на карту, чтобы добавить точки',
@@ -7642,6 +7650,13 @@ function switchTab(tab) {
     setFieldsSubTab(currentFieldsSubTab || 'list');
   }
   if (tab === 'weather') {
+    // FIX v2.6 пункт 2: обновляем метки вкладок погоды до текущего языка при первом открытии
+    const fieldLbl = document.getElementById('weather-mode-field-label');
+    const cityLbl  = document.getElementById('weather-mode-city-label');
+    const cityInp  = document.getElementById('weather-city-input');
+    if (fieldLbl) fieldLbl.textContent = lang === 'ru' ? 'По полю'  : 'By Field';
+    if (cityLbl)  cityLbl.textContent  = lang === 'ru' ? 'По городу': 'By City';
+    if (cityInp)  cityInp.placeholder  = lang === 'ru' ? 'Поиск города или места...' : 'Search city or location...';
     populateWeatherFieldSelect();
     // FIX v1.9: render saved favourites on tab open
     renderFavouriteCities();
@@ -7756,7 +7771,7 @@ function renderProfile() {
     <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
       <div class="about-block">
-        <div class="about-logo">Hectar 2.5</div>
+        <div class="about-logo">Hectar 2.6</div>
         <div>${t('aboutTagline')}</div>
         <div class="about-version">${t('version')} ${APP_VERSION}</div>
       </div>
@@ -8873,6 +8888,22 @@ function openDeleteAccountModal() {
   if (q) q.textContent = `${_captchaA} + ${_captchaB} = ?`;
   if (ans) ans.value = '';
   if (err) err.textContent = '';
+
+  // FIX v2.6 пункт 1: переводим все тексты модала при открытии, исходя из текущего lang
+  const isRu = (lang === 'ru');
+  const titleEl    = document.getElementById('del-acc-title');
+  const descEl     = document.getElementById('del-acc-desc');
+  const captchaLbl = document.getElementById('del-acc-captcha-label');
+  const submitBtn  = document.getElementById('del-acc-submit-btn');
+  const cancelBtn  = document.getElementById('del-acc-cancel-btn');
+  if (titleEl)    titleEl.textContent    = isRu ? '⚠️ Удалить аккаунт'              : '⚠️ Delete account';
+  if (descEl)     descEl.textContent     = isRu ? 'Это безвозвратно удалит ваш аккаунт и все облачные данные. Действие нельзя отменить.'
+                                                 : 'This will permanently delete your account and all cloud data. This action cannot be undone.';
+  if (captchaLbl) captchaLbl.textContent = isRu ? 'Для подтверждения решите пример:' : 'To confirm, solve this:';
+  if (ans)        ans.placeholder        = isRu ? 'Ваш ответ'                        : 'Your answer';
+  if (submitBtn)  submitBtn.textContent  = isRu ? 'Удалить мой аккаунт'              : 'Delete my account';
+  if (cancelBtn)  cancelBtn.textContent  = isRu ? 'Отмена'                           : 'Cancel';
+
   openModal('modal-delete-account');
 }
 
@@ -9135,7 +9166,7 @@ function _applyCloudUserDoc(data) {
 }
 
 // ── Разовая первоначальная загрузка с Firestore ──
-// FIX v2.5: переписана логика — убран race-condition флаг,
+// FIX v2.6: переписана логика — убран race-condition флаг,
 // который блокировал realtime listeners после ошибки синхронизации.
 // Стратегия cloud-wins: данные из Firestore ВСЕГДА применяются при наличии.
 async function fbSyncFromCloud() {
@@ -9194,7 +9225,7 @@ async function fbSyncFromCloud() {
 }
 
 // ── Запустить realtime listeners ──
-// FIX v2.5: убран if (_fbSyncInProgress) return — он блокировал получение
+// FIX v2.6: убран if (_fbSyncInProgress) return — он блокировал получение
 // изменений с других устройств если первый sync завершился с ошибкой.
 // Теперь используем короткий debounce чтобы не мешать первой загрузке.
 function fbStartRealtimeListeners() {
@@ -9283,7 +9314,7 @@ saveSettings = function(settings) {
   }
 };
 
-// ── Патч saveSeasonManagerData (FIX v2.5: была ошибка — функция называется saveSeasonManagerData) ──
+// ── Патч saveSeasonManagerData (FIX v2.6: была ошибка — функция называется saveSeasonManagerData) ──
 const _origSaveSeasonManagerData = saveSeasonManagerData;
 saveSeasonManagerData = function(data) {
   localStorage.setItem(STORAGE_PREFIX + '-seasons-mgr', JSON.stringify(data));
@@ -9428,7 +9459,7 @@ function renderProfile() {
     <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
       <div class="about-block">
-        <div class="about-logo">Hectar 2.5</div>
+        <div class="about-logo">Hectar 2.6</div>
         <div>${t('aboutTagline')}</div>
         <div class="about-version">${t('version')} ${APP_VERSION}</div>
       </div>
@@ -9437,7 +9468,7 @@ function renderProfile() {
 }
 
 // ════════════════════════════════════════════════════
-// v2.5 FAST INIT: splash progress + надёжный запуск
+// v2.6 FAST INIT: splash progress + надёжный запуск
 // ════════════════════════════════════════════════════
 
 function setSplashProgress(pct, statusText) {
@@ -9581,7 +9612,7 @@ function hideSplash() {
 (function registerInlineSW() {
   if (!('serviceWorker' in navigator)) return;
 
-  const SW_VERSION = 'hectar-v2.5';
+  const SW_VERSION = 'hectar-v2.6';
 
   const swCode = `
 const CACHE_NAME = '${SW_VERSION}';
@@ -9674,6 +9705,25 @@ self.addEventListener('fetch', function(event) {
   } catch(e) {
     console.warn('[Hectar SW] Could not create SW blob:', e.message);
   }
+})();
+</script>
+
+<!-- FIX v2.6 пункт 3: блокируем двойной тап на iOS Safari.
+     Safari iOS не реагирует на touch-action:manipulation внутри Leaflet-слоёв
+     и у кнопок без явного touch-action, поэтому добавляем JS-guard:
+     если два touchend пришли менее чем через 300мс — отменяем второй клик.
+     Это убирает зависание, вызванное встроенным double-tap zoom браузера. -->
+<script>
+(function() {
+  var lastTouchEnd = 0;
+  document.addEventListener('touchend', function(e) {
+    var now = Date.now();
+    if (now - lastTouchEnd < 300) {
+      // Второй тап слишком быстро — предотвращаем zoom/задержку Safari
+      e.preventDefault();
+    }
+    lastTouchEnd = now;
+  }, { passive: false });
 })();
 </script>
 
