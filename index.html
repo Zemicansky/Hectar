@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <!-- FIX 2: Full mobile/PWA adaptation — viewport-fit=cover ensures content fills notch/Dynamic Island area -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Hectar 2.6 — Field Monitoring</title>
+<title>Hectar 2.7 — Field Monitoring</title>
 
 <!-- FIX 2: PWA full-screen on iOS — black-translucent hides Safari URL bar when added to home screen -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -332,10 +332,10 @@
     /* Landscape iPhone side safe-areas */
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
-    background: rgba(13,20,28,0.98);
+    background: var(--bg);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border-top: 1px solid rgba(255,255,255,0.10);
+    border-top: 1px solid var(--border);
     display: flex !important;
     align-items: flex-start;
     z-index: var(--z-nav);
@@ -440,7 +440,7 @@
   }
 
   .map-fields-pill {
-    background: rgba(15,25,35,0.92);
+    background: var(--bg2);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-radius: 24px;
@@ -459,7 +459,7 @@
   .map-icon-btn {
     width: 44px; height: 44px;
     border-radius: 50%;
-    background: rgba(15,25,35,0.92);
+    background: var(--bg2);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border);
@@ -478,7 +478,7 @@
     z-index: var(--z-map);
     width: 48px; height: 48px;
     border-radius: 50%;
-    background: rgba(15,25,35,0.95);
+    background: var(--bg2);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border);
@@ -521,7 +521,7 @@
     bottom: 16px;
     left: 16px;
     z-index: var(--z-map);
-    background: rgba(15,25,35,0.95);
+    background: var(--bg2);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-radius: var(--radius-sm);
@@ -597,7 +597,7 @@
     color: #222;
   }
   .draw-mode-pill {
-    background: rgba(15,25,35,0.92);
+    background: var(--bg2);
     backdrop-filter: blur(12px);
     border-radius: 24px;
     display: flex;
@@ -629,7 +629,7 @@
 
   .draw-hint-inner {
     align-self: center;
-    background: rgba(15,25,35,0.92);
+    background: var(--bg2);
     backdrop-filter: blur(12px);
     border: 1px solid var(--border);
     border-radius: 100px;
@@ -663,7 +663,7 @@
     min-height: 48px;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
-    background: rgba(15,25,35,0.95);
+    background: var(--bg2);
     backdrop-filter: blur(12px);
     color: var(--text);
     font-size: 13px;
@@ -992,6 +992,8 @@
   .event-dot.harvest { background: #ff9800; }
   .event-dot.watering { background: #2196F3; }
   .event-dot.spraying { background: #9C27B0; }
+  .event-dot.cultivation { background: #795548; }
+  .event-dot.disking { background: #607D8B; }
 
   .event-info { flex: 1; }
   .event-type { font-size: 14px; font-weight: 600; }
@@ -1181,9 +1183,22 @@
     display: flex; align-items: center; justify-content: center;
   }
 
-  .note-info { flex: 1; min-width: 0; }
-  .note-field-name { font-size: 16px; font-weight: 600; margin-bottom: 2px; }
-  .note-meta { font-size: 13px; color: var(--text2); }
+  .note-info { flex: 1; min-width: 0; overflow: hidden; }
+  .note-field-name {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .note-meta {
+    font-size: 13px;
+    color: var(--text2);
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+  }
 
   .note-date { font-size: 13px; color: var(--text3); flex-shrink: 0; }
 
@@ -1339,7 +1354,7 @@
 
   /* Карта в popup */
   .leaflet-popup-content-wrapper {
-    background: rgba(13,20,28,0.97) !important;
+    background: var(--bg2) !important;
     border: 1px solid rgba(76,175,80,0.25) !important;
     color: var(--text) !important;
     border-radius: 16px !important;
@@ -1404,7 +1419,7 @@
     bottom: calc(var(--nav-total) + 130px);
     left: 16px;
     z-index: var(--z-map);
-    background: rgba(13,20,28,0.95);
+    background: var(--bg2);
     backdrop-filter: blur(12px);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -2742,6 +2757,22 @@
     font-weight: 600;
   }
 
+  /* ══════════════════════════════════════
+     СВЕТЛАЯ ТЕМА — переопределение CSS-переменных
+     Все элементы, использующие var(--bg/--text/--border),
+     автоматически получают светлые значения
+  ══════════════════════════════════════ */
+  html.light-theme {
+    --bg:      #f0f4f8;
+    --bg2:     #ffffff;
+    --bg3:     #e8eef4;
+    --text:    #1a2332;
+    --text2:   #4a5e72;
+    --text3:   #7a8fa0;
+    --border:  rgba(0,0,0,0.10);
+    color-scheme: light;
+  }
+
   /* ── Tab bar ── */
   .light-theme #tab-bar {
     background: rgba(240, 244, 248, 0.98);
@@ -3160,8 +3191,159 @@
     color: var(--danger);
   }
 
-  /* Light theme overrides for new elements */
-  .light-theme .yield-forecast-card {
+  /* ── Note action buttons ── */
+  .light-theme .note-action-btn {
+    background: #e8eef4;
+    border-color: rgba(0,0,0,0.12);
+    color: #4a5e72;
+  }
+
+  /* ── Field card text elements ── */
+  .light-theme .field-card-name { color: #1a2332; }
+  .light-theme .field-card-area { color: #4a5e72; }
+  .light-theme .field-card-crop { color: #7a8fa0; }
+  .light-theme .field-card-date { color: #7a8fa0; }
+  .light-theme .field-card-edit { color: #7a8fa0; }
+
+  /* ── Field group labels ── */
+  .light-theme .fields-group-label .group-name { color: #4a5e72; }
+  .light-theme .fields-group-label .group-area { color: #7a8fa0; }
+
+  /* ── Icon buttons in headers ── */
+  .light-theme .icon-btn { color: #1a2332; }
+  .light-theme .icon-btn:active { background: rgba(0,0,0,0.08); }
+
+  /* ── Layer switcher (карта) ── */
+  .light-theme #layer-switcher {
+    background: rgba(255,255,255,0.97);
+    border-color: rgba(0,0,0,0.14);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  }
+  .light-theme .layer-btn {
+    color: #4a5e72;
+  }
+  .light-theme .layer-btn.active {
+    color: var(--accent);
+    background: rgba(76,175,80,0.10);
+  }
+
+  /* ── Geolocation button ── */
+  .light-theme #btn-geolocate {
+    background: rgba(255,255,255,0.97);
+    border-color: rgba(0,0,0,0.14);
+    color: #1a2332;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  }
+
+  /* ── Map icon buttons (search, add) ── */
+  .light-theme .map-icon-btn {
+    background: rgba(255,255,255,0.97);
+    border-color: rgba(0,0,0,0.14);
+    color: #1a2332;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  }
+
+  /* ── Field thumb backgrounds ── */
+  .light-theme .field-thumb { background: #e8eef4; }
+  .light-theme .note-field-thumb { background: #e8eef4; }
+
+  /* ── Toast notifications ── */
+  .light-theme .toast {
+    background: #1a2332;
+    color: #fff;
+  }
+
+  /* ── Draw mode UI ── */
+  .light-theme .draw-close-btn {
+    background: rgba(255,255,255,0.97);
+    color: #1a2332;
+  }
+  .light-theme .draw-mode-pill {
+    background: rgba(255,255,255,0.97);
+    border-color: rgba(0,0,0,0.14);
+    color: #1a2332;
+  }
+  .light-theme .draw-mode-pill button { color: #4a5e72; }
+  .light-theme .draw-mode-pill button.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  .light-theme .draw-area-pill {
+    background: rgba(255,255,255,0.97);
+    color: #1a2332;
+    border-color: rgba(0,0,0,0.14);
+  }
+  .light-theme .draw-finish-btn {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  /* ── NDVI field cards (Fields → NDVI tab) ── */
+  .light-theme .ndvi-field-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .ndvi-field-name-block { color: #1a2332; }
+
+  /* ── Season record cards ── */
+  .light-theme .season-record-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+    color: #1a2332;
+  }
+
+  /* ── Event item rows in field detail ── */
+  .light-theme .event-item {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.09);
+  }
+
+  /* ── Field detail scroll content ── */
+  .light-theme #field-detail-scroll { background: #f0f4f8; }
+
+  /* ── Stat inline inputs ── */
+  .light-theme .stat-inline-input {
+    color: #1a2332;
+    border-bottom-color: rgba(0,0,0,0.20);
+  }
+
+  /* ── All fields link / Season label in Notes ── */
+  .light-theme .all-fields-link { color: #4a5e72; }
+  .light-theme #notes-season-label { color: #4a5e72; }
+
+  /* ── Weather field meta pill ── */
+  .light-theme #weather-field-meta {
+    background: rgba(255,255,255,0.95);
+    border-color: rgba(0,0,0,0.12);
+    color: #1a2332;
+  }
+
+  /* ── Profile avatar circle ── */
+  .light-theme .profile-avatar {
+    background: #e0eee1;
+    color: var(--accent);
+  }
+
+  /* ── Setting rows ── */
+  .light-theme .setting-row {
+    border-bottom-color: rgba(0,0,0,0.07);
+  }
+  .light-theme .setting-value { color: #7a8fa0; }
+
+  /* ── Expanded field cards (NDVI view) ── */
+  .light-theme .field-card-expanded {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+
+  /* ── Map search results ── */
+  .light-theme .search-results-dropdown {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.14);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  }
+
+
     background: linear-gradient(135deg, rgba(76,175,80,0.08) 0%, rgba(255,255,255,1) 100%);
     border-color: rgba(76,175,80,0.25);
   }
@@ -3259,7 +3441,7 @@
     left: 16px;
     right: 16px;
     z-index: var(--z-map);
-    background: rgba(13,20,28,0.97);
+    background: var(--bg2);
     border: 1px solid rgba(76,175,80,0.3);
     border-radius: var(--radius-sm);
     padding: 12px 14px;
@@ -3347,7 +3529,7 @@
     <div class="login-title">Hec<span>tar</span></div>
     <div class="login-subtitle" id="login-subtitle">
       Agricultural field monitoring<br>
-      v2.6
+      v2.7
     </div>
 
     <button class="login-btn google" onclick="openFbAuthModal('google')">
@@ -3457,7 +3639,7 @@
         left:50%;
         transform:translateX(-50%);
         z-index:var(--z-map);
-        background:rgba(13,20,28,0.92);
+        background:var(--bg2);
         backdrop-filter:blur(10px);
         -webkit-backdrop-filter:blur(10px);
         border:1px solid var(--border);
@@ -3718,6 +3900,8 @@
         <button class="filter-chip" data-filter="harvest" onclick="setNoteFilter('harvest')" data-i18n="harvest">Уборка</button>
         <button class="filter-chip" data-filter="watering" onclick="setNoteFilter('watering')" data-i18n="watering">Полив</button>
         <button class="filter-chip" data-filter="spraying" onclick="setNoteFilter('spraying')" data-i18n="spraying">Опрыскивание</button>
+        <button class="filter-chip" data-filter="cultivation" onclick="setNoteFilter('cultivation')" data-i18n="cultivation">Культивация</button>
+        <button class="filter-chip" data-filter="disking" onclick="setNoteFilter('disking')" data-i18n="disking">Дискование</button>
       </div>
       <div class="notes-list" id="notes-list-container">
         <div class="empty-state" id="notes-empty">
@@ -3844,6 +4028,8 @@
           <option value="harvest" data-i18n="harvest">Harvest</option>
           <option value="watering" data-i18n="watering">Watering</option>
           <option value="spraying" data-i18n="spraying">Spraying</option>
+          <option value="cultivation" data-i18n="cultivation">Cultivation</option>
+          <option value="disking" data-i18n="disking">Disking</option>
         </select>
       </div>
       <div class="modal-form-group">
@@ -3883,6 +4069,8 @@
           <option value="harvest" data-i18n="harvest">Harvest</option>
           <option value="watering" data-i18n="watering">Watering</option>
           <option value="spraying" data-i18n="spraying">Spraying</option>
+          <option value="cultivation" data-i18n="cultivation">Cultivation</option>
+          <option value="disking" data-i18n="disking">Disking</option>
         </select>
       </div>
       <div class="modal-form-group">
@@ -4106,7 +4294,7 @@
 // ════════════════════════════════════════════════════
 // КОНСТАНТЫ ПРИЛОЖЕНИЯ
 // ════════════════════════════════════════════════════
-const APP_VERSION = '2.6';
+const APP_VERSION = '2.7';
 const STORAGE_PREFIX = 'hectar';
 const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
 const DEFAULT_MAP_ZOOM = 11;
@@ -4205,6 +4393,7 @@ const translations = {
     date: 'Дата', note: 'Заметка', add: 'Добавить',
     photos: 'Фото', addPhoto: 'Фото',
     sowing: 'Посев', harvest: 'Уборка', watering: 'Полив', spraying: 'Опрыскивание',
+    cultivation: 'Культивация', disking: 'Дискование',
     all: 'Все', noNotesYet: 'Заметок нет',
     addNote: 'Добавить заметку', newNote: 'Новая заметка',
     field: 'Поле', selectField: 'Выбрать поле...',
@@ -4256,6 +4445,7 @@ const translations = {
     date: 'Date', note: 'Note', add: 'Add',
     photos: 'Photos', addPhoto: 'Photo',
     sowing: 'Sowing', harvest: 'Harvest', watering: 'Watering', spraying: 'Spraying',
+    cultivation: 'Cultivation', disking: 'Disking',
     all: 'All', noNotesYet: 'No notes yet',
     addNote: 'Add note', newNote: 'New note',
     field: 'Field', selectField: 'Select field...',
@@ -6275,7 +6465,7 @@ function openFieldDetail(fieldId) {
 
 function renderFieldDetailHTML(field) {
   const fieldCropId = resolveCropId(field.crop);
-  const eventTypeLabel = { sowing: t('sowing'), harvest: t('harvest'), watering: t('watering'), spraying: t('spraying') };
+  const eventTypeLabel = { sowing: t('sowing'), harvest: t('harvest'), watering: t('watering'), spraying: t('spraying'), cultivation: t('cultivation'), disking: t('disking') };
 
   const ndvi = estimateFieldNdvi(field);
   const health = getHealthStatus(ndvi);
@@ -7350,7 +7540,7 @@ function renderNotesList() {
   }
   emptyEl.style.display = 'none';
 
-  const eventTypeLabel = { sowing: t('sowing'), harvest: t('harvest'), watering: t('watering'), spraying: t('spraying') };
+  const eventTypeLabel = { sowing: t('sowing'), harvest: t('harvest'), watering: t('watering'), spraying: t('spraying'), cultivation: t('cultivation'), disking: t('disking') };
 
   allEvents.forEach(ev => {
     const card = document.createElement('div');
@@ -7771,7 +7961,7 @@ function renderProfile() {
     <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
       <div class="about-block">
-        <div class="about-logo">Hectar 2.6</div>
+        <div class="about-logo">Hectar 2.7</div>
         <div>${t('aboutTagline')}</div>
         <div class="about-version">${t('version')} ${APP_VERSION}</div>
       </div>
@@ -9459,7 +9649,7 @@ function renderProfile() {
     <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
       <div class="about-block">
-        <div class="about-logo">Hectar 2.6</div>
+        <div class="about-logo">Hectar 2.7</div>
         <div>${t('aboutTagline')}</div>
         <div class="about-version">${t('version')} ${APP_VERSION}</div>
       </div>
