@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <!-- FIX 2: Full mobile/PWA adaptation — viewport-fit=cover ensures content fills notch/Dynamic Island area -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Hectar 2.7 — Field Monitoring</title>
+<title>Hectar 2.7.5 — Field Monitoring</title>
 
 <!-- FIX 2: PWA full-screen on iOS — black-translucent hides Safari URL bar when added to home screen -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -4294,7 +4294,7 @@
 // ════════════════════════════════════════════════════
 // КОНСТАНТЫ ПРИЛОЖЕНИЯ
 // ════════════════════════════════════════════════════
-const APP_VERSION = '2.7';
+const APP_VERSION = '2.7.5';
 const STORAGE_PREFIX = 'hectar';
 const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
 const DEFAULT_MAP_ZOOM = 11;
@@ -4339,6 +4339,233 @@ const CROPS = [
 ];
 
 function cropLabel(c) { return lang === 'ru' ? c.ru : c.en; }
+
+// ════════════════════════════════════════════════════
+// ЗАДАЧА 2: Умный севооборот
+// ════════════════════════════════════════════════════
+const ROTATION_RULES = {
+  sunflower: {
+    bad: [
+      { crops: ['sunflower'], years: 4, reason_ru: 'Подсолнух нельзя 4 года подряд (болезни, паразиты)', reason_en: 'Sunflower must not follow itself for 4 years' },
+      { crops: ['sugar_beet'], years: 1, reason_ru: 'После сахарной свёклы — риск болезней', reason_en: 'After sugar beet — disease risk' }
+    ],
+    good: ['wheat', 'barley', 'peas']
+  },
+  corn: {
+    bad: [
+      { crops: ['corn'], years: 2, reason_ru: 'Кукуруза нельзя 2 года подряд (стеблевой мотылёк)', reason_en: 'Corn must not follow itself for 2 years' },
+      { crops: ['sunflower'], years: 1, reason_ru: 'После подсолнуха — истощение почвы', reason_en: 'After sunflower — soil depletion' }
+    ],
+    good: ['wheat', 'peas', 'soybean', 'chickpea']
+  },
+  rapeseed: {
+    bad: [
+      { crops: ['rapeseed'], years: 3, reason_ru: 'Рапс нельзя 3 года подряд (кила, склеротиниоз)', reason_en: 'Rapeseed must not follow itself for 3 years' },
+      { crops: ['sunflower'], years: 1, reason_ru: 'После подсолнуха — общие болезни', reason_en: 'After sunflower — shared diseases' }
+    ],
+    good: ['wheat', 'barley', 'peas']
+  },
+  soybean: {
+    bad: [
+      { crops: ['soybean', 'peas', 'chickpea', 'lentils'], years: 2, reason_ru: 'Бобовые нельзя 2 года подряд (нематоды, корневые гнили)', reason_en: 'Legumes must not follow each other for 2 years' }
+    ],
+    good: ['wheat', 'corn']
+  },
+  wheat: {
+    bad: [
+      { crops: ['wheat'], years: 2, reason_ru: 'Пшеница нельзя 2 года подряд (септориоз, фузариоз)', reason_en: 'Wheat must not follow itself for 2 years' }
+    ],
+    good: ['peas', 'soybean', 'rapeseed', 'alfalfa']
+  },
+  barley: {
+    bad: [
+      { crops: ['barley', 'oats'], years: 1, reason_ru: 'Ячмень/Овёс нельзя подряд (болезни злаков)', reason_en: 'Barley/Oats must not follow each other' }
+    ],
+    good: ['peas', 'rapeseed', 'alfalfa']
+  },
+  potato: {
+    bad: [
+      { crops: ['potato'], years: 3, reason_ru: 'Картофель нельзя 3 года подряд (фитофтора, нематоды)', reason_en: 'Potato must not follow itself for 3 years' },
+      { crops: ['sunflower'], years: 1, reason_ru: 'После подсолнуха — угнетение картофеля', reason_en: 'After sunflower — potato suppression' }
+    ],
+    good: ['wheat', 'rye', 'alfalfa']
+  },
+  flax: {
+    bad: [
+      { crops: ['flax'], years: 4, reason_ru: 'Лён нельзя 4 года подряд (лёноутомление)', reason_en: 'Flax must not follow itself for 4 years' }
+    ],
+    good: ['wheat', 'barley', 'peas']
+  },
+  sugar_beet: {
+    bad: [
+      { crops: ['sugar_beet'], years: 3, reason_ru: 'Свёкла нельзя 3 года подряд (нематоды, ризомания)', reason_en: 'Sugar beet must not follow itself for 3 years' },
+      { crops: ['rapeseed'], years: 1, reason_ru: 'После рапса — общие болезни со свёклой', reason_en: 'After rapeseed — shared diseases' }
+    ],
+    good: ['wheat', 'barley', 'peas']
+  },
+  cotton: {
+    bad: [
+      { crops: ['cotton'], years: 3, reason_ru: 'Хлопок нельзя 3 года подряд (вилт, вертициллёз)', reason_en: 'Cotton must not follow itself for 3 years' }
+    ],
+    good: ['wheat', 'alfalfa']
+  },
+  alfalfa: {
+    bad: [
+      { crops: ['alfalfa'], years: 2, reason_ru: 'Люцерна нельзя 2 года подряд (болезни корней)', reason_en: 'Alfalfa must not follow itself for 2 years' }
+    ],
+    good: ['wheat', 'barley']
+  },
+  peas:     { bad: [{ crops: ['peas', 'soybean', 'chickpea', 'lentils'], years: 2, reason_ru: 'Бобовые нельзя 2 года подряд', reason_en: 'Legumes must not follow each other for 2 years' }], good: ['wheat', 'barley', 'corn'] },
+  lentils:  { bad: [{ crops: ['peas', 'soybean', 'chickpea', 'lentils'], years: 2, reason_ru: 'Бобовые нельзя 2 года подряд', reason_en: 'Legumes must not follow each other for 2 years' }], good: ['wheat', 'barley', 'corn'] },
+  chickpea: { bad: [{ crops: ['peas', 'soybean', 'chickpea', 'lentils'], years: 2, reason_ru: 'Бобовые нельзя 2 года подряд', reason_en: 'Legumes must not follow each other for 2 years' }], good: ['wheat', 'barley', 'corn'] },
+  oats:      { bad: [{ crops: ['oats', 'barley'], years: 1, reason_ru: 'Не сажать после злаков подряд', reason_en: 'Do not follow cereals in succession' }], good: ['peas', 'rapeseed', 'wheat'] },
+  rye:       { bad: [{ crops: ['rye'], years: 2, reason_ru: 'Рожь нельзя 2 года подряд', reason_en: 'Rye must not follow itself for 2 years' }], good: ['peas', 'rapeseed', 'wheat'] },
+  buckwheat: { bad: [{ crops: ['buckwheat'], years: 2, reason_ru: 'Гречиха нельзя 2 года подряд', reason_en: 'Buckwheat must not follow itself for 2 years' }], good: ['peas', 'rapeseed', 'wheat'] },
+  millet:    { bad: [{ crops: ['millet'], years: 2, reason_ru: 'Просо нельзя 2 года подряд', reason_en: 'Millet must not follow itself for 2 years' }], good: ['peas', 'rapeseed', 'wheat'] },
+  sorghum:   { bad: [{ crops: ['sorghum'], years: 2, reason_ru: 'Сорго нельзя 2 года подряд', reason_en: 'Sorghum must not follow itself for 2 years' }], good: ['peas', 'rapeseed', 'wheat'] },
+  mustard:   { bad: [{ crops: ['mustard'], years: 2, reason_ru: 'Горчица нельзя 2 года подряд', reason_en: 'Mustard must not follow itself for 2 years' }], good: ['peas', 'rapeseed', 'wheat'] },
+  rice:      { bad: [{ crops: ['rice'], years: 2, reason_ru: 'Рис нельзя 2 года подряд', reason_en: 'Rice must not follow itself for 2 years' }], good: ['peas', 'rapeseed', 'wheat'] },
+  other:     { bad: [], good: [] }
+};
+
+function getCropRotationRecommendation(field) {
+  // Собрать историю посевов из season событий (sowing/seeding)
+  const allSeasons = field.season || [];
+  const sowings = allSeasons.filter(ev => ev.type === 'sowing' || ev.type === 'seeding').sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const history = sowings.slice(0, 3).map(ev => resolveCropId(ev.crop || field.crop || '')).filter(Boolean);
+
+  const isRu = lang === 'ru';
+
+  if (history.length === 0) {
+    return {
+      good: [
+        { crop: 'wheat', reason: isRu ? 'Отличный стартовый вариант для любой почвы' : 'Great starter crop for any soil' },
+        { crop: 'barley', reason: isRu ? 'Неприхотлив, хорошо стартует' : 'Unpretentious, great starter' },
+        { crop: 'peas', reason: isRu ? 'Обогащает почву азотом' : 'Enriches soil with nitrogen' },
+        { crop: 'alfalfa', reason: isRu ? 'Улучшает структуру почвы' : 'Improves soil structure' }
+      ],
+      bad: [],
+      note: isRu ? 'Нет истории посевов — рекомендуем начать с этих культур.' : 'No sowing history — recommend starting with these crops.'
+    };
+  }
+
+  const lastCrop = history[0];
+  const rules = ROTATION_RULES[lastCrop];
+
+  let note = '';
+  if (history.length < 3) {
+    note = isRu ? '⚠️ Для точной рекомендации нужно больше сезонов посевов.' : '⚠️ More seasons needed for a precise recommendation.';
+  }
+
+  if (lastCrop === 'other') {
+    return {
+      good: CROPS.filter(c => c.id !== 'other').slice(0, 4).map(c => ({
+        crop: c.id,
+        reason: isRu ? 'Кастомная культура — разнообразие культур снижает риски' : 'Custom crop — diversification reduces risks'
+      })),
+      bad: [{ crop: 'other', reason: isRu ? 'Не рекомендуется сажать ту же кастомную культуру 2 года подряд' : 'Do not plant the same custom crop 2 years in a row', years: 2 }],
+      note: (isRu ? 'Кастомная культура. Совет: не сажать её 2 года подряд. ' : 'Custom crop. Tip: do not plant it 2 years in a row. ') + note
+    };
+  }
+
+  if (!rules) {
+    return { good: [], bad: [], note: isRu ? 'Нет данных о правилах для данной культуры.' : 'No rules data for this crop.' };
+  }
+
+  // Вычислить плохие культуры
+  const badCrops = [];
+  if (rules.bad) {
+    for (const rule of rules.bad) {
+      for (const badCropId of rule.crops) {
+        const cropObj = CROPS.find(c => c.id === badCropId);
+        if (!cropObj) continue;
+        // Проверить, нарушено ли в истории
+        const inHistory = history.slice(0, rule.years).includes(badCropId);
+        if (inHistory || rule.crops.includes(lastCrop)) {
+          if (!badCrops.find(b => b.crop === badCropId)) {
+            const reasonStr = (rule.reason_ru && isRu) ? rule.reason_ru : (rule.reason_en || rule.reason || '');
+            badCrops.push({ crop: badCropId, reason: reasonStr, years: rule.years });
+          }
+        }
+      }
+    }
+  }
+
+  // Хорошие культуры (не в плохих)
+  const badIds = badCrops.map(b => b.crop);
+  const goodCrops = (rules.good || [])
+    .filter(cid => !badIds.includes(cid))
+    .map(cid => {
+      const cropObj = CROPS.find(c => c.id === cid);
+      return {
+        crop: cid,
+        reason: isRu
+          ? `Хороший предшественник после ${cropDisplayName(lastCrop)}`
+          : `Good following crop after ${cropDisplayName(lastCrop)}`
+      };
+    });
+
+  // Если нет хороших — добавить универсальные
+  if (goodCrops.length === 0) {
+    ['wheat', 'barley', 'peas'].filter(c => !badIds.includes(c)).forEach(cid => {
+      goodCrops.push({ crop: cid, reason: isRu ? 'Универсальный вариант' : 'Universal option' });
+    });
+  }
+
+  return { good: goodCrops.slice(0, 5), bad: badCrops.slice(0, 3), note };
+}
+
+function renderCropRotationBlock(field) {
+  const rec = getCropRotationRecommendation(field);
+  const isRu = lang === 'ru';
+  const goodHTML = rec.good.length > 0
+    ? rec.good.map(g => `
+        <div style="background:rgba(76,175,80,0.12);border:1px solid rgba(76,175,80,0.3);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
+          <div style="font-weight:700;color:#4CAF50;font-size:14px;">✅ ${cropDisplayName(g.crop)}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;">${g.reason}</div>
+        </div>`).join('')
+    : `<div style="color:var(--text3);font-size:13px;">${isRu ? 'Нет данных' : 'No data'}</div>`;
+
+  const badHTML = rec.bad.length > 0
+    ? rec.bad.map(b => `
+        <div style="background:rgba(239,83,80,0.10);border:1px solid rgba(239,83,80,0.3);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
+          <div style="font-weight:700;color:#ef5350;font-size:14px;">❌ ${cropDisplayName(b.crop)}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px;">${b.reason}</div>
+        </div>`).join('')
+    : `<div style="color:var(--text3);font-size:13px;">${isRu ? 'Ограничений нет — поле готово к любой культуре' : 'No restrictions — field is ready for any crop'}</div>`;
+
+  const noteHTML = rec.note ? `<div style="background:rgba(255,193,7,0.12);border:1px solid rgba(255,193,7,0.3);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--text2);margin-bottom:10px;">${rec.note}</div>` : '';
+
+  return `
+    <div id="crop-rotation-block" style="margin-top:0;">
+      ${noteHTML}
+      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;">${isRu ? '✅ Рекомендуется посеять:' : '✅ Recommended:'}</div>
+      ${goodHTML}
+      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;margin-top:10px;">${isRu ? '❌ Не рекомендуется:' : '❌ Not recommended:'}</div>
+      ${badHTML}
+      <button onclick="refreshCropRotation('${field.id}')" style="margin-top:10px;width:100%;min-height:44px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:14px;cursor:pointer;">
+        🔄 ${isRu ? 'Обновить рекомендацию' : 'Refresh recommendation'}
+      </button>
+    </div>`;
+}
+
+function refreshCropRotation(fieldId) {
+  const fields = loadFields();
+  const field = fields.find(f => f.id === fieldId);
+  if (!field) return;
+  const block = document.getElementById('crop-rotation-block');
+  if (block) {
+    const newContent = document.createElement('div');
+    newContent.id = 'crop-rotation-block';
+    newContent.innerHTML = renderCropRotationBlock(field).replace('<div id="crop-rotation-block"', '<div').replace(/^<div[^>]*>/, '');
+    block.replaceWith(newContent);
+  }
+  // Re-render full block in parent
+  const parent = document.getElementById('crop-rotation-container');
+  if (parent) parent.innerHTML = renderCropRotationBlock(field);
+}
+
+
 
 function resolveCropId(stored) {
   if (!stored) return '';
@@ -6646,6 +6873,12 @@ function renderFieldDetailHTML(field) {
       </select>
     </div>
 
+    <!-- ЗАДАЧА 2: Умный севооборот -->
+    <div class="section-title">🌱 ${lang === 'ru' ? 'Умный севооборот' : 'Smart crop rotation'}</div>
+    <div id="crop-rotation-container" style="padding:0 0 8px;">
+      ${renderCropRotationBlock(field)}
+    </div>
+
     <div class="section-title">${t('seasonHistory')}</div>
     <div class="season-events" id="detail-season-events">${seasonHTML}</div>
     <button class="add-event-btn" onclick="openAddEventModal()">
@@ -6708,6 +6941,7 @@ function updateFieldMeta(fieldId, key, value) {
     }
   }
 }
+
 
 // ЗАДАЧА 2: Обновить дату посева поля (сохраняет как sowingDate + добавляет/обновляет событие посева)
 function updateFieldSowingDate(fieldId, dateStr) {
