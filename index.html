@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <!-- FIX 2: Full mobile/PWA adaptation — viewport-fit=cover ensures content fills notch/Dynamic Island area -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Hectar 2.8 — Field Monitoring</title>
+<title>Hectar 2.8.5 — Field Monitoring</title>
 
 <!-- FIX 2: PWA full-screen on iOS — black-translucent hides Safari URL bar when added to home screen -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3168,6 +3168,99 @@
   }
 
   /* ══════════════════════════════════════
+     FOREST SUBTRACTION FEATURE
+  ══════════════════════════════════════ */
+  .forest-section {
+    background: linear-gradient(135deg, rgba(56,142,60,0.10) 0%, rgba(56,142,60,0.04) 100%);
+    border: 1px solid rgba(56,142,60,0.25);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .forest-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .forest-area-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  .forest-area-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+  .forest-area-line .lbl { color: var(--text2); }
+  .forest-area-line .val { font-weight: 600; color: var(--text); }
+  .forest-area-line.net .lbl { color: var(--accent); font-weight: 700; }
+  .forest-area-line.net .val { color: var(--accent); font-size: 15px; font-weight: 700; }
+  .forest-area-line.subtracted .val { color: #ef5350; }
+  .forest-zones-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .forest-zone-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg3);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .forest-zone-item .fz-icon { font-size: 16px; flex-shrink: 0; }
+  .forest-zone-item .fz-label { flex: 1; color: var(--text2); }
+  .forest-zone-item .fz-area { font-weight: 600; color: var(--text); }
+  .forest-zone-item .fz-del {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text3);
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .forest-zone-item .fz-del:active, .forest-zone-item .fz-del:hover {
+    background: rgba(239,83,80,0.15);
+    border-color: rgba(239,83,80,0.4);
+    color: var(--danger);
+  }
+  .btn-add-forest {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: var(--radius-sm);
+    border: 1.5px dashed rgba(56,142,60,0.45);
+    background: rgba(56,142,60,0.06);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.15s;
+  }
+  .btn-add-forest:active, .btn-add-forest:hover {
+    background: rgba(56,142,60,0.14);
+    border-color: rgba(56,142,60,0.7);
+  }
+  /* draw-mode-ui in forest mode — hint text change only, no structural change */
+  #draw-hint.forest-hint { color: #a5d6a7; }
+
+  /* ══════════════════════════════════════
      FIX v1.8 R2: EVENT EDIT/DELETE BUTTONS
   ══════════════════════════════════════ */
   .event-item {
@@ -4312,7 +4405,7 @@
 // ════════════════════════════════════════════════════
 // КОНСТАНТЫ ПРИЛОЖЕНИЯ
 // ════════════════════════════════════════════════════
-const APP_VERSION = '2.8';
+const APP_VERSION = '2.8.5';
 const STORAGE_PREFIX = 'hectar';
 const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
 const DEFAULT_MAP_ZOOM = 11;
@@ -4884,6 +4977,11 @@ let isDrawing = false;
 let isMeasureMode = false;
 let currentMeasurePoints = [];
 let currentFieldIdForPhotos = null;
+
+// Лесной режим рисования
+let _forestDrawMode = false;
+let _forestTargetFieldId = null;
+const forestPolygons = {};
 let currentNoteFilter = 'all';
 let searchDebounceTimer = null;
 let searchMarker = null;
@@ -6091,6 +6189,8 @@ function addFieldToMap(field) {
   drawnPolygons[field.id] = polygon;
   // Сохраняем метку отдельно чтобы удалить её вместе с полем
   drawnPolygons[field.id + '_label'] = labelMarker;
+  // Нарисовать лесные зоны поля если есть
+  renderForestPolygonsForField(field);
 }
 
 // ════════════════════════════════════════════════════
@@ -6134,6 +6234,8 @@ function cancelDrawMode() {
   setDrawModeActive(false);
   clearTempDrawLayers();
   hideIntersectError();
+  // Сброс лесного режима если был активен
+  if (_forestDrawMode) cancelForestDraw();
 }
 
 // FIX 1.8: переменные для резиновой линии (preview от последней точки до курсора)
@@ -6505,7 +6607,12 @@ function hideIntersectError() {
 }
 
 // Завершить рисование → открыть модалку сохранения
+// (или завершить обводку леса если активен лесной режим)
 function finishDrawing() {
+  if (_forestDrawMode) {
+    finishForestDrawing();
+    return;
+  }
   if (currentDrawPoints.length < 3) {
     showToast(t('minPoints'));
     return;
@@ -6750,7 +6857,7 @@ function renderFieldsList() {
         </div>
         <button class="field-map-icon-btn" onclick="event.stopPropagation(); goToFieldOnMap('${field.id}')" title="Показать на карте">
           <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-          <span style="font-size:11px;font-weight:600;">On map</span>
+          <span style="font-size:11px;font-weight:600;">${lang === 'ru' ? 'На карте' : 'On map'}</span>
         </button>
       </div>
     `;
@@ -7010,6 +7117,12 @@ function renderFieldDetailHTML(field) {
       </div>`;
     })()}
 
+    <!-- ЛЕСНОЙ БЛОК: вычитание лесов из площади поля -->
+    <div class="section-title">🌲 ${lang === 'ru' ? 'Леса и нерабочие зоны' : 'Forests & Non-arable Zones'}</div>
+    <div class="forest-section" id="forest-section-${field.id}">
+      ${renderForestSectionHTML(field)}
+    </div>
+
     <!-- NDVI блок -->
     <div class="ndvi-chart-container">
       <div class="ndvi-chart-title">NDVI · ${lang === 'ru' ? 'Вегетационный индекс' : 'Vegetation Index'}</div>
@@ -7141,6 +7254,258 @@ function updateFieldSowingDate(fieldId, dateStr) {
   openFieldDetail(fieldId);
 }
 
+// ════════════════════════════════════════════════════
+// ВЫЧИТАНИЕ ЛЕСОВ ИЗ ПЛОЩАДИ ПОЛЯ
+// ════════════════════════════════════════════════════
+// (_forestDrawMode, _forestTargetFieldId, forestPolygons объявлены в глобальной области)
+
+/**
+ * Возвращает чистую площадь поля (га) = area - сумма всех лесов.
+ */
+function getNetFieldArea(field) {
+  const forests = field.forests || [];
+  const forestTotal = forests.reduce((s, f) => s + (f.area || 0), 0);
+  return Math.max(0, (field.area || 0) - forestTotal);
+}
+
+/**
+ * Рендерит HTML внутренности блока .forest-section для конкретного поля.
+ */
+function renderForestSectionHTML(field) {
+  const forests = field.forests || [];
+  const isRu = lang === 'ru';
+  const forestTotal = forests.reduce((s, f) => s + (f.area || 0), 0).toFixed(2);
+  const net = getNetFieldArea(field).toFixed(2);
+
+  let zonesHTML = '';
+  if (forests.length > 0) {
+    zonesHTML = `<div class="forest-zones-list">
+      ${forests.map((fz, idx) => `
+        <div class="forest-zone-item">
+          <span class="fz-icon">🌲</span>
+          <span class="fz-label">${isRu ? 'Лес' : 'Forest'} ${idx + 1}</span>
+          <span class="fz-area">${fz.area.toFixed(2)} ${getAreaUnit()}</span>
+          <button class="fz-del" onclick="deleteForestZone('${field.id}', ${idx})" title="${isRu ? 'Удалить' : 'Delete'}">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      `).join('')}
+    </div>`;
+  }
+
+  const areaBlock = forests.length > 0 ? `
+    <div class="forest-area-row">
+      <div class="forest-area-line">
+        <span class="lbl">📐 ${isRu ? 'Общая площадь' : 'Total area'}</span>
+        <span class="val">${formatAreaShort(field.area)} ${getAreaUnit()}</span>
+      </div>
+      <div class="forest-area-line subtracted">
+        <span class="lbl">🌲 ${isRu ? 'Леса / нераб. зоны' : 'Forests / non-arable'}</span>
+        <span class="val">− ${formatAreaShort(forestTotal)} ${getAreaUnit()}</span>
+      </div>
+      <div class="forest-area-line net">
+        <span class="lbl">✅ ${isRu ? 'Чистая пашня' : 'Net arable area'}</span>
+        <span class="val">${formatAreaShort(net)} ${getAreaUnit()}</span>
+      </div>
+    </div>
+  ` : '';
+
+  return `
+    ${areaBlock}
+    ${zonesHTML}
+    <button class="btn-add-forest" onclick="startForestDraw('${field.id}')">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      ${isRu ? 'Обвести лес на карте' : 'Draw forest on map'}
+    </button>
+  `;
+}
+
+/**
+ * Запускает режим рисования для обводки леса.
+ */
+function startForestDraw(fieldId) {
+  _forestDrawMode = true;
+  _forestTargetFieldId = fieldId;
+
+  // Переключить на вкладку карты и запустить рисование
+  closeFieldDetail();
+  switchTab('map');
+
+  // Небольшая задержка — дать Leaflet отрисоваться
+  setTimeout(() => {
+    startDrawMode();
+
+    // Заменить подсказку
+    const hint = document.getElementById('draw-hint');
+    if (hint) {
+      hint.textContent = lang === 'ru'
+        ? '🌲 Обведите лес. Нажимайте точки по контуру.'
+        : '🌲 Outline the forest. Tap to add points.';
+      hint.classList.add('forest-hint');
+    }
+
+    // Изменить цвет кнопки "Finish" чтобы отличать режимы
+    const finishBtn = document.getElementById('btn-finish-draw');
+    if (finishBtn) {
+      finishBtn.style.background = '#388E3C';
+      const lbl = finishBtn.querySelector('[data-i18n="finishShort"]') || finishBtn;
+      lbl.textContent = lang === 'ru' ? 'Сохранить лес' : 'Save forest';
+    }
+
+    showToast(lang === 'ru' ? '🌲 Режим обводки леса' : '🌲 Forest drawing mode');
+  }, 200);
+}
+
+/**
+ * Завершить рисование леса — вычислить площадь и вычесть из поля.
+ * Вызывается вместо finishDrawing() когда _forestDrawMode === true.
+ */
+function finishForestDrawing() {
+  if (currentDrawPoints.length < 3) {
+    showToast(t('minPoints'));
+    return;
+  }
+
+  // Проверить самопересечения
+  if (checkPolygonSelfIntersects(currentDrawPoints)) {
+    showIntersectError();
+    showToast(lang === 'ru' ? 'Линии не должны пересекаться' : 'Lines must not intersect');
+    return;
+  }
+
+  hideIntersectError();
+
+  // Посчитать площадь леса
+  const coords = [...currentDrawPoints, currentDrawPoints[0]];
+  const poly = turf.polygon([coords.map(c => [c[1], c[0]])]);
+  const forestArea = parseFloat((turf.area(poly) / 10000).toFixed(2));
+
+  // Загрузить поля, найти нужное
+  const fields = loadFields();
+  const field = fields.find(f => f.id === _forestTargetFieldId);
+  if (!field) {
+    showToast(lang === 'ru' ? 'Поле не найдено' : 'Field not found');
+    cancelForestDraw();
+    return;
+  }
+
+  if (!field.forests) field.forests = [];
+
+  // Ограничение: лес не может быть >= площади поля
+  const totalForestSoFar = field.forests.reduce((s, fz) => s + fz.area, 0);
+  if (totalForestSoFar + forestArea >= field.area) {
+    showToast(lang === 'ru'
+      ? '⚠ Площадь лесов не может превышать площадь поля'
+      : '⚠ Forest area cannot exceed field area');
+    return;
+  }
+
+  const newForest = {
+    id: generateId(),
+    area: forestArea,
+    coordinates: currentDrawPoints
+  };
+  field.forests.push(newForest);
+  saveFields(fields);
+
+  // Нарисовать лес на карте
+  const forestKey = field.id + '_forest_' + newForest.id;
+  const leafletCoords = currentDrawPoints.map(c => [c[0], c[1]]);
+  const poly2 = L.polygon(leafletCoords, {
+    color: '#2E7D32',
+    fillColor: '#1B5E20',
+    fillOpacity: 0.45,
+    weight: 2,
+    dashArray: '6,4'
+  }).addTo(map);
+  poly2.bindTooltip(`🌲 ${lang === 'ru' ? 'Лес' : 'Forest'} ${forestArea.toFixed(2)} ${getAreaUnit()}`, { permanent: false });
+  forestPolygons[forestKey] = poly2;
+
+  // Сбросить режим рисования
+  clearTempDrawLayers();
+  currentDrawPoints = [];
+  isDrawing = false;
+  setDrawModeActive(false);
+  cancelForestDraw();
+
+  const net = getNetFieldArea(field).toFixed(2);
+  showToast(lang === 'ru'
+    ? `🌲 Лес вычтен. Чистая пашня: ${net} ${getAreaUnit()}`
+    : `🌲 Forest subtracted. Net area: ${net} ${getAreaUnit()}`);
+
+  // Открыть детали поля обратно
+  setTimeout(() => openFieldDetail(_forestTargetFieldId !== null ? _forestTargetFieldId : field.id), 300);
+}
+
+/**
+ * Сбросить флаги лесного режима и восстановить стандартный UI рисования.
+ */
+function cancelForestDraw() {
+  _forestDrawMode = false;
+  _forestTargetFieldId = null;
+
+  const hint = document.getElementById('draw-hint');
+  if (hint) hint.classList.remove('forest-hint');
+
+  const finishBtn = document.getElementById('btn-finish-draw');
+  if (finishBtn) {
+    finishBtn.style.background = '';
+    const span = finishBtn.querySelector('span:first-child');
+    if (span) span.textContent = t('finishShort') || 'Finish';
+  }
+}
+
+/**
+ * Удалить лесную зону по индексу.
+ */
+function deleteForestZone(fieldId, idx) {
+  const fields = loadFields();
+  const field = fields.find(f => f.id === fieldId);
+  if (!field || !field.forests) return;
+
+  const fz = field.forests[idx];
+  if (!fz) return;
+
+  // Убрать полигон с карты
+  const forestKey = fieldId + '_forest_' + fz.id;
+  if (forestPolygons[forestKey]) {
+    forestPolygons[forestKey].removeFrom(map);
+    delete forestPolygons[forestKey];
+  }
+
+  field.forests.splice(idx, 1);
+  saveFields(fields);
+
+  showToast(lang === 'ru' ? 'Лесная зона удалена' : 'Forest zone removed');
+
+  // Обновить секцию без полного перерендера
+  const sec = document.getElementById(`forest-section-${fieldId}`);
+  if (sec) sec.innerHTML = renderForestSectionHTML(field);
+}
+
+/**
+ * При загрузке полей с карты — нарисовать их леса.
+ */
+function renderForestPolygonsForField(field) {
+  if (!field.forests || !field.forests.length) return;
+  field.forests.forEach(fz => {
+    if (!fz.coordinates || fz.coordinates.length < 3) return;
+    const key = field.id + '_forest_' + fz.id;
+    if (forestPolygons[key]) return; // уже нарисован
+    const leafletCoords = fz.coordinates.map(c => [c[0], c[1]]);
+    const poly = L.polygon(leafletCoords, {
+      color: '#2E7D32',
+      fillColor: '#1B5E20',
+      fillOpacity: 0.45,
+      weight: 2,
+      dashArray: '6,4'
+    }).addTo(map);
+    poly.bindTooltip(`🌲 ${lang === 'ru' ? 'Лес' : 'Forest'} ${fz.area.toFixed(2)} ${getAreaUnit()}`, { permanent: false });
+    forestPolygons[key] = poly;
+  });
+}
+
+
 function deleteCurrentField() {
   if (!currentFieldId) return;
   if (!confirm(t('deleteConfirm'))) return;
@@ -7157,6 +7522,13 @@ function deleteCurrentField() {
     drawnPolygons[labelKey].removeFrom(map);
     delete drawnPolygons[labelKey];
   }
+  // Удаляем лесные полигоны поля
+  Object.keys(forestPolygons).forEach(key => {
+    if (key.startsWith(currentFieldId + '_forest_')) {
+      forestPolygons[key].removeFrom(map);
+      delete forestPolygons[key];
+    }
+  });
   closeFieldDetail();
   showToast(t('fieldDeleted'));
 }
@@ -8370,7 +8742,7 @@ function renderProfile() {
     <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
       <div class="about-block">
-        <div class="about-logo">Hectar 2.8</div>
+        <div class="about-logo">Hectar 2.8.5</div>
         <div>${t('aboutTagline')}</div>
         <div class="about-version">${t('version')} ${APP_VERSION}</div>
       </div>
@@ -10061,7 +10433,7 @@ function renderProfile() {
     <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
       <div class="about-block">
-        <div class="about-logo">Hectar 2.8</div>
+        <div class="about-logo">Hectar 2.8.5</div>
         <div>${t('aboutTagline')}</div>
         <div class="about-version">${t('version')} ${APP_VERSION}</div>
       </div>
