@@ -1614,14 +1614,6 @@
   /* ══════════════════════════════════════
      SPINNER
   ══════════════════════════════════════ */
-  .spinner {
-    width: 20px; height: 20px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    margin: 0 auto;
-  }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* ══════════════════════════════════════
@@ -3749,6 +3741,7 @@
   }
 
 
+  .light-theme .yield-forecast-card {
     background: linear-gradient(135deg, rgba(76,175,80,0.08) 0%, rgba(255,255,255,1) 100%);
     border-color: rgba(76,175,80,0.25);
   }
@@ -4631,7 +4624,7 @@
       <p id="del-acc-desc" style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6;">This will permanently delete your account and all cloud data. This action cannot be undone.</p>
       <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;">
         <div style="font-size:13px;color:var(--text2);margin-bottom:10px;"><span id="del-acc-captcha-label">To confirm, solve this:</span> <strong id="captcha-question" style="color:var(--text);"></strong></div>
-        <input class="fb-auth-input" id="captcha-answer" type="number" id="del-acc-captcha-placeholder" placeholder="Your answer" style="margin-bottom:0;"/>
+        <input class="fb-auth-input" id="captcha-answer" type="number" placeholder="Your answer" style="margin-bottom:0;"/>
         <div id="captcha-error" style="color:var(--danger);font-size:12px;min-height:16px;margin-top:6px;"></div>
       </div>
       <button id="del-acc-submit-btn" onclick="submitDeleteAccount()" style="width:100%;padding:14px;border-radius:var(--radius-sm);background:var(--danger);color:#fff;border:none;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px;">Delete my account</button>
@@ -4923,7 +4916,7 @@ function renderCropRotationBlock(field) {
   const goodHTML = rec.good.length > 0
     ? rec.good.map(g => `
         <div style="background:rgba(76,175,80,0.12);border:1px solid rgba(76,175,80,0.3);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
-          <div style="font-weight:700;color:#4CAF50;font-size:14px;">✅ ${cropDisplayName(g.crop)}</div>
+          <div style="font-weight:700;color:#4CAF50;font-size:14px;">✅ ${escapeHtml(cropDisplayName(g.crop))}</div>
           <div style="font-size:12px;color:var(--text2);margin-top:2px;">${g.reason}</div>
         </div>`).join('')
     : `<div style="color:var(--text3);font-size:13px;">${isRu ? 'Нет данных' : 'No data'}</div>`;
@@ -4931,7 +4924,7 @@ function renderCropRotationBlock(field) {
   const badHTML = rec.bad.length > 0
     ? rec.bad.map(b => `
         <div style="background:rgba(239,83,80,0.10);border:1px solid rgba(239,83,80,0.3);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
-          <div style="font-weight:700;color:#ef5350;font-size:14px;">❌ ${cropDisplayName(b.crop)}</div>
+          <div style="font-weight:700;color:#ef5350;font-size:14px;">❌ ${escapeHtml(cropDisplayName(b.crop))}</div>
           <div style="font-size:12px;color:var(--text2);margin-top:2px;">${b.reason}</div>
         </div>`).join('')
     : `<div style="color:var(--text3);font-size:13px;">${isRu ? 'Ограничений нет — поле готово к любой культуре' : 'No restrictions — field is ready for any crop'}</div>`;
@@ -5529,7 +5522,7 @@ function renderSearchHistory() {
       <button class="search-history-clear" onclick="clearSearchHistory()">${isRu ? 'Очистить' : 'Clear'}</button>
     </li>
     ${history.map((h, idx) => `
-    <li class="search-history-item" style="list-style:none;" onclick="selectSearchResult(${h.lat}, ${h.lon}, '${h.name.replace(/'/g,"\\'")}', {})">
+    <li class="search-history-item" style="list-style:none;" onclick="selectSearchResult(${h.lat}, ${h.lon}, '${escapeHtml(h.name).replace(/'/g,"&#39;")}', {})">
       <svg class="search-history-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       <div style="flex:1;min-width:0;">
         <div class="search-history-name">${escapeHtml(h.name)}</div>
@@ -6041,7 +6034,7 @@ async function computeNdviForFields() {
     const ndvi = await sampleNdviForField(field);
     const color = getNdviColor(ndvi);
     html += `<div class="ndvi-status-row">
-      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">${field.name}</span>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">${escapeHtml(field.name)}</span>
       <span style="color:${color};">NDVI ${ndvi}</span>
     </div>`;
   }
@@ -6114,7 +6107,7 @@ async function renderNdviFieldsPanel() {
       <div class="ndvi-field-card-top">
         <div class="ndvi-field-dot" style="background:${field.color};"></div>
         <div style="flex:1;min-width:0;">
-          <div class="ndvi-field-card-name">${field.name}</div>
+          <div class="ndvi-field-card-name">${escapeHtml(field.name)}</div>
           <div class="ndvi-field-card-coords">${lat}°N, ${lng}°E · ${formatArea(field.area)}</div>
         </div>
         <div class="ndvi-value-badge" style="background:${color};">NDVI ${ndvi}</div>
@@ -6125,7 +6118,7 @@ async function renderNdviFieldsPanel() {
           <div class="ndvi-mini-fill" style="width:${Math.round(ndvi*100)}%;background:${color};"></div>
         </div>
       </div>
-      <button class="ndvi-map-link" onclick="goToFieldOnMap('${field.id}')">
+      <button class="ndvi-map-link" onclick="goToFieldOnMap('${escapeHtml(field.id)}')">
         <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         Показать на карте
       </button>
@@ -6522,7 +6515,7 @@ function addFieldToMap(field) {
             <span style="color:${ndviColor};font-weight:600;">NDVI ${ndvi} · ${health.label}</span>
           </div>
         </div>
-        <button class="agri-popup-btn" onclick="map.closePopup(); switchTab('fields'); setTimeout(() => openFieldDetail('${field.id}'), 150);">
+        <button class="agri-popup-btn" onclick="map.closePopup(); switchTab('fields'); setTimeout(() => openFieldDetail('${escapeHtml(field.id)}'), 150);">
           ${lang === 'ru' ? 'Подробнее' : 'View details'}
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-left:4px;"><polyline points="9,18 15,12 9,6"/></svg>
         </button>
@@ -6539,7 +6532,7 @@ function addFieldToMap(field) {
   const labelMarker = L.marker(center, {
     icon: L.divIcon({
       className: '',
-      html: `<div style="color:#fff;font-size:12px;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,0.8);white-space:nowrap;">${field.name}</div>`,
+      html: `<div style="color:#fff;font-size:12px;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,0.8);white-space:nowrap;">${escapeHtml(field.name)}</div>`,
       iconAnchor: [0, 0]
     })
   }).addTo(map);
@@ -6769,6 +6762,8 @@ function updateTempDraw() {
       map.dragging.disable();
       L.DomEvent.stopPropagation(e);
     });
+    map.off('mousemove touchmove');
+    map.off('mouseup touchend');
     map.on('mousemove touchmove', (e) => {
       if (!dragging) return;
       const latlng = e.latlng || map.mouseEventToLatLng(e.originalEvent?.touches?.[0] || e.originalEvent);
@@ -7191,10 +7186,10 @@ function renderFieldsList() {
     card.innerHTML = `
       <div class="field-card-top">
         <div class="field-thumb">
-          <canvas width="72" height="72" id="thumb-${field.id}"></canvas>
+          <canvas width="72" height="72" id="thumb-${escapeHtml(field.id)}"></canvas>
         </div>
         <div class="field-card-info" style="flex:1;min-width:0;">
-          <div class="field-card-name">${field.name}</div>
+          <div class="field-card-name">${escapeHtml(field.name)}</div>
           <div style="display:flex;gap:6px;align-items:baseline;margin-top:2px;">
             <span style="font-size:15px;font-weight:700;">${formatAreaShort(field.area)} <span style="font-size:12px;color:var(--text2);font-weight:400;">${getAreaUnit()}</span></span>
             <span style="font-size:12px;color:var(--text3);">· ${field.perimeter} км</span>
@@ -7213,7 +7208,7 @@ function renderFieldsList() {
           <span class="field-badge blue" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">🌱 ${stage}</span>
           <span class="field-badge" style="white-space:nowrap;flex-shrink:0;">📅 ${sowDate}</span>
         </div>
-        <button class="field-map-icon-btn" onclick="event.stopPropagation(); goToFieldOnMap('${field.id}')" title="Показать на карте">
+        <button class="field-map-icon-btn" onclick="event.stopPropagation(); goToFieldOnMap('${escapeHtml(field.id)}')" title="Показать на карте">
           <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
           <span style="font-size:11px;font-weight:600;">${lang === 'ru' ? 'На карте' : 'On map'}</span>
         </button>
@@ -7353,13 +7348,13 @@ function renderFieldDetailHTML(field) {
       <div class="event-info">
         <div class="event-type">${eventTypeLabel[ev.type] || ev.type}</div>
         <div class="event-date">${ev.date}</div>
-        ${ev.note ? `<div class="event-note">${ev.note}</div>` : ''}
+        ${ev.note ? `<div class="event-note">${escapeHtml(ev.note)}</div>` : ''}
       </div>
       <div class="event-actions">
-        <button class="event-edit-btn" onclick="openEditEventModal('${field.id}', ${idx})" title="${lang==='ru'?'Редактировать':'Edit'}">
+        <button class="event-edit-btn" onclick="openEditEventModal('${escapeHtml(field.id)}', ${idx})" title="${lang==='ru'?'Редактировать':'Edit'}">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
-        <button class="event-delete-btn" onclick="deleteEventFromField('${field.id}', ${idx})" title="${lang==='ru'?'Удалить':'Delete'}">
+        <button class="event-delete-btn" onclick="deleteEventFromField('${escapeHtml(field.id)}', ${idx})" title="${lang==='ru'?'Удалить':'Delete'}">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         </button>
       </div>
@@ -7371,7 +7366,7 @@ function renderFieldDetailHTML(field) {
   `).join('');
 
   const addPhotoBtn = (field.photos || []).length < 5 ? `
-    <div class="photo-add-btn" onclick="triggerPhotoUpload('${field.id}')">
+    <div class="photo-add-btn" onclick="triggerPhotoUpload('${escapeHtml(field.id)}')">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2l2-3h10l2 3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
       <span>${t('addPhoto')}</span>
     </div>
@@ -7398,15 +7393,15 @@ function renderFieldDetailHTML(field) {
   return `
     <div class="modal-form-group">
       <label class="modal-label">${t('fieldName')}</label>
-      <input class="field-name-input" id="detail-name-input" value="${field.name}"
-        onchange="updateFieldName('${field.id}', this.value)"/>
+      <input class="field-name-input" id="detail-name-input" value="${escapeHtml(field.name)}"
+        onchange="updateFieldName('${escapeHtml(field.id)}', this.value)"/>
     </div>
 
     <!-- FIX v1.8: Replaced crop chip grid with compact SELECT dropdown -->
     <div class="section-title">${t('crop')}</div>
     <div style="padding: 0 0 8px;">
       <select class="modal-select" id="detail-crop-select"
-        onchange="updateFieldCropSelect('${field.id}', this.value)"
+        onchange="updateFieldCropSelect('${escapeHtml(field.id)}', this.value)"
         style="width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:15px;font-family:inherit;cursor:pointer;outline:none;">
         <option value="" ${!fieldCropId ? 'selected' : ''}>${t('noCrop')}</option>
         ${CROPS.map(c => `<option value="${c.id}" ${fieldCropId === c.id ? 'selected' : ''}>${cropLabel(c)}</option>`).join('')}
@@ -7438,7 +7433,7 @@ function renderFieldDetailHTML(field) {
         <div class="stat-value" style="font-size:13px;">
           <input class="stat-inline-input" type="date"
             value="${sowDate !== '—' ? sowDate : ''}"
-            onchange="updateFieldSowingDate('${field.id}', this.value)"
+            onchange="updateFieldSowingDate('${escapeHtml(field.id)}', this.value)"
             style="width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:12px;padding:2px 0;outline:none;"/>
         </div>
       </div>
@@ -7479,7 +7474,7 @@ function renderFieldDetailHTML(field) {
     <!-- ЛЕСНОЙ БЛОК: вычитание лесов из площади поля -->
     <hr style="border:none;border-top:2px solid rgba(76,175,80,0.25);margin:22px 0 12px;">
     <div class="section-title">🌲 ${lang === 'ru' ? 'Леса и нерабочие зоны' : 'Forests & Non-arable Zones'}</div>
-    <div class="forest-section" id="forest-section-${field.id}">
+    <div class="forest-section" id="forest-section-${escapeHtml(field.id)}">
       ${renderForestSectionHTML(field)}
     </div>
 
@@ -7664,7 +7659,7 @@ function renderForestSectionHTML(field) {
           <span class="fz-icon">${zoneTypeIcon(fz)}</span>
           <span class="fz-label">${zoneTypeLabel(fz)} ${idx + 1}</span>
           <span class="fz-area" title="${pct}%">${fz.area.toFixed(2)} ${getAreaUnit()} <span style="font-size:10px;color:var(--text3);">(${pct}%)</span></span>
-          <button class="fz-del" onclick="deleteForestZone('${field.id}', ${idx})" title="${isRu ? 'Удалить' : 'Delete'}">
+          <button class="fz-del" onclick="deleteForestZone('${escapeHtml(field.id)}', ${idx})" title="${isRu ? 'Удалить' : 'Delete'}">
             <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>`}).join('')}
@@ -7691,7 +7686,7 @@ function renderForestSectionHTML(field) {
   return `
     ${areaBlock}
     ${zonesHTML}
-    <button class="btn-add-forest" onclick="startForestDraw('${field.id}')">
+    <button class="btn-add-forest" onclick="startForestDraw('${escapeHtml(field.id)}')">
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       ${isRu ? 'Обвести лес на карте' : 'Draw forest on map'}
     </button>
@@ -8640,10 +8635,10 @@ async function loadWeather() {
       container.innerHTML = `<div class="weather-card">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
           <div style="flex:1;">
-            <div class="weather-field-name" style="margin-bottom:2px;">🏙 ${weatherCityName.split(',')[0]}</div>
+            <div class="weather-field-name" style="margin-bottom:2px;">🏙 ${escapeHtml(weatherCityName.split(',')[0])}</div>
             <div style="font-size:12px;color:var(--text3);">
               <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:3px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              ${weatherCityName}
+              ${escapeHtml(weatherCityName)}
             </div>
           </div>
         </div>
@@ -8693,7 +8688,7 @@ async function loadWeather() {
       </div>`;
     } catch(err) {
       container.innerHTML = `<div class="weather-card">
-        <div class="weather-field-name">${weatherCityName || (lang === 'ru' ? 'Город' : 'City')}</div>
+        <div class="weather-field-name">${escapeHtml(weatherCityName) || (lang === 'ru' ? 'Город' : 'City')}</div>
         <div style="color:var(--danger);font-size:13px;margin-top:8px;">⚠ ${lang === 'ru' ? 'Не удалось загрузить погоду' : 'Failed to load weather'}</div>
         <button class="modal-btn secondary" style="margin-top:12px;" onclick="loadWeather()">${lang === 'ru' ? 'Повторить' : 'Retry'}</button>
       </div>`;
@@ -8846,8 +8841,8 @@ async function loadWeather() {
       <div class="weather-card">
         <!-- FIX 1: Field name header + geo place name subtitle (no pin icon, clean text) -->
         <div style="margin-bottom:14px;">
-          <div class="weather-field-name" style="margin-bottom:3px;">${locationName}</div>
-          <div class="weather-place-name">${geoSubtitle}</div>
+          <div class="weather-field-name" style="margin-bottom:3px;">${escapeHtml(locationName)}</div>
+          <div class="weather-place-name">${escapeHtml(geoSubtitle)}</div>
         </div>
 
         <!-- Current conditions -->
@@ -8929,7 +8924,7 @@ async function loadWeather() {
     `;
   } catch(err) {
     container.innerHTML = `<div class="weather-card">
-      <div class="weather-field-name">${field.name}</div>
+      <div class="weather-field-name">${escapeHtml(field.name)}</div>
       <div style="color:var(--danger);font-size:13px;margin-top:8px;">⚠ ${t('weatherLoadError')}</div>
       <button class="modal-btn secondary" style="margin-top:12px;" onclick="loadWeather()">${lang === 'ru' ? 'Повторить' : 'Retry'}</button>
     </div>`;
@@ -8990,19 +8985,19 @@ function renderNotesList() {
         <canvas width="64" height="64" id="${thumbId}"></canvas>
       </div>
       <div class="note-info">
-        <div class="note-field-name">${ev.fieldName}</div>
-        <div class="note-meta">${eventTypeLabel[ev.type] || ev.type}${ev.fieldCrop ? ' — ' + cropDisplayName(ev.fieldCrop) : ''} · ${ev.fieldArea} ${t('ha')}</div>
-        ${ev.note ? `<div class="note-meta" style="margin-top:2px;color:var(--text3)">${ev.note}</div>` : ''}
+        <div class="note-field-name">${escapeHtml(ev.fieldName)}</div>
+        <div class="note-meta">${escapeHtml(eventTypeLabel[ev.type] || ev.type)}${ev.fieldCrop ? ' — ' + escapeHtml(cropDisplayName(ev.fieldCrop)) : ''} · ${ev.fieldArea} ${t('ha')}</div>
+        ${ev.note ? `<div class="note-meta" style="margin-top:2px;color:var(--text3)">${escapeHtml(ev.note)}</div>` : ''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
         <div class="note-date">${dateStr}</div>
         <div style="display:flex;gap:6px;">
           <button class="note-action-btn note-edit-btn"
-            onclick="editNoteFromList('${ev.fieldId}', ${ev._seasonIndex})" title="${lang === 'ru' ? 'Редактировать' : 'Edit'}">
+            onclick="editNoteFromList('${escapeHtml(ev.fieldId)}', ${ev._seasonIndex})" title="${lang === 'ru' ? 'Редактировать' : 'Edit'}">
             <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
           <button class="note-action-btn note-delete-btn"
-            onclick="deleteNoteFromList('${ev.fieldId}', ${ev._seasonIndex})" title="${lang === 'ru' ? 'Удалить' : 'Delete'}">
+            onclick="deleteNoteFromList('${escapeHtml(ev.fieldId)}', ${ev._seasonIndex})" title="${lang === 'ru' ? 'Удалить' : 'Delete'}">
             <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
           </button>
         </div>
@@ -9772,7 +9767,7 @@ function renderSeasonsList() {
         </div>
       </div>
       ${rec.area ? `<div style="font-size:12px;color:var(--text3);margin-bottom:4px;">📐 ${rec.area} ${lang==='ru'?'га':'ha'} · ${stars}</div>` : stars ? `<div style="font-size:12px;margin-bottom:4px;">${stars}</div>` : ''}
-      ${rec.notes ? `<div class="season-record-notes">${rec.notes}</div>` : ''}
+      ${rec.notes ? `<div class="season-record-notes">${escapeHtml(rec.notes)}</div>` : ''}
     `;
     container.appendChild(card);
   });
