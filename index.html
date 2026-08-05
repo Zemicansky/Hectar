@@ -7960,8 +7960,10 @@ function exportFieldsPDF() {
       const yfc = getDetailedYieldForecast(field, ndvi);
       const ndviColor = ndvi >= 0.65 ? '#2e7d32' : ndvi >= 0.45 ? '#558b2f' : ndvi >= 0.25 ? '#f57f17' : '#b71c1c';
       const seasons = (field.season || []);
+      // FIX (security): escape user-entered event fields before inserting into
+      // the print-report HTML, to prevent HTML injection via field season notes.
       const seasonText = seasons.length
-        ? seasons.map(ev => `${ev.type || ''}${ev.date ? ' (' + ev.date + ')' : ''}${ev.note ? ': ' + ev.note : ''}`).join('<br>')
+        ? seasons.map(ev => `${escapeHtml(ev.type || '')}${ev.date ? ' (' + escapeHtml(ev.date) + ')' : ''}${ev.note ? ': ' + escapeHtml(ev.note) : ''}`).join('<br>')
         : (isRu ? 'Нет событий' : 'No events');
 
       return `
@@ -7991,7 +7993,7 @@ function exportFieldsPDF() {
             </div>
             <div>
               <div style="font-size:10px;color:#888;">${isRu ? 'Дата посева' : 'Sowing Date'}</div>
-              <div style="font-size:13px;">${field.sowingDate || '—'}</div>
+              <div style="font-size:13px;">${escapeHtml(field.sowingDate || '—')}</div>
             </div>
           </div>
           ${forestTotal > 0 ? `<div style="padding:4px 12px 8px;font-size:12px;color:#555;">🌲 ${isRu ? 'Леса/нераб.' : 'Forests'}: −${(forestTotal * mult).toFixed(2)} ${unit} (${forests.length} ${isRu ? 'зон' : 'zones'})</div>` : ''}
@@ -8384,12 +8386,18 @@ async function searchWeatherCity(query) {
       const parts = [p.name, p.admin1, p.country].filter(Boolean);
       const name = parts.join(', ');
       const sub = [p.country_code, p.timezone].filter(Boolean).join(' · ');
-      return `<div onclick="selectWeatherCity(${p.latitude},${p.longitude},'${name.replace(/'/g,"&#39;")}')"
+      // FIX (security): escape name for HTML content, and separately for the
+      // single-quoted JS string literal inside the onclick attribute, to
+      // prevent HTML/JS injection from geocoding API results.
+      const nameHtml = escapeHtml(name);
+      const subHtml = escapeHtml(sub);
+      const nameForAttr = escapeHtml(name).replace(/'/g, '&#39;');
+      return `<div onclick="selectWeatherCity(${p.latitude},${p.longitude},'${nameForAttr}')"
         style="padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s;"
         onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''"
       >
-        <div style="font-weight:600;color:var(--text);">${name}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px;">${sub} · ${p.latitude.toFixed(3)}° ${p.longitude.toFixed(3)}°</div>
+        <div style="font-weight:600;color:var(--text);">${nameHtml}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">${subHtml} · ${p.latitude.toFixed(3)}° ${p.longitude.toFixed(3)}°</div>
       </div>`;
     }).join('');
   } catch(e) {
@@ -8406,7 +8414,7 @@ function selectWeatherCity(lat, lon, name) {
   const current = document.getElementById('weather-city-current');
   const input = document.getElementById('weather-city-input');
   if (results) results.style.display = 'none';
-  if (current) { current.style.display = 'block'; current.innerHTML = `📍 <strong style="color:var(--text);">${name}</strong>`; }
+  if (current) { current.style.display = 'block'; current.innerHTML = `📍 <strong style="color:var(--text);">${escapeHtml(name)}</strong>`; }
   if (input) input.value = name.split(',')[0];
   // FIX v1.9: update add-btn state after selecting a city
   updateFavAddBtnState();
@@ -8440,9 +8448,11 @@ function renderFavouriteCities() {
   favs.forEach((fav, idx) => {
     const chip = document.createElement('div');
     chip.className = 'weather-fav-chip';
-    // escape for inline onclick
-    const safeName = fav.name.replace(/'/g, "\\'");
-    chip.innerHTML = `<span onclick="selectFavouriteCity(${idx})" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">⭐ ${fav.name.split(',')[0]}</span><span class="fav-del" onclick="deleteFavouriteCity(${idx},event)" title="Remove">✕</span>`;
+    // FIX (security): escape favourite city name before inserting as HTML,
+    // since it comes from localStorage (which can be edited via devtools or
+    // an imported backup file) and was previously inserted unescaped.
+    const displayName = escapeHtml(fav.name.split(',')[0]);
+    chip.innerHTML = `<span onclick="selectFavouriteCity(${idx})" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">⭐ ${displayName}</span><span class="fav-del" onclick="deleteFavouriteCity(${idx},event)" title="Remove">✕</span>`;
     list.appendChild(chip);
   });
   updateFavAddBtnState();
@@ -9295,114 +9305,6 @@ function switchTab(tab) {
       }
     }, 150);
   }
-}
-
-// ════════════════════════════════════════════════════
-// ЭКРАН ПРОФИЛЯ
-// ════════════════════════════════════════════════════
-function renderProfile() {
-  const container = document.getElementById('profile-content');
-  if (!container) return;
-  const settings = loadSettings();
-  const loggedIn = isLoggedIn();
-
-  let authHTML;
-  if (loggedIn) {
-    authHTML = `
-      <div class="profile-card">
-        <div class="profile-avatar">
-          <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </div>
-        <div class="profile-card-info">
-          <div class="profile-name">${escapeHtml(getUserName())}</div>
-          <div class="profile-role">Hectar · ${t('agronomist')}</div>
-        </div>
-      </div>
-      <button class="profile-logout-btn" onclick="logoutUser()" style="width:100%;margin-bottom:12px;">${t('signOut')}</button>
-    `;
-  } else {
-    authHTML = `
-      <div class="profile-card">
-        <div class="profile-avatar">
-          <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </div>
-        <div class="profile-card-info">
-          <div class="profile-name">Hectar</div>
-          <div class="profile-role">${t('signInHint')}</div>
-        </div>
-      </div>
-      <button class="profile-login-btn" onclick="loginUser()" style="width:100%;margin-bottom:12px;">${t('signIn')}</button>
-    `;
-  }
-
-  container.innerHTML = `
-    ${authHTML}
-    <div class="settings-group">
-      <div class="settings-group-title">${lang === 'ru' ? 'AI-инструменты' : 'AI Tools'}</div>
-      <a class="ai-cow-btn" href="https://zemicansky.github.io/animal-counter/" target="_blank" rel="noopener">
-        <div class="ai-cow-btn-left">
-          <span class="ai-cow-icon">🐄</span>
-          <div>
-            <div class="ai-cow-label">${lang === 'ru' ? 'AI Распознавание коров' : 'AI Cow Recognition'}</div>
-            <div class="ai-cow-sub">${lang === 'ru' ? 'Анализ скота с помощью ИИ' : 'Livestock analysis with AI'}</div>
-          </div>
-        </div>
-        <span class="ai-open-badge">
-          <svg width="16" height="16" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7,7 17,7 17,17"/></svg>
-        </span>
-      </a>
-    </div>
-    <div class="settings-group">
-      <div class="settings-group-title">${t('appSettings')}</div>
-      <div class="setting-row">
-        <label>${t('language')}</label>
-        <select id="setting-language" onchange="setLang(this.value)">
-          <option value="en" ${lang === 'en' ? 'selected' : ''}>${t('langEn')}</option>
-          <option value="ru" ${lang === 'ru' ? 'selected' : ''}>${t('langRu')}</option>
-        </select>
-      </div>
-      <div class="setting-row">
-        <label>${t('units')}</label>
-        <select id="setting-units" onchange="updateSetting('units', this.value)">
-          <option value="ha" ${settings.units === 'ha' ? 'selected' : ''}>${t('ha')}</option>
-          <option value="acres" ${settings.units === 'acres' ? 'selected' : ''}>${t('acres')}</option>
-        </select>
-      </div>
-      <div class="setting-row">
-        <label>${t('theme')}</label>
-        <select id="setting-theme" onchange="updateSetting('theme', this.value)">
-          <option value="dark" ${settings.theme === 'dark' ? 'selected' : ''}>${t('themeDark')}</option>
-          <option value="light" ${settings.theme === 'light' ? 'selected' : ''}>${t('themeLight')}</option>
-        </select>
-      </div>
-      <div class="setting-row">
-        <label>${t('notifications')}</label>
-        <label class="toggle-switch">
-          <input type="checkbox" ${settings.notifications ? 'checked' : ''} onchange="updateSetting('notifications', this.checked)"/>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-    <div class="settings-group">
-      <div class="settings-group-title">${lang === 'ru' ? 'Экспорт данных' : 'Export Data'}</div>
-      <div class="setting-row" style="cursor:pointer;" onclick="exportFieldsExcel()">
-        <label style="cursor:pointer;">${lang === 'ru' ? 'Выгрузить в Excel (.xlsx)' : 'Export to Excel (.xlsx)'}</label>
-        <svg width="18" height="18" fill="none" stroke="var(--text3)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      </div>
-      <div class="setting-row" style="cursor:pointer;" onclick="exportFieldsPDF()">
-        <label style="cursor:pointer;">${lang === 'ru' ? 'Выгрузить в PDF' : 'Export to PDF'}</label>
-        <svg width="18" height="18" fill="none" stroke="var(--text3)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      </div>
-    </div>
-    <div class="settings-group">
-      <div class="settings-group-title">${t('aboutApp')}</div>
-      <div class="about-block">
-        <div class="about-logo">Hectar 2.9</div>
-        <div>${t('aboutTagline')}</div>
-        <div class="about-version">${t('version')} ${APP_VERSION}</div>
-      </div>
-    </div>
-  `;
 }
 
 function updateSetting(key, value) {
