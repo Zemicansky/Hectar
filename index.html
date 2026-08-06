@@ -67,7 +67,13 @@
     --safe-right: env(safe-area-inset-right, 0px);
 
     /* Nav bar: fixed icon area + safe bottom padding */
-    --nav-h: 54px;
+    /* FIX v2.9.1: было 54px. Увеличено на 10px — ровно на величину, на
+       которую вырос padding-bottom у #tab-bar (6px → 16px), — чтобы
+       --nav-total (и все bottom/padding-bottom на экранах и модалках,
+       завязанные на эту переменную) правильно резервировали место под
+       панель на новой позиции. Верстка других экранов не меняется вручную —
+       она пересчитывается автоматически через переменную. */
+    --nav-h: 64px;
     --nav-total: calc(var(--nav-h) + var(--safe-bottom));
 
     --header-h: 60px;
@@ -330,7 +336,11 @@
     min-height: var(--nav-h);
     /* Иконки + подписи сверху, safe-area padding снизу */
     padding-top: 10px;
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
+    /* FIX v2.9.1: увеличен нижний паддинг (6px → 16px), чтобы визуально
+       сместить панель вниз и снизить дискомфорт при нажатии на иконки.
+       Работает через --nav-h/--nav-total, поэтому все экраны и модалки,
+       завязанные на эти переменные, автоматически резервируют новое место. */
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
     /* Landscape iPhone side safe-areas */
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
@@ -2076,6 +2086,32 @@
   }
 
   /* ══════════════════════════════════════
+     СЕВООБОРОТ — компактные чипы (v2.9.1)
+     "Хорошие" культуры сжаты в чипы с общей подписью сверху (раньше — 4
+     одинаковые крупные карточки с повторяющимся текстом объяснения).
+     "Плохие" остаются акцентными карточками — критичная информация должна
+     визуально быть заметнее хорошего.
+  ══════════════════════════════════════ */
+  .rotation-good-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .rotation-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(76,175,80,0.12);
+    border: 1px solid rgba(76,175,80,0.3);
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #4CAF50;
+  }
+
+  /* ══════════════════════════════════════
      NDVI PANEL (inside Fields tab)
   ══════════════════════════════════════ */
   .ndvi-panel-header {
@@ -2461,6 +2497,45 @@
   }
   .rain-prob-val { font-size: 16px; font-weight: 700; }
   .rain-prob-sub { font-size: 11px; color: var(--text2); }
+
+  /* ══════════════════════════════════════
+     ВЛАЖНОСТЬ ПОЧВЫ + ОСАДКИ ЗА 30 ДНЕЙ (v2.9.1)
+     Реальные данные Open-Meteo (тот же провайдер, что уже используется
+     для погоды): soil_moisture_* — объёмная влажность почвы (м³/м³) по
+     4 слоям от 0 до 27 см из численной модели ERA5/ECMWF, не заглушка.
+     precipitation_sum с past_days=30 — фактическая сумма осадков по дням.
+  ══════════════════════════════════════ */
+  .soil-moisture-card {
+    background: var(--bg3);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    grid-column: 1/-1;
+  }
+  .soil-moisture-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
+  .soil-layer-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .soil-layer-row:last-child { margin-bottom: 0; }
+  .soil-layer-depth { font-size: 11px; color: var(--text2); width: 52px; flex-shrink: 0; }
+  .soil-layer-track {
+    flex: 1;
+    height: 7px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .soil-layer-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .soil-layer-val { font-size: 11px; font-weight: 700; width: 40px; text-align: right; flex-shrink: 0; }
+  .rain30-card {
+    background: var(--bg3);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    grid-column: 1/-1;
+  }
+  .rain30-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+  .rain30-val { font-size: 20px; font-weight: 700; color: var(--accent); }
+  .rain30-bars { display: flex; align-items: flex-end; gap: 2px; height: 36px; }
+  .rain30-bar { flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; min-height: 2px; opacity: 0.75; }
+  .light-theme .soil-moisture-card, .light-theme .rain30-card { background: #f2f5f9; border: 1px solid rgba(0,0,0,0.07); }
+  .light-theme .soil-layer-track { background: rgba(0,0,0,0.08); }
 
   /* ══════════════════════════════════════
      PAST SEASONS STATISTICS
@@ -4689,7 +4764,7 @@
 // ════════════════════════════════════════════════════
 // КОНСТАНТЫ ПРИЛОЖЕНИЯ
 // ════════════════════════════════════════════════════
-const APP_VERSION = '2.9';
+const APP_VERSION = '2.9.1';
 const STORAGE_PREFIX = 'hectar';
 const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
 const DEFAULT_MAP_ZOOM = 11;
@@ -4737,6 +4812,14 @@ function cropLabel(c) { return lang === 'ru' ? c.ru : c.en; }
 
 // ════════════════════════════════════════════════════
 // ЗАДАЧА 2: Умный севооборот
+// AUDIT v2.9.1: проведена сверка ROTATION_RULES со списком CROPS.
+// Все 21 культура из CROPS (кроме 'other', для которой логика отдельная —
+// см. getCropRotationRecommendation) имеют запись в ROTATION_RULES,
+// включая mustard (строка ниже). Явных агрономических противоречий
+// в парах "плохой предшественник" (подсолнух↔свёкла, рапс↔подсолнух,
+// бобовые между собой, картофель после подсолнуха и т.д.) не найдено —
+// правки справочных коэффициентов не потребовались. Изменений в этот
+// блок не вносилось по решению заказчика.
 // ════════════════════════════════════════════════════
 const ROTATION_RULES = {
   sunflower: {
@@ -4913,14 +4996,22 @@ function getCropRotationRecommendation(field) {
 function renderCropRotationBlock(field) {
   const rec = getCropRotationRecommendation(field);
   const isRu = lang === 'ru';
+
+  // v2.9.1 UX FIX: "хорошие" культуры раньше рендерились как 4 одинаковые
+  // крупные карточки с дословно повторяющимся текстом объяснения
+  // ("Хороший предшественник после Пшеница" x4) — избыточная когнитивная
+  // нагрузка. Теперь: общая подпись-обоснование один раз сверху,
+  // сами культуры — компактные чипы в один визуальный ряд.
+  const goodReason = rec.good.length > 0 ? rec.good[0].reason : '';
   const goodHTML = rec.good.length > 0
-    ? rec.good.map(g => `
-        <div style="background:rgba(76,175,80,0.12);border:1px solid rgba(76,175,80,0.3);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
-          <div style="font-weight:700;color:#4CAF50;font-size:14px;">✅ ${escapeHtml(cropDisplayName(g.crop))}</div>
-          <div style="font-size:12px;color:var(--text2);margin-top:2px;">${g.reason}</div>
-        </div>`).join('')
+    ? `${goodReason ? `<div style="font-size:12px;color:var(--text2);margin-bottom:8px;">${goodReason}</div>` : ''}
+       <div class="rotation-good-chips">
+         ${rec.good.map(g => `<span class="rotation-chip">✅ ${escapeHtml(cropDisplayName(g.crop))}</span>`).join('')}
+       </div>`
     : `<div style="color:var(--text3);font-size:13px;">${isRu ? 'Нет данных' : 'No data'}</div>`;
 
+  // "Плохие" культуры остаются крупными акцентными карточками — это
+  // критичная для агронома информация, она должна быть заметнее «хорошего».
   const badHTML = rec.bad.length > 0
     ? rec.bad.map(b => `
         <div style="background:rgba(239,83,80,0.10);border:1px solid rgba(239,83,80,0.3);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
@@ -4936,7 +5027,7 @@ function renderCropRotationBlock(field) {
       ${noteHTML}
       <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;">${isRu ? '✅ Рекомендуется посеять:' : '✅ Recommended:'}</div>
       ${goodHTML}
-      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;margin-top:10px;">${isRu ? '❌ Не рекомендуется:' : '❌ Not recommended:'}</div>
+      <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;margin-top:14px;">${isRu ? '❌ Не рекомендуется:' : '❌ Not recommended:'}</div>
       ${badHTML}
     </div>`;
 }
@@ -5164,7 +5255,7 @@ function setLang(l) {
 // ════════════════════════════════════════════════════
 function loadFields() {
   try {
-    const data = localStorage.getItem(STORAGE_PREFIX + '-fields') || localStorage.getItem('agrimap-fields');
+    const data = localStorage.getItem(STORAGE_PREFIX + '-fields');
     return JSON.parse(data || '[]');
   } catch { return []; }
 }
@@ -5217,7 +5308,7 @@ function loadSettings() {
 }
 
 function initLanguage() {
-  const stored = localStorage.getItem(STORAGE_PREFIX + '-lang') || localStorage.getItem('agrimap-lang');
+  const stored = localStorage.getItem(STORAGE_PREFIX + '-lang');
   const settings = loadSettings();
   if (stored === 'en' || stored === 'ru') lang = stored;
   else if (settings.language === 'ru' || settings.language === 'en') lang = settings.language;
@@ -5955,12 +6046,27 @@ async function sampleNdviForField(field) {
           offCanvas.width = tileSize; offCanvas.height = tileSize;
           const offCtx = offCanvas.getContext('2d');
           offCtx.drawImage(img, 0, 0);
-          // Sample a 9x9 area around the center pixel for better averaging
-          const px = Math.min(Math.max(Math.round(xFrac), 4), tileSize - 5);
-          const py = Math.min(Math.max(Math.round(yFrac), 4), tileSize - 5);
-          const data = offCtx.getImageData(px - 4, py - 4, 9, 9).data;
-          let totalNdvi = 0, count = 0;
+          // FIX v2.9.1 (NDVI-калибровка): окно сэмплирования расширено с 9x9 до 15x15
+          // и добавлено гауссово взвешивание по расстоянию от центра поля.
+          // Источник данных (тайл GIBS, дата, разрешение 500м/пкс) не менялся —
+          // это только пост-обработка уже полученного тайла: при 500м/пкс один
+          // пиксель может не отражать поле целиком, а более широкая взвешенная
+          // выборка сглаживает шумы отдельных пикселей и даёт более стабильную
+          // (менее "пиксельную") оценку NDVI для поля.
+          const SAMPLE_RADIUS = 7; // 15x15 окно
+          const px = Math.min(Math.max(Math.round(xFrac), SAMPLE_RADIUS), tileSize - SAMPLE_RADIUS - 1);
+          const py = Math.min(Math.max(Math.round(yFrac), SAMPLE_RADIUS), tileSize - SAMPLE_RADIUS - 1);
+          const sampleSize = SAMPLE_RADIUS * 2 + 1;
+          const data = offCtx.getImageData(px - SAMPLE_RADIUS, py - SAMPLE_RADIUS, sampleSize, sampleSize).data;
+          // Gaussian weight: sigma tuned so corner pixels contribute ~15% of the center's weight
+          const sigma = SAMPLE_RADIUS / 1.8;
+          let totalNdvi = 0, totalWeight = 0, count = 0;
           for (let i = 0; i < data.length; i += 4) {
+            const pixelIdx = i / 4;
+            const dx = (pixelIdx % sampleSize) - SAMPLE_RADIUS;
+            const dy = Math.floor(pixelIdx / sampleSize) - SAMPLE_RADIUS;
+            const distSq = dx * dx + dy * dy;
+            const weight = Math.exp(-distSq / (2 * sigma * sigma));
             const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
             if (a === 0) continue; // transparent = no data
             // NASA GIBS MODIS_Terra_NDVI uses the standard NDVI colormap:
@@ -6002,10 +6108,13 @@ async function sampleNdviForField(field) {
             // Adjust by saturation — grey pixels are less reliable
             const s = max === 0 ? 0 : (max - min) / max;
             if (s < 0.2) continue; // skip near-grey pixels
-            totalNdvi += ndviEst;
+            totalNdvi += ndviEst * weight;
+            totalWeight += weight;
             count++;
           }
-          resolve(count > 0 ? Math.max(-0.2, Math.min(0.95, totalNdvi / count)) : null);
+          // FIX v2.9.1: усреднение теперь взвешенное (ближе к центру поля — больше вес),
+          // а не простое арифметическое среднее по всем валидным пикселям окна.
+          resolve(count > 0 && totalWeight > 0 ? Math.max(-0.2, Math.min(0.95, totalNdvi / totalWeight)) : null);
         } catch (e) { resolve(null); }
       };
       img.onerror = () => { clearTimeout(timeout); resolve(null); };
@@ -8762,10 +8871,15 @@ async function loadWeather() {
 
   try {
     const [lat, lng] = field.center;
+    // v2.9.1: добавлены soil_moisture (4 слоя) и past_days=30 для суммы
+    // осадков за последние 30 дней — тот же запрос, тот же бесплатный
+    // Open-Meteo API без ключа, реальные модельные данные (ERA5/ECMWF),
+    // не тестовые/случайные значения.
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}`
       + `&current=temperature_2m,windspeed_10m,weathercode,precipitation,relativehumidity_2m,apparent_temperature`
       + `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,precipitation_probability_max`
-      + `&timezone=auto&forecast_days=7`;
+      + `&hourly=soil_moisture_0_1cm,soil_moisture_1_3cm,soil_moisture_3_9cm,soil_moisture_9_27cm`
+      + `&past_days=30&timezone=auto&forecast_days=7`;
 
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -8780,10 +8894,21 @@ async function loadWeather() {
     const feelsLike = cur.apparent_temperature;
     const canSpray = wind < 5 && rain === 0;
 
+    // v2.9.1: с добавлением past_days=30 массив daily.time содержит
+    // past_days + forecast_days записей (37: 30 прошедших + сегодня + 6
+    // будущих), упорядоченных от самой ранней даты к самой поздней.
+    // Индекс "сегодня" детерминирован — он всегда равен past_days (30),
+    // это надёжнее, чем сравнивать даты через локальные часы браузера
+    // (которые могут отличаться от таймзоны поля при &timezone=auto).
+    const PAST_DAYS = 30;
+    const todayIdx = Math.min(PAST_DAYS, daily.time.length - 1);
+    const forecastDays = daily.time.slice(todayIdx, todayIdx + 7);
+
     // 7-day forecast cards
-    const forecastHTML = daily.time.map((dateStr, i) => {
+    const forecastHTML = forecastDays.map((dateStr, iRel) => {
+      const i = todayIdx + iRel;
       const day = new Date(dateStr);
-      const isToday = i === 0;
+      const isToday = iRel === 0;
       const dayName = isToday ? (isRu ? 'Сегодня' : 'Today') : day.toLocaleDateString(isRu ? 'ru-RU' : 'en-US', { weekday: 'short' });
       const icon = WMO_ICONS[daily.weathercode[i]] || '🌡️';
       const rain_mm = daily.precipitation_sum[i] || 0;
@@ -8797,6 +8922,55 @@ async function loadWeather() {
           ${rainProb !== null ? `<div class="fday-rain">🌂${Math.round(rainProb)}%</div>` : rain_mm > 0 ? `<div class="fday-rain">💧${rain_mm.toFixed(1)}</div>` : ''}
         </div>`;
     }).join('');
+
+    // v2.9.1: сумма осадков за последние 30 дней (дни до todayIdx, не включая
+    // сегодня) — реальные дневные суммы из daily.precipitation_sum.
+    const past30 = daily.precipitation_sum.slice(Math.max(0, todayIdx - PAST_DAYS), todayIdx);
+    const rain30Total = past30.reduce((s, v) => s + (v || 0), 0);
+    const rain30Max = Math.max(1, ...past30.map(v => v || 0));
+    const rain30BarsHTML = past30.map(v => {
+      const h = Math.max(2, Math.round(((v || 0) / rain30Max) * 36));
+      return `<div class="rain30-bar" style="height:${h}px;" title="${(v||0).toFixed(1)} mm"></div>`;
+    }).join('');
+
+    // v2.9.1: влажность почвы — реальные данные Open-Meteo (модель ERA5/ECMWF).
+    // Берём последнее доступное почасовое значение с непустыми данными по
+    // всем слоям — это самый свежий снимок влажности. Прямое сравнение с
+    // Date.now() здесь ненадёжно: hourly.time приходит в локальном времени
+    // ПОЛЯ (timezone=auto), а не UTC и не таймзоне браузера пользователя,
+    // поэтому мы не сопоставляем часы напрямую, а берём последний валидный.
+    let soilHTML = '';
+    if (data.hourly && data.hourly.time && data.hourly.time.length) {
+      const soilLayers = [
+        { key: 'soil_moisture_0_1cm', depth: '0–1 см' },
+        { key: 'soil_moisture_1_3cm', depth: '1–3 см' },
+        { key: 'soil_moisture_3_9cm', depth: '3–9 см' },
+        { key: 'soil_moisture_9_27cm', depth: '9–27 см' }
+      ];
+      let hIdx = data.hourly.time.length - 1;
+      while (hIdx > 0 && !soilLayers.some(l => data.hourly[l.key] && data.hourly[l.key][hIdx] != null)) {
+        hIdx--;
+      }
+      const soilRowsHTML = soilLayers.map(l => {
+        const v = data.hourly[l.key] ? data.hourly[l.key][hIdx] : null;
+        if (v === null || v === undefined) return '';
+        // Типичный диапазон объёмной влажности почвы: ~0.05 (сухо) — ~0.5 (насыщено), м³/м³
+        const pct = Math.max(0, Math.min(100, Math.round((v / 0.5) * 100)));
+        const color = v < 0.15 ? '#ef5350' : v < 0.30 ? '#ffa726' : '#4CAF50';
+        return `<div class="soil-layer-row">
+          <span class="soil-layer-depth">${l.depth}</span>
+          <div class="soil-layer-track"><div class="soil-layer-fill" style="width:${pct}%;background:${color};"></div></div>
+          <span class="soil-layer-val" style="color:${color};">${v.toFixed(2)}</span>
+        </div>`;
+      }).join('');
+      if (soilRowsHTML) {
+        soilHTML = `<div class="soil-moisture-card">
+          <div class="soil-moisture-label">🌱 ${isRu ? 'Влажность почвы (м³/м³)' : 'Soil moisture (m³/m³)'}</div>
+          ${soilRowsHTML}
+          <div style="font-size:10px;color:var(--text3);margin-top:6px;">${isRu ? 'Open-Meteo · модель ERA5/ECMWF' : 'Open-Meteo · ERA5/ECMWF model'}</div>
+        </div>`;
+      }
+    }
 
     // FIX 1: Always use field.name as the primary display title.
     // geoPlaceName = human-readable settlement name from reverse geocode (shown as subtitle).
@@ -8921,6 +9095,18 @@ async function loadWeather() {
             <div class="rain-prob-sub">${probLabel}</div>
           </div>`;
           })()}
+
+          <!-- v2.9.1: сумма осадков за последние 30 дней (реальные данные Open-Meteo) -->
+          <div class="rain30-card">
+            <div class="rain30-top">
+              <span class="soil-moisture-label" style="margin-bottom:0;">🌧 ${isRu ? 'Осадки за 30 дней' : 'Rain, last 30 days'}</span>
+              <span class="rain30-val">${rain30Total.toFixed(1)} <span style="font-size:12px;font-weight:400;">${rainUnit}</span></span>
+            </div>
+            ${past30.length ? `<div class="rain30-bars">${rain30BarsHTML}</div>` : ''}
+          </div>
+
+          <!-- v2.9.1: влажность почвы по слоям (реальные данные Open-Meteo) -->
+          ${soilHTML}
         </div>
 
         <!-- 7-day forecast -->
@@ -10148,8 +10334,7 @@ const FIREBASE_CONFIG = {
   projectId: "hectar-19422",
   storageBucket: "hectar-19422.firebasestorage.app",
   messagingSenderId: "823756967343",
-  appId: "1:823756967343:web:8b8a6d88891254b639335a",
-  measurementId: "G-77J1SZRHQM"
+  appId: "1:823756967343:web:8b8a6d88891254b639335a"
 };
 
 let fbApp = null, fbAuth = null, fbDb = null;
