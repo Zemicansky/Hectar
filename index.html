@@ -39,6 +39,15 @@
 <!-- Leaflet Draw CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
 
+<!-- ЗАДАЧА 3: шрифт Inter — полная поддержка кириллицы, вариативные начертания
+     400–700, хорошо читается на мелких размерах (11–13px) в тёмной и светлой
+     теме. Загружаем через Google Fonts с font-display: swap, чтобы не
+     блокировать рендер; текущий системный стек остаётся fallback-цепочкой
+     на случай проблем с загрузкой CDN (см. font-family в :root ниже). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
 <style>
   /* ══════════════════════════════════════
      CSS ПЕРЕМЕННЫЕ И СБРОС СТИЛЕЙ
@@ -50,15 +59,36 @@
     --card: rgba(22, 34, 49, 0.92);
     --accent: #4CAF50;
     --accent2: #2e7d32;
+    /* ЗАДАЧА 4.4: расширенная палитра акцента — раньше в разных местах файла
+       были хардкожены близкие, но не идентичные зелёные (#4CAF50, #2E7D32,
+       #1b5e20 и др.) вместо переменных. Именуем их как токены бренда, чтобы
+       использование было последовательным, а не "что получилось в моменте". */
+    --accent-light: #66BB6A;   /* было местами #4CAF50 на светлых поверхностях */
+    --accent-dark: #1b5e20;    /* было хардкожено в градиентах/заголовках */
+    --accent-muted: rgba(76, 175, 80, 0.16); /* было rgba(76,175,80, .. ) россыпью */
     --text: #ffffff;
     --text2: #8fa8c0;
     --text3: #4a6580;
     --border: rgba(255,255,255,0.08);
     --danger: #ef5350;
     --warn: #ff9800;
+    /* ЗАДАЧА 4.1: раньше один --radius/--radius-sm использовались почти
+       везде одинаково (типичный "ИИ-паттерн" однообразных карточек).
+       Вводим иерархию из 4 уровней вложенности: внешняя карточка крупнее
+       всего, внутренние элементы мельче, кнопки/чипы — почти круглые,
+       бейджи — полностью круглые (100px, уже использовалось отдельно).
+       --radius/--radius-sm сохранены как есть (их использует много кода),
+       добавлены --radius-lg (внешние карточки/экраны) и --radius-xs (самые
+       мелкие внутренние элементы: мини-иконки, чипы, инпуты компактного вида). */
     --radius: 16px;
     --radius-sm: 10px;
+    --radius-lg: 20px;
+    --radius-xs: 7px;
     --shadow: 0 8px 32px rgba(0,0,0,0.4);
+    /* ЗАДАЧА 4.5: вторая, более мягкая тень — для элементов второго плана
+       (внутренние карточки, чипы), чтобы не всё в интерфейсе имело одну
+       и ту же тень одинаковой силы. */
+    --shadow-sm: 0 2px 10px rgba(0,0,0,0.22);
 
     /* Safe areas — iOS Dynamic Island / notch / home indicator */
     --safe-top: env(safe-area-inset-top, 0px);
@@ -112,7 +142,7 @@
     overflow: hidden;
     background: var(--bg);
     color: var(--text);
-    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     /* FIX 2: prevent iOS bounce-scroll revealing background colour */
     overscroll-behavior: none;
     overscroll-behavior-y: none;
@@ -340,7 +370,7 @@
        сместить панель вниз и снизить дискомфорт при нажатии на иконки.
        Работает через --nav-h/--nav-total, поэтому все экраны и модалки,
        завязанные на эти переменные, автоматически резервируют новое место. */
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+    padding-bottom: calc(var(--safe-bottom) + 16px);
     /* Landscape iPhone side safe-areas */
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
@@ -766,7 +796,7 @@
   .all-fields-link svg { width: 16px; height: 16px; }
 
   .fields-group-label {
-    padding: 0 20px 8px;
+    padding: 0 20px 14px;
     display: flex;
     align-items: baseline;
     gap: 8px;
@@ -797,7 +827,7 @@
     gap: 12px;
     padding: 12px;
     background: var(--bg2);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     margin-bottom: 10px;
     cursor: pointer;
     transition: all 0.15s;
@@ -864,8 +894,11 @@
     padding: 32px;
     text-align: center;
   }
-  .empty-state svg { width: 48px; height: 48px; opacity: 0.3; }
-  .empty-state p { font-size: 15px; }
+  /* ЗАДАЧА 4.5: лёгкая асимметрия вместо идеально ровной иконки по центру —
+     небольшой наклон и смещение, "живая" деталь вместо строго симметричной
+     композиции, характерной для сгенерированных интерфейсов. */
+  .empty-state svg { width: 48px; height: 48px; opacity: 0.3; transform: rotate(-4deg) translateX(-3px); }
+  .empty-state p { font-size: 15px; max-width: 240px; }
 
   /* ══════════════════════════════════════
      ДЕТАЛЬНЫЙ ЭКРАН ПОЛЯ
@@ -926,12 +959,15 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
-    margin-bottom: 20px;
+    /* ЗАДАЧА 4.2: было 20px как везде — увеличено, чтобы визуально отделить
+       главный блок метрик (площадь/периметр) от второстепенных секций ниже
+       (прогноз урожайности, NDVI, леса), а не выравнивать всё по одной сетке. */
+    margin-bottom: 28px;
   }
   .stat-card {
     background: var(--bg2);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-xs);
     padding: 14px;
   }
   .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
@@ -1071,17 +1107,17 @@
     margin-top: 5px;
     flex-shrink: 0;
   }
-  .event-dot.sowing { background: #4CAF50; }
+  .event-dot.sowing { background: var(--accent); }
   .event-dot.harvest { background: #ff9800; }
   .event-dot.watering { background: #2196F3; }
   .event-dot.spraying { background: #9C27B0; }
   .event-dot.cultivation { background: #795548; }
   .event-dot.disking { background: #607D8B; }
 
-  .event-info { flex: 1; }
+  .event-info { flex: 1; min-width: 0; }
   .event-type { font-size: 14px; font-weight: 600; }
   .event-date { font-size: 12px; color: var(--text3); }
-  .event-note { font-size: 13px; color: var(--text2); margin-top: 2px; }
+  .event-note { font-size: 13px; color: var(--text2); margin-top: 2px; overflow-wrap: break-word; word-break: break-word; }
 
   .add-event-btn {
     display: flex;
@@ -1143,7 +1179,7 @@
   .weather-card {
     background: var(--bg2);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     padding: 16px;
     margin-bottom: 12px;
   }
@@ -1160,7 +1196,9 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 12px;
+    /* ЗАДАЧА 4.2: было 12px как везде — увеличено, чтобы отделить главный
+       показатель (температура) от второстепенного статус-бейджа ниже. */
+    margin-bottom: 18px;
   }
   .weather-icon { font-size: 36px; }
   .weather-temp { font-size: 32px; font-weight: 700; }
@@ -1251,7 +1289,7 @@
     gap: 12px;
     padding: 14px;
     background: var(--bg2);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     margin-bottom: 10px;
     border: 1px solid var(--border);
     cursor: pointer;
@@ -1669,6 +1707,13 @@
   .stat-card-sm .stat-value { font-size: 16px; font-weight: 700; }
   .stat-card-sm .stat-unit { font-size: 11px; color: var(--text2); font-weight: 400; }
   .stat-card-sm.full-width { grid-column: 1 / -1; }
+  /* ЗАДАЧА 4.3: карточка главной метрики (площадь) — акцентная рамка/фон как
+     элемент бренд-идентичности, а не только визуальный признак "активного"
+     состояния, каким акцентный цвет используется в остальном интерфейсе. */
+  .stat-card-primary {
+    background: var(--accent-muted);
+    border: 1px solid rgba(76,175,80,0.35);
+  }
 
   /* Графики динамики NDVI */
   .ndvi-chart-container {
@@ -2162,13 +2207,13 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(76,175,80,0.12);
+    background: var(--accent-muted);
     border: 1px solid rgba(76,175,80,0.3);
     border-radius: 20px;
     padding: 8px 14px;
     font-size: 13px;
     font-weight: 700;
-    color: #4CAF50;
+    color: var(--accent);
   }
 
   /* ══════════════════════════════════════
@@ -2209,7 +2254,9 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 16px;
-    margin-bottom: 16px;
+    /* ЗАДАЧА 4.2: было 16px как везде — увеличено, чтобы легенда-объяснение
+       читалась как отдельный блок от карточек полей, идущих следом. */
+    margin-bottom: 22px;
   }
   .ndvi-legend-inline-title {
     font-size: 12px;
@@ -2293,7 +2340,7 @@
   .ndvi-field-card {
     background: var(--bg2);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     padding: 16px;
     margin-bottom: 12px;
     cursor: pointer;
@@ -2333,6 +2380,24 @@
     color: #fff;
     letter-spacing: -0.3px;
     flex-shrink: 0;
+  }
+  /* ЗАДАЧА 2.3: пометка "оценка" — расчётная модель вместо спутникового измерения */
+  .ndvi-estimated-badge {
+    display: inline-block;
+    margin-left: 5px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 1px 5px;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.28);
+    vertical-align: middle;
+  }
+  .ndvi-status-row .ndvi-estimated-badge {
+    background: var(--bg3);
+    color: var(--text3);
+    border: 1px solid var(--border);
   }
   /* NDVI progress bar row */
   .ndvi-bar-section { margin-bottom: 12px; }
@@ -2469,7 +2534,7 @@
   }
   .weather-detail-card {
     background: var(--bg3);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-xs);
     padding: 10px 12px;
   }
   .weather-detail-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
@@ -2537,7 +2602,7 @@
   ══════════════════════════════════════ */
   .rain-prob-card {
     background: var(--bg3);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-xs);
     padding: 10px 12px;
   }
   .rain-prob-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
@@ -2567,7 +2632,7 @@
   ══════════════════════════════════════ */
   .soil-moisture-card {
     background: var(--bg3);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-xs);
     padding: 12px;
     grid-column: 1/-1;
   }
@@ -2586,7 +2651,7 @@
   .soil-layer-val { font-size: 11px; font-weight: 700; width: 40px; text-align: right; flex-shrink: 0; }
   .rain30-card {
     background: var(--bg3);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-xs);
     padding: 10px 12px;
     grid-column: 1/-1;
   }
@@ -2613,7 +2678,7 @@
   .season-record-card {
     background: var(--bg2);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     padding: 14px;
     margin-bottom: 10px;
     cursor: pointer;
@@ -2659,6 +2724,8 @@
     margin-top: 6px;
     border-top: 1px solid var(--border);
     padding-top: 8px;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
   .season-delete-btn {
     background: none;
@@ -2958,6 +3025,11 @@
     border: 1px solid rgba(0,0,0,0.08);
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
   }
+  .light-theme .stat-card-primary {
+    background: rgba(76,175,80,0.08);
+    border: 1px solid rgba(76,175,80,0.30);
+    box-shadow: none;
+  }
   .light-theme .stat-label { color: #8296a8; }
   .light-theme .stat-value { color: #18243a; }
 
@@ -3034,7 +3106,7 @@
   }
   .light-theme .login-btn.email {
     background: rgba(76,175,80,0.10);
-    color: #2e7d32;
+    color: var(--accent-dark);
     border: 1.5px solid rgba(76,175,80,0.35);
   }
   .light-theme .login-btn.guest {
@@ -3067,7 +3139,7 @@
 
   /* About block */
   .light-theme .about-block { color: #4a5e72; background: transparent; }
-  .light-theme .about-logo { color: #2e7d32; }
+  .light-theme .about-logo { color: var(--accent-dark); }
   .light-theme .about-version { color: #8296a8; }
 
   /* ── Field detail screen ── */
@@ -3087,9 +3159,9 @@
   .light-theme .event-type { color: #18243a; }
   .light-theme .event-date { color: #8296a8; }
   .light-theme .event-note { color: #8296a8; }
-  .light-theme .add-event-btn { background: #e9eef5; color: #2e7d32; border: 1px solid rgba(76,175,80,0.20); border-radius: var(--radius-sm); padding: 10px 14px; }
+  .light-theme .add-event-btn { background: #e9eef5; color: var(--accent-dark); border: 1px solid rgba(76,175,80,0.20); border-radius: var(--radius-sm); padding: 10px 14px; }
   .light-theme .season-record-card { background: #ffffff; border: 1px solid rgba(0,0,0,0.08); }
-  .light-theme .season-record-year { color: #2e7d32; }
+  .light-theme .season-record-year { color: var(--accent-dark); }
   .light-theme .yield-forecast-card { background: linear-gradient(135deg, rgba(76,175,80,0.08) 0%, rgba(255,255,255,1) 100%); border-color: rgba(76,175,80,0.25); }
   .light-theme .yield-fc-bar-track { background: #e9eef5; }
   .light-theme .forest-section { background: linear-gradient(135deg, rgba(56,142,60,0.07) 0%, rgba(255,255,255,1) 100%); border-color: rgba(56,142,60,0.20); }
@@ -3921,7 +3993,7 @@
     background: rgba(0,0,0,0.7);
     display: flex; align-items: flex-end; justify-content: center;
     /* FIX 2.4: lift sheet above bottom nav bar so "Cancel" is fully visible */
-    padding-bottom: calc(var(--nav-total, 64px) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--nav-total, 64px);
   }
   .fb-auth-sheet {
     background: var(--bg2);
@@ -4831,6 +4903,17 @@ const DEFAULT_MAP_ZOOM = 11;
 const COUNTRIES_GEOJSON_URL = 'https://geojson.xyz/naturalearth-3.3.0/ne_110m_admin_0_countries.geojson';
 const CITIES_GEOJSON_URL = 'https://geojson.xyz/naturalearth-3.3.0/ne_110m_populated_places.geojson';
 
+// ЗАДАЧА 4.4: единая палитра акцента для мест, где цвет нужен как JS-строка
+// (Leaflet-стили, canvas, печатный отчёт) — раньше в этих местах зелёный был
+// хардкожен по отдельности в каждой функции (#4CAF50, #2e7d32, #1b5e20 и т.д.),
+// хотя должен быть частью единой палитры бренда. Значения синхронизированы
+// с CSS-переменными --accent/--accent2/--accent-dark в :root.
+const BRAND = {
+  accent: '#4CAF50',
+  accent2: '#2e7d32',
+  accentDark: '#1b5e20'
+};
+
 const TILE_OPTS = {
   maxZoom: 18,
   maxNativeZoom: 17,
@@ -5153,7 +5236,7 @@ const translations = {
     finishShort: 'Готово',
     drawHint: 'Нажмите на карту, чтобы добавить точки',
     noGroups: 'Без группы', satelliteImage: 'Спутниковый снимок',
-    noFieldsYet: 'Нет полей. Нажмите + чтобы добавить',
+    noFieldsYet: 'Пока ни одного поля. Нажмите +, чтобы нанести первое',
     back: 'Назад', delete: 'Удалить',
     newField: 'Новое поле', fieldName: 'Название поля', crop: 'Культура',
     fieldColor: 'Цвет', save: 'Сохранить', cancel: 'Отмена',
@@ -5164,7 +5247,7 @@ const translations = {
     photos: 'Фото', addPhoto: 'Фото',
     sowing: 'Посев', harvest: 'Уборка', watering: 'Полив', spraying: 'Опрыскивание',
     cultivation: 'Культивация', disking: 'Дискование',
-    all: 'Все', noNotesYet: 'Заметок нет',
+    all: 'Все', noNotesYet: 'Здесь пока пусто — заметки появятся тут',
     addNote: 'Добавить заметку', newNote: 'Новая заметка',
     field: 'Поле', selectField: 'Выбрать поле...',
     safeSpray: '✅ Можно опрыскивать', unsafeSpray: '❌ Не рекомендуется',
@@ -5205,7 +5288,7 @@ const translations = {
     finishShort: 'Finish',
     drawHint: 'Tap on map to add points',
     noGroups: 'No groups', satelliteImage: 'Satellite image',
-    noFieldsYet: 'No fields yet. Tap + to add',
+    noFieldsYet: 'No fields yet — tap + to map your first one',
     back: 'Back', delete: 'Delete',
     newField: 'New field', fieldName: 'Field name', crop: 'Crop',
     fieldColor: 'Color', save: 'Save', cancel: 'Cancel',
@@ -5216,7 +5299,7 @@ const translations = {
     photos: 'Photos', addPhoto: 'Photo',
     sowing: 'Sowing', harvest: 'Harvest', watering: 'Watering', spraying: 'Spraying',
     cultivation: 'Cultivation', disking: 'Disking',
-    all: 'All', noNotesYet: 'No notes yet',
+    all: 'All', noNotesYet: 'Nothing here yet — your notes will show up',
     addNote: 'Add note', newNote: 'New note',
     field: 'Field', selectField: 'Select field...',
     safeSpray: '✅ Safe to spray', unsafeSpray: '❌ Not recommended',
@@ -5424,7 +5507,7 @@ let searchAbortController = null;
 let openModalId = null;
 
 // Цвета для полей
-const FIELD_COLORS = ['#4CAF50','#FF9800','#2196F3','#E91E63','#9C27B0','#00BCD4','#FF5722','#FFEB3B'];
+const FIELD_COLORS = [BRAND.accent,'#FF9800','#2196F3','#E91E63','#9C27B0','#00BCD4','#FF5722','#FFEB3B'];
 let selectedNewFieldColor = FIELD_COLORS[0];
 
 // Инициализация карты
@@ -6020,6 +6103,83 @@ function toggleNdviLayer() {
   }
 }
 
+// ════════════════════════════════════════════════════
+// ЗАДАЧА 2.1: конфигурируемый источник данных NDVI
+// ════════════════════════════════════════════════════
+// Сейчас единственный реализованный канал — NASA GIBS WMTS (растровые
+// PNG-тайлы с декодированием цвета обратно в NDVI). Это fallback-канал
+// по определению: WMTS отдаёт готовую картинку, а не числовые значения,
+// поэтому декодирование цвета — приближение, а не измерение.
+//
+// Чтобы заменить канал на числовой источник (WCS у NASA GIBS, либо
+// Sentinel Hub Statistics API — Sentinel-2, 10 м/пкс, отдаёт готовое
+// среднее/медиану NDVI по GeoJSON-полигону поля без сэмплирования
+// пикселей на клиенте) — нужен API-ключ/регистрация, которую сейчас
+// добавить нельзя. Поэтому источник вынесен в конфиг с явным списком
+// провайдеров: включить числовой канал в будущем — значит прописать
+// сюда ключ и endpoint, не переписывая остальную логику приложения.
+const NDVI_DATA_SOURCE = {
+  // 'gibs-wmts-color' — текущий рабочий канал (PNG-тайл + декодирование цвета).
+  // 'sentinel-hub-stats' — числовой канал (Sentinel-2 Statistics API, 10 м/пкс).
+  //   Требует NDVI_DATA_SOURCE.sentinelHub.clientId/clientSecret — пока не заданы.
+  active: 'gibs-wmts-color',
+  sentinelHub: {
+    statsUrl: 'https://services.sentinel-hub.com/api/v1/statistics',
+    tokenUrl: 'https://services.sentinel-hub.com/auth/realms/main/protocol/openid-connect/token',
+    clientId: null,
+    clientSecret: null
+  }
+};
+
+function ndviSourceIsNumeric() {
+  return NDVI_DATA_SOURCE.active === 'sentinel-hub-stats'
+    && !!NDVI_DATA_SOURCE.sentinelHub.clientId
+    && !!NDVI_DATA_SOURCE.sentinelHub.clientSecret;
+}
+
+// Числовой канал: Sentinel Hub Statistics API принимает GeoJSON-полигон поля
+// и возвращает готовое среднее NDVI по площади — без ручного сэмплирования
+// пикселей. Активируется только если заданы ключи в NDVI_DATA_SOURCE.sentinelHub.
+async function sampleNdviFromSentinelHub(field) {
+  const cfg = NDVI_DATA_SOURCE.sentinelHub;
+  if (!cfg.clientId || !cfg.clientSecret || !field.coordinates || field.coordinates.length < 3) return null;
+  try {
+    const tokenRes = await fetch(cfg.tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `grant_type=client_credentials&client_id=${encodeURIComponent(cfg.clientId)}&client_secret=${encodeURIComponent(cfg.clientSecret)}`
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) return null;
+
+    const ring = [...field.coordinates, field.coordinates[0]].map(c => [c[1], c[0]]); // [lng, lat]
+    const today = new Date();
+    const from = new Date(today); from.setDate(from.getDate() - 20);
+    const body = {
+      input: {
+        bounds: { geometry: { type: 'Polygon', coordinates: [ring] } },
+        data: [{ type: 'sentinel-2-l2a' }]
+      },
+      aggregation: {
+        timeRange: { from: from.toISOString(), to: today.toISOString() },
+        aggregationInterval: { of: 'P20D' },
+        evalscript: `//VERSION=3\nfunction setup(){return{input:[{bands:["B04","B08","dataMask"]}],output:[{id:"ndvi",bands:1},{id:"dataMask",bands:1}]};}\nfunction evaluatePixel(s){let ndvi=(s.B08-s.B04)/(s.B08+s.B04);return{ndvi:[ndvi],dataMask:[s.dataMask]};}`
+      }
+    };
+    const statsRes = await fetch(cfg.statsUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenData.access_token}` },
+      body: JSON.stringify(body)
+    });
+    const statsData = await statsRes.json();
+    const stats = statsData?.data?.[0]?.outputs?.ndvi?.bands?.B0?.stats;
+    if (!stats || typeof stats.mean !== 'number') return null;
+    return parseFloat(Math.max(-0.2, Math.min(0.95, stats.mean)).toFixed(2));
+  } catch (e) {
+    return null; // сеть/ключи недоступны — вызывающий код уйдёт на fallback-канал
+  }
+}
+
 function addNdviLayer() {
   if (ndviLayer) ndviLayer.removeFrom(map);
 
@@ -6074,24 +6234,46 @@ function addNdviLayer() {
 }
 
 /**
- * Sample NDVI value for a field by reading pixels from the NDVI tile layer
- * using an offscreen canvas. Falls back to the seasonal model if canvas
- * reading fails (cross-origin).
+ * Определяет NDVI для поля.
+ * Возвращает {value, estimated, source}:
+ *  - estimated: true, если значение — расчётная модель (estimateFieldNdvi),
+ *    а не измерение по спутниковым данным (ЗАДАЧА 2.3 — честная маркировка).
+ *  - source: 'sentinel-hub-stats' | 'gibs-wmts-color' | 'model'.
+ *
+ * Порядок источников (ЗАДАЧА 2.1):
+ *  1. Числовой канал (Sentinel Hub Statistics API), если сконфигурирован —
+ *     отдаёт готовое среднее NDVI по полигону поля, без сэмплирования пикселей.
+ *  2. WMTS-тайл NASA GIBS + декодирование цвета — окно сэмплирования теперь
+ *     ограничено пикселями, реально попадающими внутрь полигона поля (ЗАДАЧА 2.2,
+ *     через turf.booleanPointInPolygon), а не фиксированным 15×15 окном вокруг центра.
+ *  3. estimateFieldNdvi() — синтетическая модель, помечается estimated:true.
  */
 async function sampleNdviForField(field) {
-  if (!map || !ndviLayer || !field.coordinates || field.coordinates.length < 3) {
-    return estimateFieldNdvi(field);
+  if (!field.coordinates || field.coordinates.length < 3) {
+    return { value: estimateFieldNdvi(field), estimated: true, source: 'model' };
   }
-  try {
-    // Get the center pixel of the field on the current map view
-    const center = field.center ? L.latLng(field.center[0], field.center[1])
-      : turf.center(turf.polygon([[...field.coordinates, field.coordinates[0]].map(c => [c[1], c[0]])])).geometry.coordinates.reverse();
-    const centerLatLng = Array.isArray(center) ? L.latLng(center[0], center[1]) : center;
 
-    // Create a small hidden canvas to render the tile
-    const canvas = document.createElement('canvas');
-    canvas.width = 1; canvas.height = 1;
-    const ctx = canvas.getContext('2d');
+  // 1. Числовой источник (Sentinel Hub), если сконфигурирован ключами
+  if (ndviSourceIsNumeric()) {
+    const numeric = await sampleNdviFromSentinelHub(field);
+    if (numeric !== null) {
+      return { value: numeric, estimated: false, source: 'sentinel-hub-stats' };
+    }
+    // ключи заданы, но запрос не удался — идём на WMTS-fallback ниже
+  }
+
+  if (!map || !ndviLayer) {
+    return { value: estimateFieldNdvi(field), estimated: true, source: 'model' };
+  }
+
+  try {
+    // Строим полигон поля (turf, [lng,lat]) для проверки попадания пикселей —
+    // ЗАДАЧА 2.2: сэмплируем только те пиксели тайла, что реально внутри поля.
+    const fieldPolygon = turf.polygon([[...field.coordinates, field.coordinates[0]].map(c => [c[1], c[0]])]);
+
+    const center = field.center ? L.latLng(field.center[0], field.center[1])
+      : turf.center(fieldPolygon).geometry.coordinates.reverse();
+    const centerLatLng = Array.isArray(center) ? L.latLng(center[0], center[1]) : center;
 
     // Compute which tile contains the field center at zoom 7
     const zoom = Math.min(7, map.getZoom());
@@ -6106,6 +6288,17 @@ async function sampleNdviForField(field) {
     const xFrac = ((centerLatLng.lng + 180) / 360 * n - xTile) * tileSize;
     const yFrac = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n - yTile) * tileSize;
 
+    // Переводит пиксель тайла (px,py) обратно в lng/lat — нужно для проверки
+    // "этот пиксель внутри полигона поля?" через turf.booleanPointInPolygon.
+    function tilePixelToLatLng(px, py) {
+      const worldX = xTile + px / tileSize;
+      const worldY = yTile + py / tileSize;
+      const lng = worldX / n * 360 - 180;
+      const yFracWorld = worldY / n;
+      const latRadPixel = Math.atan(Math.sinh(Math.PI * (1 - 2 * yFracWorld)));
+      return [lng, latRadPixel * 180 / Math.PI]; // [lng, lat] — формат turf
+    }
+
     const img = new Image();
     img.crossOrigin = 'anonymous';
 
@@ -6118,33 +6311,36 @@ async function sampleNdviForField(field) {
           offCanvas.width = tileSize; offCanvas.height = tileSize;
           const offCtx = offCanvas.getContext('2d');
           offCtx.drawImage(img, 0, 0);
-          // FIX v2.9.1 (NDVI-калибровка): окно сэмплирования расширено с 9x9 до 15x15
-          // и добавлено гауссово взвешивание по расстоянию от центра поля.
-          // Источник данных (тайл GIBS, дата, разрешение 500м/пкс) не менялся —
-          // это только пост-обработка уже полученного тайла: при 500м/пкс один
-          // пиксель может не отражать поле целиком, а более широкая взвешенная
-          // выборка сглаживает шумы отдельных пикселей и даёт более стабильную
-          // (менее "пиксельную") оценку NDVI для поля.
-          const SAMPLE_RADIUS = 7; // 15x15 окно
+          // ЗАДАЧА 2.2: окно вокруг центра поля по-прежнему используется как
+          // верхняя граница поиска (поле не может быть больше ~15×15 пикселей
+          // на этом zoom), но в среднее теперь попадают только те пиксели,
+          // что turf.booleanPointInPolygon подтверждает как лежащие внутри
+          // полигона поля — а не все пиксели фиксированного окна.
+          // Это устраняет усреднение по площади до 7.5×7.5 км (см. промпт,
+          // п.2.2) для полей, которые физически меньше одного тайла-пикселя MODIS.
+          const SAMPLE_RADIUS = 7; // 15x15 верхняя граница окна поиска
           const px = Math.min(Math.max(Math.round(xFrac), SAMPLE_RADIUS), tileSize - SAMPLE_RADIUS - 1);
           const py = Math.min(Math.max(Math.round(yFrac), SAMPLE_RADIUS), tileSize - SAMPLE_RADIUS - 1);
           const sampleSize = SAMPLE_RADIUS * 2 + 1;
           const data = offCtx.getImageData(px - SAMPLE_RADIUS, py - SAMPLE_RADIUS, sampleSize, sampleSize).data;
-          // Gaussian weight: sigma tuned so corner pixels contribute ~15% of the center's weight
           const sigma = SAMPLE_RADIUS / 1.8;
           let totalNdvi = 0, totalWeight = 0, count = 0;
+          let insidePolygonCount = 0;
           for (let i = 0; i < data.length; i += 4) {
             const pixelIdx = i / 4;
             const dx = (pixelIdx % sampleSize) - SAMPLE_RADIUS;
             const dy = Math.floor(pixelIdx / sampleSize) - SAMPLE_RADIUS;
+
+            // ЗАДАЧА 2.2: пиксель учитывается только если он реально внутри полигона поля
+            const pixelLatLng = tilePixelToLatLng(px + dx, py + dy);
+            if (!turf.booleanPointInPolygon(turf.point(pixelLatLng), fieldPolygon)) continue;
+            insidePolygonCount++;
+
             const distSq = dx * dx + dy * dy;
             const weight = Math.exp(-distSq / (2 * sigma * sigma));
             const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
             if (a === 0) continue; // transparent = no data
-            // NASA GIBS MODIS_Terra_NDVI uses the standard NDVI colormap:
-            // NDVI range: -0.2 to 1.0 mapped across the palette (256 colors)
-            // The colormap goes: dark-brown (low) → yellow → green → dark-green (high)
-            // Better decode: find hue in HSL space and map to NDVI
+            // NASA GIBS MODIS_Terra_NDVI colormap decode (dark-brown → yellow → green → dark-green)
             const rn = r / 255, gn = g / 255, bn = b / 255;
             const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
             const l = (max + min) / 2;
@@ -6155,37 +6351,31 @@ async function sampleNdviForField(field) {
               else if (max === bn) h = ((rn - gn) / d + 4) / 6;
               else h = ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6;
             }
-            // Hue mapping for NDVI colormap:
-            // h≈0.05–0.12 (yellow-orange) → low NDVI ~0–0.2
-            // h≈0.20–0.40 (green) → moderate NDVI ~0.3–0.6
-            // h≈0.38–0.45 (dark green) → high NDVI ~0.6–1.0
-            // Very low NDVI (bare soil, water): brownish/reddish, h near 0 or low l
             let ndviEst;
             if (l < 0.12) {
-              // Very dark → water or missing data, skip
-              continue;
+              continue; // very dark → water/no-data
             } else if (h < 0.05 || h > 0.9) {
-              // Red/brown: bare soil, NDVI ~ -0.1 to 0.1
               ndviEst = -0.1 + (1 - l) * 0.2;
             } else if (h < 0.15) {
-              // Yellow-orange: sparse veg, NDVI ~ 0.1 to 0.3
               ndviEst = 0.1 + (h - 0.05) / 0.10 * 0.2;
             } else if (h < 0.30) {
-              // Light green: moderate, NDVI ~ 0.3 to 0.55
               ndviEst = 0.3 + (h - 0.15) / 0.15 * 0.25;
             } else {
-              // Deep green: dense, NDVI ~ 0.55 to 0.9
               ndviEst = 0.55 + Math.min((h - 0.30) / 0.15, 1) * 0.35;
             }
-            // Adjust by saturation — grey pixels are less reliable
             const s = max === 0 ? 0 : (max - min) / max;
             if (s < 0.2) continue; // skip near-grey pixels
             totalNdvi += ndviEst * weight;
             totalWeight += weight;
             count++;
           }
-          // FIX v2.9.1: усреднение теперь взвешенное (ближе к центру поля — больше вес),
-          // а не простое арифметическое среднее по всем валидным пикселям окна.
+          // Если ни один пиксель тайла не попал внутрь полигона (совсем маленькое
+          // поле относительно 500м/пкс MODIS) — используем центральный пиксель
+          // как последний резерв, чтобы не потерять сигнал полностью.
+          if (insidePolygonCount === 0) {
+            resolve(null);
+            return;
+          }
           resolve(count > 0 && totalWeight > 0 ? Math.max(-0.2, Math.min(0.95, totalNdvi / totalWeight)) : null);
         } catch (e) { resolve(null); }
       };
@@ -6194,12 +6384,12 @@ async function sampleNdviForField(field) {
     });
 
     if (ndviFromPixel !== null && !isNaN(ndviFromPixel)) {
-      return parseFloat(ndviFromPixel.toFixed(2));
+      return { value: parseFloat(ndviFromPixel.toFixed(2)), estimated: false, source: 'gibs-wmts-color' };
     }
   } catch (e) {
     // Fallback to seasonal model
   }
-  return estimateFieldNdvi(field);
+  return { value: estimateFieldNdvi(field), estimated: true, source: 'model' };
 }
 
 async function computeNdviForFields() {
@@ -6212,11 +6402,17 @@ async function computeNdviForFields() {
 
   let html = '';
   for (const field of fields.slice(0, 5)) { // limit to 5 fields
-    const ndvi = await sampleNdviForField(field);
+    const result = await sampleNdviForField(field);
+    const ndvi = result.value;
     const color = getNdviColor(ndvi);
+    // ЗАДАЧА 2.3: если значение — расчётная модель, а не спутниковое измерение,
+    // помечаем это явно, чтобы не выдавать оценку за измерение.
+    const estBadge = result.estimated
+      ? `<span class="ndvi-estimated-badge" title="${lang === 'ru' ? 'Расчётная модель, не спутниковое измерение' : 'Modeled estimate, not a satellite measurement'}">${lang === 'ru' ? 'оценка' : 'est.'}</span>`
+      : '';
     html += `<div class="ndvi-status-row">
       <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">${escapeHtml(field.name)}</span>
-      <span style="color:${color};">NDVI ${ndvi}</span>
+      <span style="color:${color};">NDVI ${ndvi}${estBadge}</span>
     </div>`;
   }
   if (fields.length > 5) {
@@ -6276,11 +6472,17 @@ async function renderNdviFieldsPanel() {
   container.appendChild(loadingEl);
 
   for (const field of fields) {
-    const ndvi = await sampleNdviForField(field);
+    const result = await sampleNdviForField(field);
+    const ndvi = result.value;
     const color = getNdviColor(ndvi);
     const health = getHealthStatus(ndvi);
     const lat = field.center ? field.center[0].toFixed(4) : '—';
     const lng = field.center ? field.center[1].toFixed(4) : '—';
+    // ЗАДАЧА 2.3: явная визуальная пометка, если значение — расчётная модель,
+    // а не измерение со спутника (та же проблема формата "NDVI 0.62" для обоих случаев).
+    const estimatedTag = result.estimated
+      ? `<span class="ndvi-estimated-badge" title="${lang === 'ru' ? 'Расчётная модель по сезону/культуре — спутниковые данные недоступны' : 'Seasonal model estimate — satellite data unavailable'}">${lang === 'ru' ? '~ оценка' : '~ est.'}</span>`
+      : '';
 
     const card = document.createElement('div');
     card.className = 'ndvi-field-card';
@@ -6291,7 +6493,7 @@ async function renderNdviFieldsPanel() {
           <div class="ndvi-field-card-name">${escapeHtml(field.name)}</div>
           <div class="ndvi-field-card-coords">${lat}°N, ${lng}°E · ${formatArea(field.area)}</div>
         </div>
-        <div class="ndvi-value-badge" style="background:${color};">NDVI ${ndvi}</div>
+        <div class="ndvi-value-badge" style="background:${color};">NDVI ${ndvi}${estimatedTag}</div>
       </div>
       <div class="ndvi-mini-bar">
         <span class="ndvi-mini-label" style="font-size:10px;">${health.label}</span>
@@ -6662,8 +6864,8 @@ function addFieldToMap(field) {
   if (!field.coordinates || field.coordinates.length < 3) return;
   const latlngs = field.coordinates.map(c => [c[0], c[1]]);
   const polygon = L.polygon(latlngs, {
-    color: field.color || '#4CAF50',
-    fillColor: field.color || '#4CAF50',
+    color: field.color || BRAND.accent,
+    fillColor: field.color || BRAND.accent,
     fillOpacity: 0.25,
     weight: 2
   }).addTo(map);
@@ -6674,7 +6876,7 @@ function addFieldToMap(field) {
     const ndvi = estimateFieldNdvi(field);
     const health = getHealthStatus(ndvi);
     const ndviColor = getNdviColor(ndvi);
-    const colorDot = field.color || '#4CAF50';
+    const colorDot = field.color || BRAND.accent;
     const popupContent = `
       <div class="agri-popup-inner">
         <div class="agri-popup-header">
@@ -6693,7 +6895,7 @@ function addFieldToMap(field) {
           </div>
           <div class="agri-popup-row">
             <span class="agri-popup-icon">🌿</span>
-            <span style="color:${ndviColor};font-weight:600;">NDVI ${ndvi} · ${health.label}</span>
+            <span style="color:${ndviColor};font-weight:600;">NDVI ${ndvi} · ${health.label} <span class="ndvi-estimated-badge" title="${lang === 'ru' ? 'Расчётная модель, не спутниковое измерение' : 'Modeled estimate, not a satellite measurement'}">${lang === 'ru' ? '~оценка' : '~est.'}</span></span>
           </div>
         </div>
         <button class="agri-popup-btn" onclick="map.closePopup(); switchTab('fields'); setTimeout(() => openFieldDetail('${escapeHtml(field.id)}'), 150);">
@@ -6788,7 +6990,7 @@ function onMapMouseMove(e) {
       rubberBandLine.setLatLngs([last, cur]);
     } else {
       rubberBandLine = L.polyline([last, cur], {
-        color: '#4CAF50', weight: 2, dashArray: '4,4', opacity: 0.7,
+        color: BRAND.accent, weight: 2, dashArray: '4,4', opacity: 0.7,
         interactive: false
       }).addTo(map);
     }
@@ -6907,8 +7109,8 @@ function onMapClick(e) {
       if (tempPolyline) tempPolyline.setStyle({ color: '#ef5350' });
     } else {
       hideIntersectError();
-      if (tempPolygon) tempPolygon.setStyle({ color: '#4CAF50', fillColor: '#4CAF50' });
-      if (tempPolyline) tempPolyline.setStyle({ color: '#4CAF50' });
+      if (tempPolygon) tempPolygon.setStyle({ color: BRAND.accent, fillColor: BRAND.accent });
+      if (tempPolyline) tempPolyline.setStyle({ color: BRAND.accent });
     }
   }
 }
@@ -6918,19 +7120,19 @@ function updateTempDraw() {
 
   if (currentDrawPoints.length >= 2) {
     tempPolyline = L.polyline(currentDrawPoints, {
-      color: '#4CAF50', weight: 2.5, dashArray: '6,4', opacity: 0.9
+      color: BRAND.accent, weight: 2.5, dashArray: '6,4', opacity: 0.9
     }).addTo(map);
   }
   if (currentDrawPoints.length >= 3) {
     tempPolygon = L.polygon(currentDrawPoints, {
-      color: '#4CAF50', fillColor: '#4CAF50', fillOpacity: 0.18, weight: 2.5
+      color: BRAND.accent, fillColor: BRAND.accent, fillOpacity: 0.18, weight: 2.5
     }).addTo(map);
   }
 
   // Перетаскиваемые вершины
   currentDrawPoints.forEach((pt, idx) => {
     const m = L.circleMarker(pt, {
-      radius: 8, color: '#fff', fillColor: '#4CAF50', fillOpacity: 1, weight: 2.5,
+      radius: 8, color: '#fff', fillColor: BRAND.accent, fillOpacity: 1, weight: 2.5,
       interactive: true, bubblingMouseEvents: false
     }).addTo(map);
     m._drawTemp = true;
@@ -7044,8 +7246,8 @@ function undoLastPoint() {
       showIntersectError();
     } else {
       hideIntersectError();
-      if (tempPolygon) tempPolygon.setStyle({ color: '#4CAF50', fillColor: '#4CAF50' });
-      if (tempPolyline) tempPolyline.setStyle({ color: '#4CAF50' });
+      if (tempPolygon) tempPolygon.setStyle({ color: BRAND.accent, fillColor: BRAND.accent });
+      if (tempPolyline) tempPolyline.setStyle({ color: BRAND.accent });
     }
   }
 }
@@ -7160,7 +7362,7 @@ function finishDrawing() {
     if (tempPolygon) {
       tempPolygon.setStyle({ color: '#ef5350', fillColor: '#ef5350' });
       setTimeout(() => {
-        if (tempPolygon) tempPolygon.setStyle({ color: '#4CAF50', fillColor: '#4CAF50' });
+        if (tempPolygon) tempPolygon.setStyle({ color: BRAND.accent, fillColor: BRAND.accent });
       }, 2500);
     }
     return; // Prevent saving
@@ -7591,9 +7793,13 @@ function renderFieldDetailHTML(field) {
 
     <!-- Основные статы -->
     <div class="detail-stats-extended">
-      <div class="stat-card-sm">
+      <!-- ЗАДАЧА 4.3: площадь — главная метрика для агронома, поэтому крупнее
+           и жирнее остальных, а не тот же размер шрифта "иконка+заголовок+значение"
+           что у второстепенных карточек ниже. Акцентный цвет здесь используется
+           как элемент идентичности главной метрики, а не только "активного" состояния. -->
+      <div class="stat-card-sm stat-card-primary">
         <div class="stat-label">${t('area')}</div>
-        <div class="stat-value">${formatAreaShort(field.area)} <span class="stat-unit">${getAreaUnit()}</span></div>
+        <div class="stat-value" style="font-size:20px;font-weight:800;color:var(--accent);">${formatAreaShort(field.area)} <span class="stat-unit" style="color:var(--accent);opacity:0.75;">${getAreaUnit()}</span></div>
       </div>
       <div class="stat-card-sm">
         <div class="stat-label">${t('perimeter')}</div>
@@ -7655,7 +7861,7 @@ function renderFieldDetailHTML(field) {
 
     <!-- NDVI блок -->
     <div class="ndvi-chart-container">
-      <div class="ndvi-chart-title">NDVI · ${lang === 'ru' ? 'Вегетационный индекс' : 'Vegetation Index'}</div>
+      <div class="ndvi-chart-title">NDVI · ${lang === 'ru' ? 'Вегетационный индекс' : 'Vegetation Index'} <span class="ndvi-estimated-badge" title="${lang === 'ru' ? 'Расчётная модель по сезону/культуре, не спутниковое измерение' : 'Seasonal model estimate, not a satellite measurement'}">${lang === 'ru' ? '~оценка' : '~est.'}</span></div>
       <div class="ndvi-mini-bar" style="margin-bottom:10px;">
         <span class="ndvi-mini-label">${lang === 'ru' ? 'Текущий' : 'Current'}</span>
         <div class="ndvi-mini-track">
@@ -7815,6 +8021,9 @@ function updateFieldSowingDate(fieldId, dateStr) {
   } else if (dateStr) {
     f.season.unshift({ type: 'sowing', date: dateStr, note: '' });
   }
+  // FIX: keep season sorted by date (newest first) so field.season[0] is always
+  // the most recent event, consistent with saveEvent()
+  f.season.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   saveFields(fields);
   // Обновить отображение стадии вегетации
   const stageEl = document.querySelector('#screen-field-detail .stat-card-sm .stat-value[style*="accent"]');
@@ -8002,8 +8211,8 @@ function finishForestDrawing() {
   saveFields(fields);
 
   // Нарисовать зону на карте (цвет зависит от типа)
-  const zoneColors = { road: '#795548', water: '#1565C0', building: '#37474F', forest: '#2E7D32' };
-  const zoneFill = { road: '#6D4C41', water: '#1976D2', building: '#455A64', forest: '#1B5E20' };
+  const zoneColors = { road: '#795548', water: '#1565C0', building: '#37474F', forest: BRAND.accent2 };
+  const zoneFill = { road: '#6D4C41', water: '#1976D2', building: '#455A64', forest: BRAND.accentDark };
   const zoneType = newForest.zoneType || 'forest';
   const forestKey = field.id + '_forest_' + newForest.id;
   const leafletCoords = currentDrawPoints.map(c => [c[0], c[1]]);
@@ -8170,7 +8379,7 @@ function exportFieldsPDF() {
       const netArea = Math.max(0, (field.area || 0) - forestTotal);
       const ndvi = estimateFieldNdvi(field);
       const yfc = getDetailedYieldForecast(field, ndvi);
-      const ndviColor = ndvi >= 0.65 ? '#2e7d32' : ndvi >= 0.45 ? '#558b2f' : ndvi >= 0.25 ? '#f57f17' : '#b71c1c';
+      const ndviColor = ndvi >= 0.65 ? BRAND.accent2 : ndvi >= 0.45 ? '#558b2f' : ndvi >= 0.25 ? '#f57f17' : '#b71c1c';
       const seasons = (field.season || []);
       // FIX (security): escape user-entered event fields before inserting into
       // the print-report HTML, to prevent HTML injection via field season notes.
@@ -8180,7 +8389,7 @@ function exportFieldsPDF() {
 
       return `
         <div style="page-break-inside:avoid;margin-bottom:20px;border:1px solid #ccc;border-radius:8px;overflow:hidden;">
-          <div style="background:#1b5e20;color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="background:${BRAND.accentDark};color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
             <strong style="font-size:15px;">${idx + 1}. ${escapeHtml(field.name || '—')}</strong>
             <span style="font-size:12px;opacity:0.85;">${field.crop ? cropDisplayName(field.crop) : (isRu ? 'Без культуры' : 'No crop')}</span>
           </div>
@@ -8191,11 +8400,11 @@ function exportFieldsPDF() {
             </div>
             <div style="padding:8px 12px;border-right:1px solid #eee;">
               <div style="font-size:10px;color:#888;">${isRu ? 'Чистая пашня' : 'Net arable'}</div>
-              <div style="font-size:15px;font-weight:700;color:#2e7d32;">${(netArea * mult).toFixed(2)} ${unit}</div>
+              <div style="font-size:15px;font-weight:700;color:${BRAND.accent2};">${(netArea * mult).toFixed(2)} ${unit}</div>
             </div>
             <div style="padding:8px 12px;">
               <div style="font-size:10px;color:#888;">NDVI</div>
-              <div style="font-size:15px;font-weight:700;color:${ndviColor};">${ndvi.toFixed(3)}</div>
+              <div style="font-size:15px;font-weight:700;color:${ndviColor};">${ndvi.toFixed(3)} <span style="font-size:8px;font-weight:700;text-transform:uppercase;color:#888;border:1px solid #ccc;border-radius:100px;padding:1px 5px;vertical-align:middle;">${isRu ? '~оценка' : '~est.'}</span></div>
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;padding:8px 12px;">
@@ -8228,21 +8437,21 @@ function exportFieldsPDF() {
     <div class="no-print" style="margin-bottom:14px;text-align:left;">
       <button onclick="window.close()" style="
         display:inline-flex;align-items:center;gap:8px;
-        background:#1b5e20;color:#fff;border:none;
+        background:${BRAND.accentDark};color:#fff;border:none;
         border-radius:24px;padding:10px 22px;
         font-size:14px;font-weight:600;cursor:pointer;
         box-shadow:0 2px 10px rgba(0,0,0,0.2);
       ">&#8592; ${isRu ? 'Вернуться в Hectar' : 'Return to Hectar'}</button>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #1b5e20;padding-bottom:10px;margin-bottom:18px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid ${BRAND.accentDark};padding-bottom:10px;margin-bottom:18px;">
       <div>
-        <div style="font-size:22px;font-weight:800;color:#1b5e20;">Hectar 2.9</div>
+        <div style="font-size:22px;font-weight:800;color:${BRAND.accentDark};">Hectar 2.9</div>
         <div style="font-size:14px;color:#555;">${isRu ? 'Отчёт по полям' : 'Fields Report'} — ${date}</div>
       </div>
       <div style="text-align:right;">
         <div style="font-size:12px;color:#888;">${isRu ? 'Всего полей' : 'Total fields'}: <strong>${fields.length}</strong></div>
         <div style="font-size:12px;color:#888;">${isRu ? 'Общая площадь' : 'Total area'}: <strong>${(totalArea * mult).toFixed(2)} ${unit}</strong></div>
-        <div style="font-size:12px;color:#2e7d32;">${isRu ? 'Чистая пашня' : 'Net arable'}: <strong>${(totalNet * mult).toFixed(2)} ${unit}</strong></div>
+        <div style="font-size:12px;color:${BRAND.accent2};">${isRu ? 'Чистая пашня' : 'Net arable'}: <strong>${(totalNet * mult).toFixed(2)} ${unit}</strong></div>
       </div>
     </div>
     ${rowsHTML}
@@ -8250,7 +8459,7 @@ function exportFieldsPDF() {
     <div class="no-print" style="margin-top:18px;text-align:center;padding-bottom:24px;">
       <button onclick="window.close()" style="
         display:inline-flex;align-items:center;gap:8px;
-        background:#1b5e20;color:#fff;border:none;
+        background:${BRAND.accentDark};color:#fff;border:none;
         border-radius:24px;padding:12px 28px;
         font-size:15px;font-weight:600;cursor:pointer;
         box-shadow:0 2px 10px rgba(0,0,0,0.2);
@@ -8341,8 +8550,8 @@ function renderForestPolygonsForField(field) {
     if (forestPolygons[key]) return; // уже нарисован
     const leafletCoords = fz.coordinates.map(c => [c[0], c[1]]);
     const poly = L.polygon(leafletCoords, {
-      color: '#2E7D32',
-      fillColor: '#1B5E20',
+      color: BRAND.accent2,
+      fillColor: BRAND.accentDark,
       fillOpacity: 0.45,
       weight: 2,
       dashArray: '6,4'
@@ -8458,11 +8667,18 @@ function saveEvent() {
   const f = fields.find(x => x.id === currentFieldId);
   if (!f) return;
 
+  const eventType = document.getElementById('event-type').value;
   const event = {
-    type: document.getElementById('event-type').value,
+    type: eventType,
     date: document.getElementById('event-date').value,
     note: document.getElementById('event-note').value.trim()
   };
+  // FIX: record the crop sown at the time of a sowing event, so crop-rotation
+  // history (getCropRotationRecommendation) reflects what was actually sown
+  // each time instead of always resolving to the field's current crop.
+  if ((eventType === 'sowing' || eventType === 'seeding') && f.crop) {
+    event.crop = f.crop;
+  }
   f.season = f.season || [];
 
   // FIX v1.8 R2: handle edit vs add
@@ -8501,6 +8717,7 @@ function handlePhotoUpload(e) {
   reader.onload = (ev) => {
     const fields = loadFields();
     const f = fields.find(x => x.id === currentFieldIdForPhotos);
+    if (f) { if (!f.photos) f.photos = []; }
     if (f && f.photos.length < 5) {
       f.photos.push(ev.target.result);
       saveFields(fields);
@@ -8845,7 +9062,7 @@ async function loadWeather() {
         if (rain > 0) rainProb = Math.min(100, rainProb + 20);
       }
       const probNum = Math.round(rainProb);
-      const probColor = probNum < 30 ? '#4CAF50' : probNum < 60 ? '#ff9800' : '#2196F3';
+      const probColor = probNum < 30 ? BRAND.accent : probNum < 60 ? '#ff9800' : '#2196F3';
       const probLabel = probNum < 20 ? (isRu ? 'Маловероятно' : 'Unlikely') : probNum < 50 ? (isRu ? 'Возможно' : 'Possible') : probNum < 75 ? (isRu ? 'Вероятно' : 'Likely') : (isRu ? 'Очень вероятно' : 'Very likely');
       const windLabel = wind < 3 ? (isRu?'Штиль':'Calm') : wind < 5 ? (isRu?'Слабый':'Light') : wind < 10 ? (isRu?'Умеренный':'Moderate') : (isRu?'Сильный':'Strong');
       const humLabel = humidity < 40 ? (isRu?'Сухо':'Dry') : humidity < 70 ? (isRu?'Комфортно':'Comfortable') : (isRu?'Влажно':'Humid');
@@ -9059,7 +9276,7 @@ async function loadWeather() {
         if (v === null || v === undefined) return '';
         // Типичный диапазон объёмной влажности почвы: ~0.05 (сухо) — ~0.5 (насыщено), м³/м³
         const pct = Math.max(0, Math.min(100, Math.round((v / 0.5) * 100)));
-        const color = v < 0.15 ? '#ef5350' : v < 0.30 ? '#ffa726' : '#4CAF50';
+        const color = v < 0.15 ? '#ef5350' : v < 0.30 ? '#ffa726' : BRAND.accent;
         return `<div class="soil-layer-row">
           <span class="soil-layer-depth">${l.depth}</span>
           <div class="soil-layer-track"><div class="soil-layer-fill" style="width:${pct}%;background:${color};"></div></div>
@@ -9182,7 +9399,7 @@ async function loadWeather() {
               if (rain > 0) rainProb = Math.min(100, rainProb + 20);
             }
             const probNum = Math.round(rainProb);
-            const probColor = probNum < 30 ? '#4CAF50' : probNum < 60 ? '#ff9800' : '#2196F3';
+            const probColor = probNum < 30 ? BRAND.accent : probNum < 60 ? '#ff9800' : '#2196F3';
             const probLabel = probNum < 20 ? (isRu ? 'Маловероятно' : 'Unlikely') : probNum < 50 ? (isRu ? 'Возможно' : 'Possible') : probNum < 75 ? (isRu ? 'Вероятно' : 'Likely') : (isRu ? 'Очень вероятно' : 'Very likely');
             return `
           <div class="rain-prob-card" style="grid-column:1/-1;">
@@ -9335,9 +9552,9 @@ function drawFieldThumbOnCanvas(canvas, field) {
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   });
   ctx.closePath();
-  ctx.fillStyle = (field.color || '#4CAF50') + '30';
+  ctx.fillStyle = (field.color || BRAND.accent) + '30';
   ctx.fill();
-  ctx.strokeStyle = field.color || '#4CAF50';
+  ctx.strokeStyle = field.color || BRAND.accent;
   ctx.lineWidth = 1.5;
   ctx.stroke();
 }
@@ -9839,7 +10056,7 @@ function renderSeasonsTrend() {
   const sorted = [...records].sort((a,b) => a.year - b.year);
   const metricKey = currentSeasonsMetric;
   const metricLabel = { yield: lang==='ru'?'Урожайность (т/га)':'Yield (t/ha)', rainfall: lang==='ru'?'Осадки (мм)':'Rainfall (mm)', quality: lang==='ru'?'Качество (1-5)':'Quality (1-5)' }[metricKey];
-  const metricColor = { yield:'#4CAF50', rainfall:'#2196F3', quality:'#ff9800' }[metricKey];
+  const metricColor = { yield:BRAND.accent, rainfall:'#2196F3', quality:'#ff9800' }[metricKey];
 
   const values = sorted.map(r => r[metricKey]);
   const validPairs = sorted.map((r,i) => [r.year, values[i]]).filter(p => p[1] !== null && p[1] !== undefined);
@@ -10336,6 +10553,18 @@ function startApp() {
       // Minimum 20px for status bar on older iPhones, 44-59px for notch/Dynamic Island
       const finalSafeTop = Math.max(safeTop, 20);
       document.documentElement.style.setProperty('--safe-top', finalSafeTop + 'px');
+
+      // FIX: same resolution for the bottom inset (home indicator). Without this,
+      // --safe-bottom relies on raw env() resolving correctly on first paint in
+      // standalone mode, which is unreliable and misaligns the tab bar / bottom
+      // sheets with the actual home-indicator area.
+      const testElBottom = document.createElement('div');
+      testElBottom.style.cssText = 'position:fixed;bottom:env(safe-area-inset-bottom,0px);width:0;height:0;pointer-events:none;visibility:hidden;';
+      document.body.appendChild(testElBottom);
+      const safeBottom = parseInt(window.getComputedStyle(testElBottom).bottom) || 0;
+      document.body.removeChild(testElBottom);
+      document.documentElement.style.setProperty('--safe-bottom', safeBottom + 'px');
+
       document.documentElement.classList.add('pwa-standalone');
     }
   }
