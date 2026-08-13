@@ -133,6 +133,7 @@
     /* FIX 2: prevent iOS rubber-band bounce that reveals background */
     overscroll-behavior: none;
     -webkit-text-size-adjust: 100%; /* FIX 2: prevent font scaling on orientation change */
+    background: var(--bg);
   }
   body {
     height: 100%;
@@ -6073,9 +6074,13 @@ function updateMapLabels() {
 }
 
 function escapeHtml(str) {
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 // ════════════════════════════════════════════════════
@@ -8285,16 +8290,6 @@ function renderFieldDetailHTML(field) {
         </div>
       </div>
     </details>
-
-    <!-- Экспорт поля в GeoJSON -->
-    <div class="detail-uniform-card" style="cursor:pointer;" onclick="exportSingleFieldGeoJSON('${escapeHtml(field.id)}')">
-      <div class="detail-uniform-card-title" style="margin-bottom:0;">
-        <span class="detail-uniform-card-title-left">📥 ${lang === 'ru' ? 'Экспорт поля в GeoJSON' : 'Export field to GeoJSON'}</span>
-        <span class="detail-uniform-card-title-right">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        </span>
-      </div>
-    </div>
 
     <!-- Леса и нерабочие зоны — та же карточка -->
     <div class="detail-uniform-card">
@@ -12197,10 +12192,7 @@ function renderProfile() {
         <label style="cursor:pointer;">${lang === 'ru' ? 'Выгрузить в Excel (.xlsx)' : 'Export to Excel (.xlsx)'}</label>
         <svg width="18" height="18" fill="none" stroke="var(--text3)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </div>
-      <div class="setting-row" style="cursor:pointer;" onclick="exportFieldsPDF()">
-        <label style="cursor:pointer;">${lang === 'ru' ? 'Выгрузить в PDF' : 'Export to PDF'}</label>
-        <svg width="18" height="18" fill="none" stroke="var(--text3)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      </div>
+
       <div class="setting-row" style="cursor:pointer;" onclick="exportFieldsGeoJSON()">
         <label style="cursor:pointer;">${lang === 'ru' ? 'Экспорт в GeoJSON' : 'Export to GeoJSON'}</label>
         <svg width="18" height="18" fill="none" stroke="var(--text3)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
