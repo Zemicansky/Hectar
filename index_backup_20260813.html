@@ -2167,36 +2167,27 @@
   ══════════════════════════════════════ */
   .fields-subtab-row {
     display: flex;
-    gap: 4px;
+    gap: 0;
     background: var(--bg3);
-    border-radius: 12px;
-    padding: 4px;
+    border-radius: var(--radius-sm);
+    padding: 3px;
     margin: 8px 0 12px;
-    position: relative;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
   }
   .fields-subtab {
     flex: 1;
-    padding: 10px 12px;
+    padding: 8px 12px;
     border: none;
     background: transparent;
-    color: var(--text3);
+    color: var(--text2);
     font-size: 13px;
     font-weight: 600;
-    border-radius: 10px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
-    position: relative;
-    z-index: 1;
-  }
-  .fields-subtab:hover {
-    color: var(--text2);
+    transition: all 0.18s;
   }
   .fields-subtab.active {
     background: var(--accent);
     color: #fff;
-    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.25);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
   }
 
   /* ══════════════════════════════════════
@@ -3969,159 +3960,6 @@
     color: #4a5e72;
   }
 
-/* ══════════════════════════════════════
-   CROP ROTATION TIMELINE
-══════════════════════════════════════ */
-.rotation-tl-wrap {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  overflow-x: auto;
-  padding: 6px 0 8px;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-.rotation-tl-wrap::-webkit-scrollbar { display: none; }
-.rotation-tl-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  min-width: 64px;
-}
-.rotation-tl-year {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text2);
-}
-.rotation-tl-crop {
-  font-size: 10px;
-  font-weight: 600;
-  color: #1a2332;
-  padding: 4px 8px;
-  border-radius: 6px;
-  white-space: nowrap;
-  text-align: center;
-  line-height: 1.3;
-}
-.rotation-tl-arrow {
-  color: var(--text3);
-  font-size: 14px;
-  flex-shrink: 0;
-  margin: 0 2px;
-  padding-top: 12px;
-}
-.rotation-tl-warn .rotation-tl-crop {
-  outline: 2px solid #ff9800;
-  outline-offset: 1px;
-}
-.rotation-tl-alert {
-  font-size: 10px;
-  line-height: 1;
-}
-
-/* ══════════════════════════════════════
-   DOSE CALCULATOR
-══════════════════════════════════════ */
-.calc-presets-wrap {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 14px;
-}
-.calc-preset-chip {
-  font-size: 11px;
-  font-family: inherit;
-  padding: 5px 10px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: var(--bg2);
-  color: var(--text2);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-  white-space: nowrap;
-}
-.calc-preset-chip:active,
-.calc-preset-chip:hover {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-}
-.calc-input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-.calc-input-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.calc-input-row label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text2);
-}
-.calc-input-pair {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.calc-input {
-  flex: 1;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg2);
-  color: var(--text);
-  font-size: 15px;
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.calc-input:focus {
-  border-color: var(--accent);
-}
-.calc-unit-select {
-  padding: 10px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg2);
-  color: var(--text);
-  font-size: 14px;
-  font-family: inherit;
-  cursor: pointer;
-  outline: none;
-  min-width: 56px;
-}
-.calc-currency {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text3);
-  min-width: 24px;
-  text-align: center;
-}
-.calc-results {
-  background: rgba(76, 175, 80, 0.08);
-  border: 1px solid rgba(76, 175, 80, 0.2);
-  border-radius: 10px;
-  padding: 12px 14px;
-}
-.calc-result-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-  color: var(--text2);
-  padding: 4px 0;
-}
-.calc-result-row strong {
-  color: var(--accent);
-  font-size: 16px;
-}
-
 
 </style>
 <style>
@@ -4493,8 +4331,8 @@
         <!-- Sub-tabs: Fields list | NDVI | Seasons -->
         <div class="fields-subtab-row">
           <button class="fields-subtab active" id="subtab-list" onclick="setFieldsSubTab('list')" data-i18n="allFields">Список полей</button>
-          <button class="fields-subtab" id="subtab-ndvi" onclick="setFieldsSubTab('ndvi')" data-i18n="ndviTab">🌿 NDVI</button>
-          <button class="fields-subtab" id="subtab-seasons" onclick="setFieldsSubTab('seasons')" data-i18n="seasonsTab">📊 Сезоны</button>
+          <button class="fields-subtab" id="subtab-ndvi" onclick="setFieldsSubTab('ndvi')">🌿 NDVI</button>
+          <button class="fields-subtab" id="subtab-seasons" onclick="setFieldsSubTab('seasons')">📊 Сезоны</button>
         </div>
       </div>
 
@@ -5298,218 +5136,6 @@ function getCropRotationRecommendation(field) {
   return { good: goodCrops.slice(0, 5), bad: badCrops.slice(0, 3), note };
 }
 
-// ════════════════════════════════════════════════════
-// ВИЗУАЛЬНАЯ ИСТОРИЯ СЕВООБОРОТА (ТАЙМЛАЙН)
-// ════════════════════════════════════════════════════
-
-/**
- * Собирает историю культур по годам из событий посева (field.season).
- * Возвращает массив { year, crop, cropName } отсортированный по годам.
- */
-function buildCropHistory(field) {
-  const sowings = (field.season || [])
-    .filter(ev => ev.type === 'sowing' || ev.type === 'seeding')
-    .filter(ev => ev.date);
-
-  const yearMap = {};
-  sowings.forEach(ev => {
-    const year = parseInt(ev.date.split('-')[0]);
-    if (isNaN(year)) return;
-    // Берём последний посев в году
-    if (!yearMap[year] || ev.date > yearMap[year].date) {
-      yearMap[year] = { year, crop: resolveCropId(ev.crop || field.crop || ''), date: ev.date };
-    }
-  });
-
-  // Также добавляем текущий год если есть культура но нет посева
-  if (field.crop && Object.keys(yearMap).length === 0) {
-    const currentYear = new Date().getFullYear();
-    yearMap[currentYear] = { year: currentYear, crop: resolveCropId(field.crop), date: field.createdAt || '' };
-  }
-
-  return Object.values(yearMap)
-    .sort((a, b) => a.year - b.year)
-    .map(item => ({
-      year: item.year,
-      crop: item.crop,
-      cropName: item.crop ? cropDisplayName(item.crop) : (lang === 'ru' ? 'Без культуры' : 'No crop')
-    }));
-}
-
-/**
- * Генерирует HTML таймлайна севооборота.
- */
-function renderCropTimeline(field) {
-  const history = buildCropHistory(field);
-  const isRu = lang === 'ru';
-
-  if (history.length === 0) {
-    return `<div style="font-size:12px;color:var(--text3);margin-bottom:12px;">
-      ${isRu ? 'Нет данных о посевах — добавьте событие «Посев» в историю сезона' : 'No sowing data — add a "Sowing" event to season history'}
-    </div>`;
-  }
-
-  // Определяем повторы (одна культура 2+ лет подряд)
-  const warnings = [];
-  for (let i = 1; i < history.length; i++) {
-    if (history[i].crop && history[i].crop === history[i-1].crop && history[i].crop !== 'other') {
-      warnings.push(history[i].year);
-    }
-  }
-
-  // Цвета для культур
-  const cropColors = {
-    wheat: '#f0c040', corn: '#ffb300', sunflower: '#ff9800', barley: '#c8a04a',
-    rapeseed: '#cddc39', soybean: '#8bc34a', rice: '#e8d5b7', oats: '#d7ccc8',
-    rye: '#a1887f', buckwheat: '#795548', peas: '#66bb6a', lentils: '#ab8b5c',
-    potato: '#d4a04a', sugar_beet: '#e57373', cotton: '#f5f5f5', alfalfa: '#4caf50',
-    flax: '#5c6bc0', chickpea: '#d4a574', millet: '#dce775', sorghum: '#c0945e',
-    mustard: '#ffd54f', other: '#90a4ae'
-  };
-
-  const timelineHTML = history.map(item => {
-    const bg = cropColors[item.crop] || '#90a4ae';
-    const isWarning = warnings.includes(item.year);
-    return `<div class="rotation-tl-item${isWarning ? ' rotation-tl-warn' : ''}">
-      <div class="rotation-tl-year">${item.year}</div>
-      <div class="rotation-tl-crop" style="background:${bg};">${item.cropName}</div>
-      ${isWarning ? `<div class="rotation-tl-alert">⚠️</div>` : ''}
-    </div>`;
-  }).join('<div class="rotation-tl-arrow">→</div>');
-
-  const warningHTML = warnings.length > 0
-    ? `<div style="background:rgba(255,152,0,0.12);border:1px solid rgba(255,152,0,0.3);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--text2);margin-top:10px;">
-        ⚠️ ${isRu ? 'Одна и та же культура 2 года подряд — риск болезней и снижения урожайности' : 'Same crop 2 years in a row — risk of disease and yield loss'}
-      </div>`
-    : '';
-
-  return `
-    <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px;">
-      ${isRu ? '📅 История культур' : '📅 Crop history'}
-    </div>
-    <div class="rotation-tl-wrap">${timelineHTML}</div>
-    ${warningHTML}
-    <div style="height:14px;"></div>
-  `;
-}
-
-// ════════════════════════════════════════════════════
-// КАЛЬКУЛЯТОР НОРМ РАСХОДА
-// ════════════════════════════════════════════════════
-
-/**
- * Предустановленные шаблоны норм расхода.
- */
-const CALC_PRESETS = [
-  { id: 'seeds_wheat', ru: 'Семена пшеницы', en: 'Wheat seeds', rate: 200, unit: 'kg' },
-  { id: 'seeds_corn', ru: 'Семена кукурузы', en: 'Corn seeds', rate: 25, unit: 'kg' },
-  { id: 'herbicide', ru: 'Гербицид', en: 'Herbicide', rate: 2, unit: 'l' },
-  { id: 'fertilizer_n', ru: 'Азотное удобрение', en: 'Nitrogen fertilizer', rate: 150, unit: 'kg' },
-  { id: 'fertilizer_p', ru: 'Фосфорное удобрение', en: 'Phosphorus fertilizer', rate: 100, unit: 'kg' },
-  { id: 'insecticide', ru: 'Инсектицид', en: 'Insecticide', rate: 0.5, unit: 'l' },
-  { id: 'fungicide', ru: 'Фунгицид', en: 'Fungicide', rate: 1, unit: 'l' },
-];
-
-/**
- * Генерирует HTML секции калькулятора.
- */
-function renderCalcSection(field) {
-  const isRu = lang === 'ru';
-  const netArea = getNetFieldArea(field);
-  const fid = escapeHtml(field.id);
-  const unitSetting = loadSettings().units === 'acres' ? 'acres' : 'ha';
-  const areaLabel = unitSetting === 'acres' ? 'ac' : (isRu ? 'га' : 'ha');
-  const displayArea = unitSetting === 'acres' ? (netArea * 2.47105).toFixed(2) : netArea.toFixed(2);
-
-  const presetsHTML = CALC_PRESETS.map(p =>
-    `<button class="calc-preset-chip" onclick="applyCalcPreset('${fid}', ${p.rate}, '${p.unit}')" title="${isRu ? p.ru : p.en}">
-      ${isRu ? p.ru : p.en} (${p.rate} ${isRu ? (p.unit === 'l' ? 'л' : 'кг') : p.unit}/${areaLabel})
-    </button>`
-  ).join('');
-
-  return `
-    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">
-      ${isRu ? 'Чистая площадь поля' : 'Net field area'}: <strong style="color:var(--accent);">${displayArea} ${areaLabel}</strong>
-    </div>
-
-    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;">
-      ${isRu ? 'Быстрый выбор:' : 'Quick presets:'}
-    </div>
-    <div class="calc-presets-wrap">${presetsHTML}</div>
-
-    <div class="calc-input-group">
-      <div class="calc-input-row">
-        <label>${isRu ? 'Норма расхода' : 'Rate per'} ${areaLabel}</label>
-        <div class="calc-input-pair">
-          <input type="number" id="calc-rate-${fid}" class="calc-input" placeholder="0" min="0" step="0.1"
-            oninput="calcFieldDose('${fid}', ${netArea})"/>
-          <select id="calc-unit-${fid}" class="calc-unit-select" onchange="calcFieldDose('${fid}', ${netArea})">
-            <option value="kg">${isRu ? 'кг' : 'kg'}</option>
-            <option value="l">${isRu ? 'л' : 'l'}</option>
-            <option value="pcs">${isRu ? 'шт' : 'pcs'}</option>
-          </select>
-        </div>
-      </div>
-      <div class="calc-input-row">
-        <label>${isRu ? 'Цена за единицу' : 'Price per unit'}</label>
-        <div class="calc-input-pair">
-          <input type="number" id="calc-price-${fid}" class="calc-input" placeholder="0" min="0" step="0.01"
-            oninput="calcFieldDose('${fid}', ${netArea})"/>
-          <span class="calc-currency">${isRu ? '₸' : '$'}</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="calc-results" id="calc-results-${fid}">
-      <div class="calc-result-row">
-        <span>${isRu ? 'Итого на поле:' : 'Total for field:'}</span>
-        <strong id="calc-total-${fid}">—</strong>
-      </div>
-      <div class="calc-result-row">
-        <span>${isRu ? 'Общая стоимость:' : 'Total cost:'}</span>
-        <strong id="calc-cost-${fid}">—</strong>
-      </div>
-    </div>
-  `;
-}
-
-/**
- * Пересчёт калькулятора при вводе.
- */
-function calcFieldDose(fieldId, netAreaHa) {
-  const rate = parseFloat(document.getElementById('calc-rate-' + fieldId)?.value) || 0;
-  const price = parseFloat(document.getElementById('calc-price-' + fieldId)?.value) || 0;
-  const unitEl = document.getElementById('calc-unit-' + fieldId);
-  const unitVal = unitEl ? unitEl.value : 'kg';
-  const isRu = lang === 'ru';
-
-  const unitLabel = { kg: isRu ? 'кг' : 'kg', l: isRu ? 'л' : 'l', pcs: isRu ? 'шт' : 'pcs' };
-  const currency = isRu ? '₸' : '$';
-
-  const total = rate * netAreaHa;
-  const cost = total * price;
-
-  const totalEl = document.getElementById('calc-total-' + fieldId);
-  const costEl = document.getElementById('calc-cost-' + fieldId);
-
-  if (totalEl) totalEl.textContent = rate > 0 ? `${total.toFixed(1)} ${unitLabel[unitVal] || unitVal}` : '—';
-  if (costEl) costEl.textContent = (rate > 0 && price > 0) ? `${cost.toFixed(0)} ${currency}` : '—';
-}
-
-/**
- * Применить пресет к калькулятору.
- */
-function applyCalcPreset(fieldId, rate, unit) {
-  const rateEl = document.getElementById('calc-rate-' + fieldId);
-  const unitEl = document.getElementById('calc-unit-' + fieldId);
-  if (rateEl) rateEl.value = rate;
-  if (unitEl) unitEl.value = unit;
-  // Найти поле и пересчитать
-  const fields = loadFields();
-  const field = fields.find(f => f.id === fieldId);
-  if (field) calcFieldDose(fieldId, getNetFieldArea(field));
-}
-
 function renderCropRotationBlock(field) {
   const rec = getCropRotationRecommendation(field);
   const isRu = lang === 'ru';
@@ -5541,7 +5167,6 @@ function renderCropRotationBlock(field) {
 
   return `
     <div id="crop-rotation-block" style="margin-top:0;">
-      ${renderCropTimeline(field)}
       ${noteHTML}
       <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;">${isRu ? '✅ Рекомендуется посеять:' : '✅ Recommended:'}</div>
       ${goodHTML}
@@ -5603,7 +5228,6 @@ const translations = {
   ru: {
     map: 'Карта', fields: 'Поля', weather: 'Погода', notes: 'Заметки', profile: 'Профиль',
     allFields: 'Все поля', season2026: 'Сезон 2026',
-    ndviTab: 'NDVI', seasonsTab: 'Сезоны',
     addFields: 'Добавить поле', satellite: 'Спутник', streets: 'Карта',
     signInGoogle: 'Войти через Google', signInEmail: 'Войти по Email',
     continueGuest: 'Продолжить как гость',
@@ -5656,7 +5280,6 @@ const translations = {
   en: {
     map: 'Map', fields: 'Fields', weather: 'Weather', notes: 'Notes', profile: 'Profile',
     allFields: 'All fields', season2026: 'Season 2026',
-    ndviTab: 'NDVI', seasonsTab: 'Seasons',
     addFields: 'Add field', satellite: 'Satellite', streets: 'Map',
     signInGoogle: 'Sign in with Google', signInEmail: 'Sign in with Email',
     continueGuest: 'Continue as Guest',
@@ -8270,32 +7893,6 @@ function renderFieldDetailHTML(field) {
       </div>
     </div>
 
-    <!-- Калькулятор норм расхода -->
-    <details class="detail-uniform-card">
-      <summary class="detail-uniform-card-title">
-        <span class="detail-uniform-card-title-left">🧮 ${lang === 'ru' ? 'Калькулятор расхода' : 'Dose Calculator'}</span>
-        <span class="detail-uniform-card-title-right">
-          ${formatAreaShort(getNetFieldArea(field))} ${getAreaUnit()}
-          <svg class="detail-uniform-card-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6,9 12,15 18,9"/></svg>
-        </span>
-      </summary>
-      <div class="detail-uniform-card-body">
-        <div id="hectar-calc-${escapeHtml(field.id)}">
-          ${renderCalcSection(field)}
-        </div>
-      </div>
-    </details>
-
-    <!-- Экспорт поля в GeoJSON -->
-    <div class="detail-uniform-card" style="cursor:pointer;" onclick="exportSingleFieldGeoJSON('${escapeHtml(field.id)}')">
-      <div class="detail-uniform-card-title" style="margin-bottom:0;">
-        <span class="detail-uniform-card-title-left">📥 ${lang === 'ru' ? 'Экспорт поля в GeoJSON' : 'Export field to GeoJSON'}</span>
-        <span class="detail-uniform-card-title-right">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        </span>
-      </div>
-    </div>
-
     <!-- Леса и нерабочие зоны — та же карточка -->
     <div class="detail-uniform-card">
       <div class="detail-uniform-card-title">🌲 ${lang === 'ru' ? 'Леса и нерабочие зоны' : 'Forests & Non-arable Zones'}</div>
@@ -8884,216 +8481,6 @@ function exportFieldsPDF() {
 }
 
 // Текущий выбранный тип зоны
-// ════════════════════════════════════════════════════
-// GEOJSON ЭКСПОРТ / ИМПОРТ
-// ════════════════════════════════════════════════════
-
-/**
- * Экспорт ВСЕХ полей в GeoJSON (FeatureCollection).
- * Координаты конвертируются из [lat,lng] (Leaflet) в [lng,lat] (GeoJSON стандарт).
- */
-function exportFieldsGeoJSON() {
-  const isRu = lang === 'ru';
-  try {
-    const fields = loadFields();
-    if (!fields.length) { showToast(isRu ? 'Нет полей для экспорта' : 'No fields to export'); return; }
-
-    const features = fields.map(field => _fieldToGeoJSONFeature(field));
-    const geojson = {
-      type: 'FeatureCollection',
-      name: 'Hectar Fields Export',
-      generator: 'Hectar ' + APP_VERSION,
-      exportDate: new Date().toISOString(),
-      features
-    };
-
-    const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/geo+json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Hectar_fields_${new Date().toISOString().slice(0, 10)}.geojson`;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
-    showToast(isRu ? '✅ GeoJSON сохранён' : '✅ GeoJSON saved');
-  } catch (e) {
-    console.error('Export GeoJSON error:', e);
-    showToast(isRu ? '❌ Ошибка экспорта GeoJSON' : '❌ GeoJSON export error');
-  }
-}
-
-/**
- * Экспорт ОДНОГО поля в GeoJSON.
- */
-function exportSingleFieldGeoJSON(fieldId) {
-  const isRu = lang === 'ru';
-  try {
-    const fields = loadFields();
-    const field = fields.find(f => f.id === fieldId);
-    if (!field) { showToast(isRu ? 'Поле не найдено' : 'Field not found'); return; }
-
-    const geojson = {
-      type: 'FeatureCollection',
-      name: field.name || 'Hectar Field',
-      generator: 'Hectar ' + APP_VERSION,
-      exportDate: new Date().toISOString(),
-      features: [_fieldToGeoJSONFeature(field)]
-    };
-
-    const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/geo+json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${(field.name || 'field').replace(/[^a-zA-Zа-яА-ЯёЁ0-9_-]/g, '_')}.geojson`;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
-    showToast(isRu ? '✅ Поле экспортировано' : '✅ Field exported');
-  } catch (e) {
-    console.error('Export single field GeoJSON error:', e);
-    showToast(isRu ? '❌ Ошибка экспорта' : '❌ Export error');
-  }
-}
-
-/**
- * Конвертирует объект поля в GeoJSON Feature.
- * Leaflet хранит [lat, lng], GeoJSON требует [lng, lat].
- */
-function _fieldToGeoJSONFeature(field) {
-  const coords = (field.coordinates || []).map(c => [c[1], c[0]]);
-  // Замыкаем полигон если не замкнут
-  if (coords.length > 0 && (coords[0][0] !== coords[coords.length-1][0] || coords[0][1] !== coords[coords.length-1][1])) {
-    coords.push([...coords[0]]);
-  }
-  return {
-    type: 'Feature',
-    properties: {
-      name: field.name || '',
-      crop: field.crop || '',
-      color: field.color || '',
-      area_ha: field.area || 0,
-      perimeter_km: field.perimeter || 0,
-      createdAt: field.createdAt || '',
-      sowingDate: field.sowingDate || '',
-      hectar_id: field.id || ''
-    },
-    geometry: {
-      type: 'Polygon',
-      coordinates: [coords]
-    }
-  };
-}
-
-/**
- * Импорт полей из GeoJSON файла.
- */
-function importFieldsGeoJSON(event) {
-  const isRu = lang === 'ru';
-  const file = event.target.files && event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const geojson = JSON.parse(e.target.result);
-      if (!geojson) throw new Error('Empty file');
-
-      let features = [];
-      if (geojson.type === 'FeatureCollection' && Array.isArray(geojson.features)) {
-        features = geojson.features;
-      } else if (geojson.type === 'Feature') {
-        features = [geojson];
-      } else if (geojson.type === 'Polygon' || geojson.type === 'MultiPolygon') {
-        features = [{ type: 'Feature', properties: {}, geometry: geojson }];
-      } else {
-        throw new Error('Unsupported GeoJSON type: ' + geojson.type);
-      }
-
-      const polygonFeatures = features.filter(f =>
-        f && f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')
-      );
-
-      if (polygonFeatures.length === 0) {
-        showToast(isRu ? '❌ В файле нет полигонов (полей)' : '❌ No polygons (fields) found in file');
-        return;
-      }
-
-      const fields = loadFields();
-      let imported = 0;
-
-      polygonFeatures.forEach((feature, idx) => {
-        try {
-          const rings = feature.geometry.type === 'MultiPolygon'
-            ? feature.geometry.coordinates.map(p => p[0])
-            : [feature.geometry.coordinates[0]];
-
-          rings.forEach((ring, ri) => {
-            // GeoJSON [lng, lat] → Leaflet [lat, lng]
-            const coords = ring.map(c => [c[1], c[0]]);
-            // Убираем замыкающую точку если есть
-            if (coords.length > 1) {
-              const first = coords[0], last = coords[coords.length - 1];
-              if (Math.abs(first[0] - last[0]) < 1e-8 && Math.abs(first[1] - last[1]) < 1e-8) {
-                coords.pop();
-              }
-            }
-            if (coords.length < 3) return;
-
-            // Пересчёт площади и периметра через turf.js
-            const turfCoords = coords.map(c => [c[1], c[0]]);
-            turfCoords.push([...turfCoords[0]]);
-            const poly = turf.polygon([turfCoords]);
-            const area = turf.area(poly) / 10000; // м² → га
-            const perimeter = parseFloat(turf.length(turf.polygonToLine(poly), { units: 'kilometers' }).toFixed(2));
-            const center = turf.center(poly).geometry.coordinates.reverse();
-
-            const props = feature.properties || {};
-            const nameBase = props.name || props.NAME || props.Name || props.title || '';
-            const cropRaw = props.crop || props.CROP || props.Crop || props.culture || '';
-            const cropId = cropRaw ? resolveCropId(cropRaw) : '';
-
-            const newField = {
-              id: generateId(),
-              name: nameBase || (isRu ? `Импорт ${imported + 1}` : `Import ${imported + 1}`) + (ri > 0 ? ` (${ri + 1})` : ''),
-              crop: cropId || '',
-              color: FIELD_COLORS[(fields.length + imported) % FIELD_COLORS.length],
-              area: parseFloat(area.toFixed(4)),
-              perimeter,
-              coordinates: coords,
-              center,
-              createdAt: new Date().toISOString().split('T')[0],
-              season: [],
-              photos: []
-            };
-
-            fields.push(newField);
-            imported++;
-          });
-        } catch (fErr) {
-          console.warn('Skipped feature ' + idx + ':', fErr);
-        }
-      });
-
-      if (imported > 0) {
-        saveFields(fields);
-        // Перерисовать карту и список
-        fields.slice(-imported).forEach(f => addFieldToMap(f));
-        renderFieldsList();
-        showToast(isRu ? `✅ Импортировано полей: ${imported}` : `✅ Imported fields: ${imported}`);
-      } else {
-        showToast(isRu ? '❌ Не удалось импортировать ни одного поля' : '❌ Could not import any fields');
-      }
-    } catch (err) {
-      console.error('Import GeoJSON error:', err);
-      showToast(isRu ? '❌ Ошибка импорта: ' + err.message : '❌ Import error: ' + err.message);
-    }
-    // Сброс input чтобы можно было импортировать тот же файл повторно
-    event.target.value = '';
-  };
-  reader.readAsText(file);
-}
-
-
 let _forestZoneType = 'forest';
 
 function setForestZoneType(fieldId, ztype, btn) {
@@ -10723,6 +10110,10 @@ function renderSeasonsList() {
   const fabLabel = document.getElementById('add-season-fab-label');
   if (fabLabel) fabLabel.textContent = lang === 'ru' ? 'Добавить сезон' : 'Add Season';
 
+  // Update seasons sub-tab label
+  const subTabBtn = document.getElementById('subtab-seasons');
+  if (subTabBtn) subTabBtn.textContent = (lang === 'ru' ? '📊 Сезоны' : '📊 Seasons');
+
   renderSeasonsTrend();
 
   container.innerHTML = '';
@@ -12201,15 +11592,6 @@ function renderProfile() {
         <label style="cursor:pointer;">${lang === 'ru' ? 'Выгрузить в PDF' : 'Export to PDF'}</label>
         <svg width="18" height="18" fill="none" stroke="var(--text3)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </div>
-      <div class="setting-row" style="cursor:pointer;" onclick="exportFieldsGeoJSON()">
-        <label style="cursor:pointer;">${lang === 'ru' ? 'Экспорт в GeoJSON' : 'Export to GeoJSON'}</label>
-        <svg width="18" height="18" fill="none" stroke="var(--text3)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      </div>
-      <div class="setting-row" style="cursor:pointer;" onclick="document.getElementById('geojson-import-input').click()">
-        <label style="cursor:pointer;">${lang === 'ru' ? 'Импорт из GeoJSON' : 'Import from GeoJSON'}</label>
-        <svg width="18" height="18" fill="none" stroke="var(--text3)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,14 12,9 7,14"/><line x1="12" y1="9" x2="12" y2="21"/></svg>
-      </div>
-      <input type="file" id="geojson-import-input" accept=".geojson,.json" style="display:none" onchange="importFieldsGeoJSON(event)"/>
     </div>
     <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
