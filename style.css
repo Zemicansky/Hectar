@@ -1,0 +1,4194 @@
+  /* ══════════════════════════════════════
+     CSS ПЕРЕМЕННЫЕ И СБРОС СТИЛЕЙ
+  ══════════════════════════════════════ */
+  :root {
+    --bg: #0f1923;
+    --bg2: #162231;
+    --bg3: #1e2f42;
+    --card: rgba(22, 34, 49, 0.92);
+    --accent: #4CAF50;
+    --accent2: #2e7d32;
+    /* ЗАДАЧА 4.4: расширенная палитра акцента — раньше в разных местах файла
+       были хардкожены близкие, но не идентичные зелёные (#4CAF50, #2E7D32,
+       #1b5e20 и др.) вместо переменных. Именуем их как токены бренда, чтобы
+       использование было последовательным, а не "что получилось в моменте". */
+    --accent-light: #66BB6A;   /* было местами #4CAF50 на светлых поверхностях */
+    --accent-dark: #1b5e20;    /* было хардкожено в градиентах/заголовках */
+    --accent-muted: rgba(76, 175, 80, 0.16); /* было rgba(76,175,80, .. ) россыпью */
+    --text: #ffffff;
+    --text2: #8fa8c0;
+    --text3: #4a6580;
+    --border: rgba(255,255,255,0.08);
+    --danger: #ef5350;
+    --warn: #ff9800;
+    /* ЗАДАЧА 4.1: раньше один --radius/--radius-sm использовались почти
+       везде одинаково (типичный "ИИ-паттерн" однообразных карточек).
+       Вводим иерархию из 4 уровней вложенности: внешняя карточка крупнее
+       всего, внутренние элементы мельче, кнопки/чипы — почти круглые,
+       бейджи — полностью круглые (100px, уже использовалось отдельно).
+       --radius/--radius-sm сохранены как есть (их использует много кода),
+       добавлены --radius-lg (внешние карточки/экраны) и --radius-xs (самые
+       мелкие внутренние элементы: мини-иконки, чипы, инпуты компактного вида). */
+    --radius: 16px;
+    --radius-sm: 10px;
+    --radius-lg: 20px;
+    --radius-xs: 7px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.4);
+    /* ЗАДАЧА 4.5: вторая, более мягкая тень — для элементов второго плана
+       (внутренние карточки, чипы), чтобы не всё в интерфейсе имело одну
+       и ту же тень одинаковой силы. */
+    --shadow-sm: 0 2px 10px rgba(0,0,0,0.22);
+
+    /* Safe areas — iOS Dynamic Island / notch / home indicator */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+
+    /* Nav bar: fixed icon area + safe bottom padding */
+    /* FIX v2.9.1: было 54px. Увеличено на 10px — ровно на величину, на
+       которую вырос padding-bottom у #tab-bar (6px → 16px), — чтобы
+       --nav-total (и все bottom/padding-bottom на экранах и модалках,
+       завязанные на эту переменную) правильно резервировали место под
+       панель на новой позиции. Верстка других экранов не меняется вручную —
+       она пересчитывается автоматически через переменную. */
+    --nav-h: 64px;
+    --nav-total: calc(var(--nav-h) + var(--safe-bottom));
+
+    --header-h: 60px;
+    --z-map: 400;
+    --z-draw: 480;
+    --z-nav: 9999;
+    --z-detail: 600;
+    --z-modal: 800;
+    --z-toast: 850;
+    --draw-toolbar-h: 72px;
+  }
+
+  @media (min-width: 1024px) {
+    #app-wrapper {
+      max-width: min(480px, 100vw);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  /* FIX 2: html fills entire screen including notch/Dynamic Island area */
+  html {
+    height: 100%;
+    height: -webkit-fill-available; /* FIX 2: iOS Safari full height */
+    height: 100dvh;                 /* FIX 2: dynamic viewport — excludes collapsible browser chrome */
+    width: 100%;
+    /* FIX 2: prevent iOS rubber-band bounce that reveals background */
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%; /* FIX 2: prevent font scaling on orientation change */
+    background: var(--bg);
+  }
+  body {
+    height: 100%;
+    height: -webkit-fill-available; /* FIX 2: iOS Safari */
+    height: 100dvh;                 /* FIX 2: dynamic viewport height */
+    width: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    /* FIX 2: prevent iOS bounce-scroll revealing background colour */
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
+    /* FIX 2: prevent text selection on long-press */
+    -webkit-user-select: none;
+    user-select: none;
+    /* FIX 2: prevent callout on long-press (iOS) */
+    -webkit-touch-callout: none;
+    /* FIX 2: prevent tap highlight flash */
+    -webkit-tap-highlight-color: transparent;
+    /* FIX v2.6 пункт 3: touch-action:manipulation отключает встроенный
+       double-tap zoom в Safari iOS, устраняя зависание при двойном тапе */
+    touch-action: manipulation;
+  }
+
+  /* ══════════════════════════════════════
+     ОБЁРТКА МОБИЛЬНОГО ЭКРАНА
+  ══════════════════════════════════════ */
+  /* FIX 2: #app-wrapper fills the full dynamic viewport on all devices */
+  #app-wrapper {
+    width: 100%;
+    max-width: 430px;
+    /* FIX 2: layered height fallbacks for maximum browser compatibility:
+       1. var(--app-height) — set by JS from window.innerHeight, most accurate on iOS
+       2. -webkit-fill-available — iOS Safari built-in (no JS required)
+       3. 100dvh — modern browsers (excludes collapsible chrome)
+       4. 100vh — legacy fallback */
+    height: 100vh;
+    height: -webkit-fill-available;
+    height: 100dvh;
+    height: var(--app-height, 100dvh); /* FIX 2: JS-measured height wins */
+    min-height: 100%;
+    box-sizing: border-box;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+    overscroll-behavior: none;
+    /* FIX 2: isolate stacking context so fixed children clip correctly */
+    isolation: isolate;
+  }
+
+  /* ══════════════════════════════════════
+     ЭКРАН ВХОДА
+  ══════════════════════════════════════ */
+  #login-screen {
+    position: absolute;
+    inset: 0;
+    z-index: 1000;
+    background: linear-gradient(160deg, #0a1520 0%, #0f1923 40%, #0d2a1a 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 32px;
+    /* Safe area для login тоже */
+    padding-top: calc(var(--safe-top) + 40px);
+    padding-bottom: calc(var(--safe-bottom) + 40px);
+    gap: 0;
+  }
+
+  #login-screen .lang-switcher {
+    position: absolute;
+    top: calc(var(--safe-top) + 16px);
+    right: 24px;
+    display: flex;
+    gap: 0;
+    background: var(--bg3);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  #login-screen .lang-switcher button {
+    border: none;
+    background: transparent;
+    color: var(--text2);
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  #login-screen .lang-switcher button.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .login-logo {
+    margin-bottom: 24px;
+  }
+  .login-logo svg { width: 72px; height: 72px; }
+
+  .login-title {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+  .login-title span { color: var(--accent); }
+
+  .login-subtitle {
+    font-size: 14px;
+    color: var(--text2);
+    text-align: center;
+    margin-bottom: 48px;
+    line-height: 1.5;
+  }
+
+  .login-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: var(--radius);
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .login-btn:active { transform: scale(0.97); }
+  .login-btn.google { background: #fff; color: #1a1a1a; }
+  .login-btn.email { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+  .login-btn.guest { background: var(--accent); color: #fff; margin-top: 4px; }
+
+  /* ══════════════════════════════════════
+     SPLASH / LOADING SCREEN (v2.6)
+  ══════════════════════════════════════ */
+  #splash-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: linear-gradient(160deg, #0a1520 0%, #0f1923 40%, #0d2a1a 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    transition: opacity 0.4s ease;
+  }
+  #splash-screen.fade-out {
+    opacity: 0;
+    pointer-events: none;
+  }
+  #splash-screen.hidden { display: none; }
+
+  .splash-logo {
+    margin-bottom: 20px;
+    animation: splashPulse 2s ease-in-out infinite;
+  }
+  .splash-logo svg { width: 72px; height: 72px; }
+  @keyframes splashPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.85; }
+  }
+  .splash-title {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+    color: #fff;
+  }
+  .splash-title span { color: var(--accent); }
+  .splash-status {
+    font-size: 13px;
+    color: var(--text2);
+    margin-bottom: 32px;
+    min-height: 18px;
+    text-align: center;
+    transition: opacity 0.2s;
+  }
+  .splash-progress-wrap {
+    width: 200px;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .splash-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.35s ease;
+  }
+  .splash-pct {
+    font-size: 12px;
+    color: var(--text3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ══════════════════════════════════════
+     ОСНОВНОЙ ИНТЕРФЕЙС
+  ══════════════════════════════════════ */
+  #main-app {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+  }
+  #main-app.visible { display: flex; }
+
+  /* ══════════════════════════════════════
+     НИЖНЯЯ НАВИГАЦИЯ
+  ══════════════════════════════════════ */
+  #tab-bar {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    /* Use translateZ(0) for GPU compositing — keeps bar pinned on iOS Safari */
+    -webkit-transform: translateX(-50%) translateZ(0);
+    transform: translateX(-50%) translateZ(0);
+    width: 100%;
+    max-width: 430px;
+    /* Высота задаётся контентом + отступы; safe-area заполняет низ под home-indicator */
+    height: auto;
+    min-height: var(--nav-h);
+    /* Иконки + подписи сверху, safe-area padding снизу */
+    padding-top: 10px;
+    /* FIX v2.9.1: увеличен нижний паддинг (6px → 16px), чтобы визуально
+       сместить панель вниз и снизить дискомфорт при нажатии на иконки.
+       Работает через --nav-h/--nav-total, поэтому все экраны и модалки,
+       завязанные на эти переменные, автоматически резервируют новое место. */
+    padding-bottom: calc(var(--safe-bottom) + 16px);
+    /* Landscape iPhone side safe-areas */
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    background: var(--bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-top: 1px solid var(--border);
+    display: flex !important;
+    align-items: flex-start;
+    z-index: var(--z-nav);
+    /* Force stacking context so nothing overlaps the tab bar */
+    isolation: isolate;
+    will-change: transform;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: all !important;
+  }
+  .tab-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text3);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 0;
+    transition: color 0.2s;
+  }
+  .tab-btn svg { width: 22px; height: 22px; }
+  .tab-btn { font-size: 10px; }
+  .tab-btn.active { color: var(--accent); }
+  .tab-btn .tab-icon-wrap {
+    width: 48px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 20px;
+    transition: background 0.2s;
+  }
+  .tab-btn.active .tab-icon-wrap { background: rgba(76,175,80,0.15); }
+
+  /* ══════════════════════════════════════
+     ЭКРАНЫ (ТАБЫ)
+  ══════════════════════════════════════ */
+  .screen {
+    position: absolute;
+    /* top с учётом safe-top для notch/Dynamic Island */
+    top: var(--safe-top);
+    left: 0;
+    right: 0;
+    /* bottom = полная высота таббара включая safe-bottom */
+    bottom: var(--nav-total);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    /* FIX v1.8: non-map screens must sit above the always-present map layer */
+    z-index: 500;
+    background: var(--bg);
+  }
+  .screen.active { display: flex; }
+
+  /* FIX v1.8: ensure non-map screens are always above map layer when active,
+     and fully invisible when inactive */
+  .screen:not(.active) { display: none !important; pointer-events: none !important; }
+  #screen-fields { z-index: 501; } /* FIX v1.8: fields must cover map */
+
+  /* ══════════════════════════════════════
+     КАРТА
+  ══════════════════════════════════════ */
+  /* FIX 1.8: screen-map visibility fix — карта не может быть display:none */
+  #screen-map {
+    position: absolute;
+    top: 0; /* карта начинается с 0, контролы учитывают safe-top */
+    left: 0;
+    right: 0;
+    bottom: var(--nav-total);
+    /* FIX 1.8: убрали display:none — используем visibility управляемую через JS */
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  #map {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Контролы на карте */
+  .map-control-top {
+    position: absolute;
+    /* Учитываем safe-top + небольшой отступ */
+    top: calc(var(--safe-top) + 12px);
+    left: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: var(--z-map);
+    pointer-events: none;
+  }
+  .map-control-top > * { pointer-events: all; }
+
+  #screen-map.draw-active .map-control-top,
+  #screen-map.draw-active #layer-switcher,
+  #screen-map.draw-active #btn-geolocate,
+  #screen-map.draw-active #btn-add-field-map {
+    display: none !important;
+  }
+
+  .map-fields-pill {
+    background: var(--bg2);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 24px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    /* FIX v2.9 п.3: убираем flex:1 — кнопка больше не растягивается на всю ширину */
+    flex: 0 1 auto;
+    min-width: 0;
+    cursor: pointer;
+    border: 1px solid var(--border);
+  }
+  /* FIX v2.9 п.4: первая иконка после pill получает margin-left:auto —
+     иконки всегда прижимаются к правому краю */
+  .map-fields-pill + .map-icon-btn {
+    margin-left: auto;
+  }
+  .map-fields-pill-text { flex: 1; }
+  .map-fields-pill-text .title { font-size: 14px; font-weight: 600; }
+  .map-fields-pill-text .sub { font-size: 11px; color: var(--text2); }
+
+  .map-icon-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--bg2);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+  .map-icon-btn svg { width: 20px; height: 20px; }
+
+  /* Кнопка геолокации — нижний правый, выше таббара */
+  #btn-geolocate {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    z-index: var(--z-map);
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--bg2);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    transition: all 0.2s;
+  }
+  #btn-geolocate:active { transform: scale(0.93); }
+
+  /* Большая кнопка добавить поле — центр, на одном уровне с геолокацией и слоями */
+  /* FIX v2.6 пункт 6: уменьшен размер кнопки «Добавить поле», убран перекос.
+     Уменьшен padding, font-size и border-radius. Позиция — центр, чуть выше таббара. */
+  #btn-add-field-map {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: var(--z-map);
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 22px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    box-shadow: 0 3px 14px rgba(76,175,80,0.40);
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  #btn-add-field-map:active { transform: translateX(-50%) scale(0.96); }
+  #btn-add-field-map svg { width: 16px; height: 16px; }
+
+  /* Переключатель слоя карты — нижний левый, выше таббара */
+  #layer-switcher {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    z-index: var(--z-map);
+    background: var(--bg2);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+  .layer-btn {
+    display: block;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text2);
+    background: none;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    transition: all 0.2s;
+  }
+  .layer-btn.active { color: var(--accent); background: rgba(76,175,80,0.1); }
+
+  /* ══════════════════════════════════════
+     РЕЖИМ РИСОВАНИЯ ПОЛЯ
+  ══════════════════════════════════════ */
+  /* FIX 1.8: draw-mode-ui вынесен из-под visibility:hidden screen-map —
+     состояние измерения не сбрасывается при переключении вкладок */
+  /* FIX: raised z-index to var(--z-modal)-1 so draw UI always renders above
+     all screens (z-index 500/501) and the nav bar (z-index var(--z-nav))
+     but below modals; bottom accounts for nav bar so buttons stay accessible */
+  #draw-mode-ui {
+    display: none;
+    position: fixed; /* FIX 1.8: fixed вместо absolute — рисование работает поверх любой вкладки */
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 430px;
+    bottom: var(--nav-total); /* FIX: stops above nav bar so nav remains visible */
+    z-index: 799; /* FIX: above screens (501) and nav (9999 clips to stacking ctx) but below modals (800) */
+    pointer-events: none;
+  }
+  #draw-mode-ui.active {
+    display: block;
+  }
+
+  .draw-top-section {
+    position: absolute;
+    top: calc(var(--safe-top) + 12px);
+    left: 16px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: all;
+    z-index: 2;
+  }
+
+  .draw-top-bar {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+  }
+  .draw-close-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.95);
+    border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    color: #222;
+  }
+  .draw-mode-pill {
+    background: var(--bg2);
+    backdrop-filter: blur(12px);
+    border-radius: 24px;
+    display: flex;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    min-width: 0;
+    width: 100%;
+  }
+  .draw-mode-pill button {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 8px;
+    border: none;
+    background: transparent;
+    color: var(--text2);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    transition: all 0.2s;
+  }
+  .draw-mode-pill button span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .draw-mode-pill button.active { color: #fff; }
+  .draw-mode-pill button svg { width: 16px; height: 16px; }
+
+  .draw-hint-inner {
+    align-self: center;
+    background: var(--bg2);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: var(--text2);
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    display: none;
+  }
+  .draw-hint-inner.visible { display: block; }
+
+  .draw-toolbar {
+    position: absolute;
+    bottom: 12px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 8px;
+    pointer-events: all;
+    z-index: 2;
+  }
+  .draw-toolbar-btn {
+    flex: 1;
+    min-width: 0;
+    min-height: 48px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    backdrop-filter: blur(12px);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 8px;
+    transition: transform 0.15s;
+  }
+  .draw-toolbar-btn:active { transform: scale(0.97); }
+  .draw-toolbar-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+  #btn-cancel-draw { flex: 0 0 auto; padding: 10px 14px; }
+  #btn-finish-draw {
+    flex: 1.4;
+    background: var(--accent);
+    color: #fff;
+    border-color: transparent;
+    flex-direction: column;
+    gap: 2px;
+  }
+  #btn-finish-draw .area-label {
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.9;
+    display: block;
+    line-height: 1.2;
+  }
+
+  /* ══════════════════════════════════════
+     ПОЛЯ (СПИСОК)
+  ══════════════════════════════════════ */
+  #screen-fields {
+    background: var(--bg);
+  }
+
+  .screen-header {
+    padding: 16px 20px 0;
+    /* Учёт safe-top для notch/Dynamic Island — увеличен отступ для iOS */
+    padding-top: calc(var(--safe-top) + 20px);
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+  .screen-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .screen-title {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .header-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: none;
+    border: none;
+    color: var(--text2);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .icon-btn:active { background: var(--border); }
+  .icon-btn svg { width: 22px; height: 22px; }
+
+  .all-fields-link {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    cursor: pointer;
+  }
+  .all-fields-link svg { width: 16px; height: 16px; }
+
+  .fields-group-label {
+    padding: 0 20px 14px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .fields-group-label .group-name { font-size: 14px; font-weight: 500; color: var(--text2); }
+  .fields-group-label .group-area { font-size: 14px; color: var(--text2); }
+
+  #fields-subview-list {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    overflow-x: hidden;
+    min-height: 0;
+  }
+  .fields-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px;
+    padding-bottom: 20px;
+  }
+  .fields-list::-webkit-scrollbar { display: none; }
+
+  .field-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg2);
+    border-radius: var(--radius-lg);
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  .field-card:active { transform: scale(0.98); background: var(--bg3); }
+
+  .field-thumb {
+    width: 72px; height: 72px;
+    border-radius: 12px;
+    background: var(--bg3);
+    flex-shrink: 0;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .field-thumb canvas { width: 100%; height: 100%; }
+
+  .field-card-info { flex: 1; min-width: 0; }
+  .field-card-name { font-size: 16px; font-weight: 600; margin-bottom: 2px; }
+  .field-card-area { font-size: 14px; color: var(--text2); }
+  .field-card-crop { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+  .field-card-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .field-card-date { font-size: 12px; color: var(--text2); }
+  .field-card-edit { color: var(--text3); }
+  .field-card-edit svg { width: 18px; height: 18px; }
+
+  /* Кнопка спутниковый снимок */
+  .satellite-btn {
+    display:none !important;
+    margin: 8px 16px 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .satellite-btn svg { width: 20px; height: 20px; color: var(--text2); }
+
+  /* Пустой экран */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text3);
+    padding: 32px;
+    text-align: center;
+  }
+  /* ЗАДАЧА 4.5: лёгкая асимметрия вместо идеально ровной иконки по центру —
+     небольшой наклон и смещение, "живая" деталь вместо строго симметричной
+     композиции, характерной для сгенерированных интерфейсов. */
+  .empty-state svg { width: 48px; height: 48px; opacity: 0.3; transform: rotate(-4deg) translateX(-3px); }
+  .empty-state p { font-size: 15px; max-width: 240px; }
+
+  /* ══════════════════════════════════════
+     ДЕТАЛЬНЫЙ ЭКРАН ПОЛЯ
+  ══════════════════════════════════════ */
+  #screen-field-detail {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--z-detail);
+    background: var(--bg);
+    display: none;
+    flex-direction: column;
+    overflow: hidden; /* FIX 2.9: block any horizontal bleed */
+    /* Учёт safe areas */
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+  }
+  #screen-field-detail.open { display: flex; }
+
+  .detail-header {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .back-btn {
+    background: none; border: none; color: var(--accent);
+    font-size: 16px; font-weight: 500; cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+    padding: 0;
+  }
+  .back-btn svg { width: 20px; height: 20px; }
+  .detail-title { flex: 1; font-size: 18px; font-weight: 700; }
+  .delete-btn {
+    background: none; border: none; color: var(--danger);
+    font-size: 14px; cursor: pointer; padding: 6px 10px;
+    border-radius: 8px;
+  }
+
+  .detail-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden; /* FIX 2.9: prevent horizontal trackpad scroll on PC */
+    padding: 20px;
+    padding-bottom: calc(20px + 40px + env(safe-area-inset-bottom, 0px)); /* FIX v2.9.1: last card (Фото) was clipped/unreachable on mobile — extra bottom breathing room + safe-area */
+    /* Prevent rubber-band horizontal scroll on desktop */
+    overscroll-behavior-x: none;
+  }
+  .detail-scroll::-webkit-scrollbar { display: none; }
+
+  .detail-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    /* ЗАДАЧА 4.2: было 20px как везде — увеличено, чтобы визуально отделить
+       главный блок метрик (площадь/периметр) от второстепенных секций ниже
+       (прогноз урожайности, NDVI, леса), а не выравнивать всё по одной сетке. */
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    padding: 14px;
+  }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .stat-value { font-size: 22px; font-weight: 700; }
+  .stat-unit { font-size: 13px; color: var(--text2); font-weight: 400; }
+
+  .section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text2);
+  }
+
+  /* v2.9.1: field-detail — unified card style, same look for every section (matches yield/NDVI cards) */
+  .detail-uniform-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .detail-uniform-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text2);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  /* Collapsible variant: title row doubles as the toggle */
+  .detail-uniform-card > summary.detail-uniform-card-title {
+    list-style: none;
+    cursor: pointer;
+    justify-content: space-between;
+    margin-bottom: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .detail-uniform-card > summary.detail-uniform-card-title::-webkit-details-marker { display: none; }
+  .detail-uniform-card-title-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .detail-uniform-card-title-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text3);
+  }
+  .detail-uniform-card-chevron {
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+    color: var(--text3);
+  }
+  .detail-uniform-card[open] > summary .detail-uniform-card-chevron { transform: rotate(180deg); }
+  .detail-uniform-card-body {
+    padding-top: 10px;
+  }
+  .detail-uniform-card-swatch {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,0.15);
+  }
+  .light-theme .detail-uniform-card { background: #ffffff; border-color: rgba(0,0,0,0.08); }
+
+
+  /* Выбор цвета */
+  .color-picker {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .color-dot {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .color-dot.selected { border-color: #fff; transform: scale(1.2); }
+
+  /* Выбор культуры */
+  .crop-grid {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .crop-chip {
+    padding: 8px 14px;
+    border-radius: 100px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .crop-chip.selected { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* Ввод имени */
+  .field-name-input {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 16px;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+  }
+  .field-name-input:focus { border-color: var(--accent); }
+
+  /* История сезона */
+  .season-events { margin-bottom: 4px; }
+  .event-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .event-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .event-dot.sowing { background: var(--accent); }
+  .event-dot.harvest { background: #ff9800; }
+  .event-dot.watering { background: #2196F3; }
+  .event-dot.spraying { background: #9C27B0; }
+  .event-dot.cultivation { background: #795548; }
+  .event-dot.disking { background: #607D8B; }
+
+  .event-info { flex: 1; min-width: 0; }
+  .event-type { font-size: 14px; font-weight: 600; }
+  .event-date { font-size: 12px; color: var(--text3); }
+  .event-note { font-size: 13px; color: var(--text2); margin-top: 2px; overflow-wrap: break-word; word-break: break-word; }
+
+  .add-event-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent);
+    background: none;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 12px 0;
+  }
+
+  /* Фото сетка */
+  .photos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .photo-item {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg3);
+    cursor: pointer;
+    position: relative;
+  }
+  .photo-item img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-add-btn {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    background: var(--bg2);
+    border: 2px dashed var(--border);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    color: var(--text3);
+    font-size: 11px;
+  }
+  .photo-add-btn svg { width: 24px; height: 24px; }
+
+  /* ══════════════════════════════════════
+     ПОГОДА
+  ══════════════════════════════════════ */
+  #screen-weather {
+    background: var(--bg);
+  }
+
+  .weather-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 16px;
+  }
+  .weather-list::-webkit-scrollbar { display: none; }
+
+  .weather-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .weather-field-name { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+  /* FIX 1: geo place name shown below field title — clean, no icon, muted color */
+  .weather-place-name {
+    font-size: 13px;
+    color: var(--text2);
+    font-weight: 400;
+    line-height: 1.4;
+  }
+
+  .weather-current {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    /* ЗАДАЧА 4.2: было 12px как везде — увеличено, чтобы отделить главный
+       показатель (температура) от второстепенного статус-бейджа ниже. */
+    margin-bottom: 18px;
+  }
+  .weather-icon { font-size: 36px; }
+  .weather-temp { font-size: 32px; font-weight: 700; }
+  .weather-details { display: flex; flex-direction: column; gap: 2px; }
+  .weather-detail { font-size: 13px; color: var(--text2); }
+
+  .spray-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .spray-badge.safe { background: rgba(76,175,80,0.15); color: var(--accent); }
+  .spray-badge.unsafe { background: rgba(239,83,80,0.15); color: var(--danger); }
+
+  .forecast-row {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .forecast-row::-webkit-scrollbar { display: none; }
+  .forecast-day {
+    flex-shrink: 0;
+    background: var(--bg3);
+    border-radius: 10px;
+    padding: 10px 14px;
+    text-align: center;
+    min-width: 70px;
+  }
+  .forecast-day-name { font-size: 12px; color: var(--text3); margin-bottom: 4px; }
+  .forecast-day-icon { font-size: 20px; margin-bottom: 4px; }
+  .forecast-day-temp { font-size: 14px; font-weight: 600; }
+
+  .loading-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    text-align: center;
+    color: var(--text3);
+    margin-bottom: 12px;
+    font-size: 14px;
+  }
+
+  /* ══════════════════════════════════════
+     ЗАМЕТКИ
+  ══════════════════════════════════════ */
+  #screen-notes {
+    background: var(--bg);
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 0 16px 12px;
+    flex-shrink: 0;
+  }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-chip {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .filter-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .notes-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px;
+  }
+  .notes-list::-webkit-scrollbar { display: none; }
+
+  .note-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    background: var(--bg2);
+    border-radius: var(--radius-lg);
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+  }
+
+  .note-field-thumb {
+    width: 64px; height: 64px;
+    border-radius: 10px;
+    background: var(--bg3);
+    flex-shrink: 0;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .note-info { flex: 1; min-width: 0; overflow: hidden; }
+  .note-field-name {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .note-meta {
+    font-size: 13px;
+    color: var(--text2);
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+  }
+
+  .note-date { font-size: 13px; color: var(--text3); flex-shrink: 0; }
+
+  /* FIX: note card action buttons for edit and delete */
+  .note-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.18s;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .note-action-btn:active { transform: scale(0.93); }
+  .note-edit-btn:hover { background: rgba(76,175,80,0.18); border-color: var(--accent); color: var(--accent); }
+  .note-delete-btn:hover { background: rgba(239,83,80,0.18); border-color: var(--danger); color: var(--danger); }
+
+  .add-note-fab {
+    margin: 8px 16px 16px;
+    background: var(--accent);
+    border: none;
+    border-radius: 100px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 4px 20px rgba(76,175,80,0.35);
+  }
+  .add-note-fab svg { width: 22px; height: 22px; }
+
+  /* ══════════════════════════════════════
+     МОДАЛЬНЫЕ ОКНА
+  ══════════════════════════════════════ */
+  .modal-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-modal);
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    align-items: flex-end;
+    display: none;
+    pointer-events: none;
+    /* FIXED #1: leave room for the tab bar so the sheet slides up above it */
+    padding-bottom: var(--nav-total);
+  }
+  .modal-overlay.open {
+    display: flex;
+    pointer-events: auto;
+  }
+
+  .modal-sheet {
+    pointer-events: auto;
+    width: 100%;
+    background: var(--bg2);
+    border-radius: 20px 20px 0 0;
+    /* FIX: flex column — handle+header pinned at top, body scrolls */
+    display: flex;
+    flex-direction: column;
+    max-height: calc(85vh - var(--nav-total));
+    overflow: hidden;
+  }
+  /* Handle — always visible, never scrolls away */
+  .modal-sheet > .modal-handle {
+    flex-shrink: 0;
+    margin: 12px auto 4px;
+  }
+  /* Header row — always visible, never scrolls away */
+  .modal-sheet > .modal-header-row {
+    flex-shrink: 0;
+    padding: 8px 20px 12px;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  /* Scrollable body area inside sheet (new wrapper div) */
+  .modal-sheet-body {
+    overflow-y: auto;
+    padding: 16px 20px;
+    padding-bottom: calc(var(--safe-bottom) + 24px);
+    flex: 1;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal-sheet-body::-webkit-scrollbar { display: none; }
+  /* Legacy modals without .modal-sheet-body: all content scrolls as one */
+  .modal-sheet:not(:has(.modal-sheet-body)) {
+    overflow-y: auto;
+    padding: 16px 20px;
+    padding-bottom: calc(var(--safe-bottom) + 24px);
+  }
+  .modal-sheet:not(:has(.modal-sheet-body))::-webkit-scrollbar { display: none; }
+
+  .modal-handle {
+    width: 36px; height: 4px;
+    background: var(--text3);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+
+  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+
+  .modal-form-group { margin-bottom: 16px; }
+  .modal-label { font-size: 13px; color: var(--text3); margin-bottom: 6px; display: block; }
+  .modal-input, .modal-select, .modal-textarea {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 15px;
+    padding: 12px 14px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.2s;
+  }
+  .modal-input:focus, .modal-select:focus, .modal-textarea:focus { border-color: var(--accent); }
+  .modal-select option { background: var(--bg3); }
+  .modal-textarea { resize: none; min-height: 80px; }
+
+  .modal-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: var(--radius);
+    border: none;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+  }
+  .modal-btn.primary { background: var(--accent); color: #fff; }
+  .modal-btn.secondary { background: var(--bg3); color: var(--text2); }
+  .modal-btn:active { transform: scale(0.98); }
+
+  .modal-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .modal-cancel-btn { background: none; border: none; color: var(--text2); font-size: 15px; cursor: pointer; }
+  .modal-action-btn { background: none; border: none; color: var(--accent); font-size: 15px; font-weight: 700; cursor: pointer; }
+
+  /* Карта в popup */
+  .leaflet-popup-content-wrapper {
+    background: var(--bg2) !important;
+    border: 1px solid rgba(76,175,80,0.25) !important;
+    color: var(--text) !important;
+    border-radius: 16px !important;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(76,175,80,0.1) !important;
+    padding: 0 !important;
+  }
+  .leaflet-popup-content { margin: 0 !important; width: auto !important; }
+  .leaflet-popup-tip-container { display: none; }
+  .leaflet-popup-close-button { display: none !important; }
+
+  .agri-popup-inner { padding: 14px 14px 12px; min-width: 200px; }
+  .agri-popup-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  }
+  .agri-popup-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    box-shadow: 0 0 6px currentColor;
+  }
+  .agri-popup-name {
+    font-size: 15px; font-weight: 700; flex: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .agri-popup-close {
+    background: none; border: none; color: var(--text3);
+    font-size: 14px; cursor: pointer; padding: 2px 4px; line-height: 1;
+    border-radius: 6px; transition: color 0.15s;
+  }
+  .agri-popup-close:hover { color: var(--text); }
+  .agri-popup-rows { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  .agri-popup-row {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12.5px; color: var(--text2);
+  }
+  .agri-popup-icon { font-size: 13px; flex-shrink: 0; }
+  .agri-popup-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; padding: 8px 12px;
+    background: rgba(76,175,80,0.15); border: 1px solid rgba(76,175,80,0.35);
+    color: var(--accent); border-radius: 10px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s, transform 0.1s;
+  }
+  .agri-popup-btn:hover { background: rgba(76,175,80,0.25); transform: scale(1.02); }
+  .agri-popup-btn:active { transform: scale(0.98); }
+
+  .popup-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .popup-row { font-size: 13px; color: #8fa8c0; }
+
+  /* Скрытый input для фото */
+  #photo-input { display: none; }
+
+  /* Анимации */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .screen.active { animation: fadeIn 0.25s ease; }
+
+  /* ══════════════════════════════════════
+     NDVI ЛЕГЕНДА
+  ══════════════════════════════════════ */
+  #ndvi-legend {
+    display: none;
+    position: absolute;
+    bottom: calc(var(--nav-total) + 130px);
+    left: 16px;
+    z-index: var(--z-map);
+    background: var(--bg2);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    min-width: 120px;
+  }
+  #ndvi-legend.visible { display: block; }
+  .ndvi-legend-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .ndvi-gradient {
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(to right, #8B0000, #FF4500, #FFA500, #FFFF00, #7FBF00, #006400);
+    margin-bottom: 4px;
+  }
+  .ndvi-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--text3);
+  }
+  .ndvi-date-badge {
+    font-size: 10px;
+    color: var(--text3);
+    margin-top: 5px;
+    text-align: center;
+  }
+
+  /* ══════════════════════════════════════
+     УЛУЧШЕННЫЕ КАРТОЧКИ ПОЛЕЙ
+  ══════════════════════════════════════ */
+  .field-card-expanded {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    background: var(--bg2);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid var(--border);
+  }
+  .field-card-expanded:active { transform: scale(0.98); background: var(--bg3); }
+
+  .field-card-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .field-card-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+    align-items: center;
+  }
+  .field-show-on-map-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: rgba(76,175,80,0.12);
+    border: 1px solid rgba(76,175,80,0.3);
+    border-radius: 100px;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: all 0.2s;
+    font-family: inherit;
+    align-self: flex-start;
+  }
+  .field-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 9px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--bg3);
+    color: var(--text2);
+    border: 1px solid var(--border);
+  }
+  .field-badge.green { background: rgba(76,175,80,0.15); color: #66bb6a; border-color: rgba(76,175,80,0.2); }
+  .field-badge.orange { background: rgba(255,152,0,0.15); color: #ffa726; border-color: rgba(255,152,0,0.2); }
+  .field-badge.red { background: rgba(239,83,80,0.15); color: #ef5350; border-color: rgba(239,83,80,0.2); }
+  .field-badge.blue { background: rgba(33,150,243,0.15); color: #42a5f5; border-color: rgba(33,150,243,0.2); }
+
+  .ndvi-mini-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .ndvi-mini-label { font-size: 11px; color: var(--text3); white-space: nowrap; }
+  .ndvi-mini-track {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--bg3);
+    overflow: hidden;
+  }
+  .ndvi-mini-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+  .ndvi-mini-value { font-size: 11px; font-weight: 700; white-space: nowrap; }
+
+  /* ══════════════════════════════════════
+     ФИЛЬТРЫ/СОРТИРОВКА ПОЛЕЙ
+  ══════════════════════════════════════ */
+  .fields-filter-row {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 0 16px 10px;
+    flex-shrink: 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  .fields-filter-row::-webkit-scrollbar { display: none; }
+
+  /* ══════════════════════════════════════
+     ПЕРЕТАСКИВАЕМЫЕ ВЕРШИНЫ
+  ══════════════════════════════════════ */
+  .draw-vertex-handle {
+    cursor: grab;
+    touch-action: none;
+  }
+  .draw-vertex-handle:active { cursor: grabbing; }
+
+  /* ══════════════════════════════════════
+     ДЕТАЛЬНЫЕ СТАТЫ - расширенные
+  ══════════════════════════════════════ */
+  .detail-stats-extended {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .stat-card-sm {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+  .stat-card-sm .stat-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .stat-card-sm .stat-value { font-size: 16px; font-weight: 700; }
+  .stat-card-sm .stat-unit { font-size: 11px; color: var(--text2); font-weight: 400; }
+  .stat-card-sm.full-width { grid-column: 1 / -1; }
+  /* ЗАДАЧА 4.3: карточка главной метрики (площадь) — акцентная рамка/фон как
+     элемент бренд-идентичности, а не только визуальный признак "активного"
+     состояния, каким акцентный цвет используется в остальном интерфейсе. */
+  .stat-card-primary {
+    background: var(--accent-muted);
+    border: 1px solid rgba(76,175,80,0.35);
+  }
+
+  /* Графики динамики NDVI */
+  .ndvi-chart-container {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+  .ndvi-chart-title { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 10px; }
+  .ndvi-chart-svg { width: 100%; height: 80px; }
+
+  /* ══════════════════════════════════════
+     SPINNER
+  ══════════════════════════════════════ */
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ══════════════════════════════════════
+     VIEWPORT FIX для iOS
+  ══════════════════════════════════════ */
+  #app-wrapper {
+    overscroll-behavior: none;
+  }
+
+
+
+  /* Спиннер загрузки */
+  .spinner {
+    width: 24px; height: 24px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast уведомление — сверху, не блокирует кнопки */
+  #toast {
+    position: absolute;
+    top: calc(var(--safe-top) + 16px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-120%);
+    opacity: 0;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: var(--z-toast);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    white-space: nowrap;
+    max-width: calc(100% - 32px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    box-shadow: var(--shadow);
+  }
+  #toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  body.modal-open { overflow: hidden; }
+
+  /* ══════════════════════════════════════
+     КНОПКА ПОКАЗАТЬ НА КАРТЕ (field card)
+  ══════════════════════════════════════ */
+  /* Компактная кнопка «На карте» — иконка + короткий текст, не переносится */
+  .field-map-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    background: rgba(76,175,80,0.12);
+    border: 1px solid rgba(76,175,80,0.3);
+    border-radius: 100px;
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .field-map-icon-btn:active {
+    background: rgba(76,175,80,0.25);
+    transform: scale(0.96);
+  }
+  .field-show-on-map-btn:active {
+    background: rgba(76,175,80,0.25);
+    transform: scale(0.97);
+  }
+
+  /* ══════════════════════════════════════
+     NDVI ПАНЕЛЬ — УЛУЧШЕННЫЙ ДИЗАЙН
+  ══════════════════════════════════════ */
+  .ndvi-legend-redesigned {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+  .ndvi-legend-redesigned-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .ndvi-legend-redesigned-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+  .ndvi-date-tag {
+    font-size: 10px;
+    color: var(--text3);
+    background: var(--bg3);
+    padding: 3px 8px;
+    border-radius: 100px;
+  }
+  .ndvi-gradient-bar {
+    height: 18px;
+    border-radius: 9px;
+    background: linear-gradient(to right, #8B0000, #FF4500, #FFA500, #FFFF00, #7FBF00, #006400);
+    margin-bottom: 6px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .ndvi-scale-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .ndvi-scale-label {
+    font-size: 10px;
+    color: var(--text3);
+    text-align: center;
+  }
+  .ndvi-scale-label strong {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 1px;
+  }
+  .ndvi-legend-ranges {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .ndvi-range-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 8px;
+    border-radius: 8px;
+    background: var(--bg3);
+    font-size: 10px;
+    color: var(--text2);
+    font-weight: 500;
+  }
+  .ndvi-range-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .ndvi-field-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .ndvi-field-name-block { flex: 1; min-width: 0; }
+  .ndvi-field-name-block .name {
+    font-size: 15px; font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ndvi-field-name-block .coords { font-size: 10px; color: var(--text3); margin-top: 1px; }
+  .ndvi-value-badge-lg {
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .ndvi-bar-section { margin-bottom: 10px; }
+  .ndvi-bar-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+  }
+  .ndvi-bar-label { font-size: 11px; color: var(--text3); width: 28px; flex-shrink: 0; }
+  .ndvi-bar-track {
+    flex: 1; height: 8px; border-radius: 4px;
+    background: var(--bg3); overflow: hidden;
+  }
+  .ndvi-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .ndvi-bar-value { font-size: 12px; font-weight: 700; width: 32px; text-align: right; flex-shrink: 0; }
+  .ndvi-health-status-row {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .ndvi-health-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 100px;
+    font-size: 11px; font-weight: 600;
+  }
+  .ndvi-health-pill.green { background: rgba(76,175,80,0.15); color: #66bb6a; }
+  .ndvi-health-pill.orange { background: rgba(255,152,0,0.15); color: #ffa726; }
+  .ndvi-health-pill.red { background: rgba(239,83,80,0.15); color: #ef5350; }
+  .ndvi-map-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    background: rgba(76,175,80,0.12);
+    border: 1px solid rgba(76,175,80,0.3);
+    border-radius: 100px;
+    color: var(--accent); font-size: 11px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: all 0.2s;
+  }
+  .ndvi-map-btn:active { background: rgba(76,175,80,0.25); }
+
+  /* ══════════════════════════════════════
+     ПРОФИЛЬ
+  ══════════════════════════════════════ */
+  #screen-profile {
+    background: var(--bg);
+  }
+  .profile-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px;
+    padding-bottom: calc(var(--safe-bottom) + 24px);
+  }
+  .profile-scroll::-webkit-scrollbar { display: none; }
+  .profile-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+  }
+  .profile-card-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+  .profile-avatar {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: rgba(76,175,80,0.2);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .profile-avatar svg { width: 32px; height: 32px; color: var(--accent); }
+  .profile-name {
+    font-size: 18px; font-weight: 700; margin-bottom: 2px;
+    word-break: break-word; overflow-wrap: break-word;
+    max-width: 100%; text-align: left;
+  }
+  .profile-email {
+    font-size: 12px; color: var(--text3); margin-bottom: 4px;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; text-align: left;
+  }
+  .profile-role { font-size: 13px; color: var(--text2); margin-bottom: 0; }
+  .profile-login-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: var(--radius);
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .profile-login-btn:active { transform: scale(0.98); }
+  .profile-logout-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--danger);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .settings-group { margin-bottom: 16px; }
+  .settings-group-title {
+    font-size: 13px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+    padding: 0 4px;
+  }
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+  }
+  .setting-row label { font-size: 15px; }
+  .setting-row select {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .toggle-switch {
+    position: relative;
+    width: 48px; height: 28px;
+    flex-shrink: 0;
+  }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; inset: 0;
+    background: var(--bg3);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 22px; height: 22px;
+    left: 3px; bottom: 3px;
+    background: var(--text2);
+    border-radius: 50%;
+    transition: 0.2s;
+  }
+  .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+  .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+    background: #fff;
+  }
+  .about-block {
+    text-align: center;
+    padding: 24px 16px;
+    color: var(--text2);
+    font-size: 14px;
+  }
+  .about-logo { font-size: 28px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+  .about-version { font-size: 13px; color: var(--text3); margin-top: 4px; }
+
+  /* ══════════════════════════════════════
+     ПОИСК МЕСТ
+  ══════════════════════════════════════ */
+  #modal-search .modal-sheet { max-height: 75vh; display: flex; flex-direction: column; }
+  #modal-search .search-results-wrap {
+    flex: 1;
+    min-height: 120px;
+    max-height: 50vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #modal-search .search-results-wrap::-webkit-scrollbar { width: 4px; }
+  .search-input-wrap {
+    position: relative;
+    margin-bottom: 12px;
+  }
+  .search-input-wrap input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 16px;
+    padding: 14px 14px 14px 44px;
+    outline: none;
+    font-family: inherit;
+  }
+  .search-input-wrap input:focus { border-color: var(--accent); }
+  .search-input-wrap svg {
+    position: absolute;
+    left: 14px; top: 50%;
+    transform: translateY(-50%);
+    width: 20px; height: 20px;
+    color: var(--text3);
+  }
+  .search-results { list-style: none; margin: 0; padding: 0; }
+  .search-result-item {
+    padding: 14px 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .search-result-item:active { background: var(--bg3); }
+  .search-result-item .place-name { font-size: 15px; font-weight: 600; }
+  .search-result-item .place-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .search-history-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0 4px; margin-bottom: 2px;
+  }
+  .search-history-title { font-size: 12px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
+  .search-history-clear { font-size: 12px; color: var(--accent); cursor: pointer; background: none; border: none; padding: 2px 4px; font-family: inherit; }
+  .search-history-clear:active { opacity: 0.7; }
+  .search-history-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer;
+  }
+  .search-history-item:last-child { border-bottom: none; }
+  .search-history-item:active { opacity: 0.7; }
+  .search-history-icon { color: var(--text3); flex-shrink: 0; }
+  .search-history-name { font-size: 15px; font-weight: 500; flex: 1; }
+  .search-history-meta { font-size: 12px; color: var(--text2); margin-top: 1px; }
+  .search-history-delete { color: var(--text3); background: none; border: none; cursor: pointer; padding: 4px; flex-shrink: 0; font-size: 16px; line-height: 1; }
+  .search-history-delete:active { color: var(--text); }
+  .search-empty { text-align: center; color: var(--text3); padding: 24px; font-size: 14px; }
+
+  /* Подписи стран и городов на карте */
+  .map-label-country {
+    color: rgba(255,255,255,0.95);
+    font-size: 13px;
+    font-weight: 700;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6);
+    white-space: nowrap;
+    pointer-events: auto;
+    cursor: pointer;
+    text-align: center;
+  }
+  .map-label-city {
+    color: rgba(255,255,255,0.85);
+    font-size: 11px;
+    font-weight: 500;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.85);
+    white-space: nowrap;
+    pointer-events: auto;
+    cursor: pointer;
+  }
+  .map-label-country:hover, .map-label-city:hover { color: var(--accent); }
+
+  /* ══════════════════════════════════════
+     ПОЛЯ — SUB-TABS (List / NDVI)
+  ══════════════════════════════════════ */
+  .fields-subtab-row {
+    display: flex;
+    gap: 4px;
+    background: var(--bg3);
+    border-radius: 12px;
+    padding: 4px;
+    margin: 8px 0 12px;
+    position: relative;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
+  }
+  .fields-subtab {
+    flex: 1;
+    padding: 10px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text3);
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+    position: relative;
+    z-index: 1;
+  }
+  .fields-subtab:hover {
+    color: var(--text2);
+  }
+  .fields-subtab.active {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.25);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  }
+
+  /* ══════════════════════════════════════
+     СЕВООБОРОТ — компактные чипы (v2.9.1)
+     "Хорошие" культуры сжаты в чипы с общей подписью сверху (раньше — 4
+     одинаковые крупные карточки с повторяющимся текстом объяснения).
+     "Плохие" остаются акцентными карточками — критичная информация должна
+     визуально быть заметнее хорошего.
+  ══════════════════════════════════════ */
+  .rotation-good-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .rotation-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent-muted);
+    border: 1px solid rgba(76,175,80,0.3);
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* ══════════════════════════════════════
+     NDVI PANEL (inside Fields tab)
+  ══════════════════════════════════════ */
+  .ndvi-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0 10px;
+    gap: 10px;
+  }
+  .ndvi-map-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 14px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    color: var(--text2);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .ndvi-map-toggle-btn.active {
+    background: rgba(76,175,80,0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* REDESIGNED NDVI Legend Card */
+  .ndvi-legend-inline {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    /* ЗАДАЧА 4.2: было 16px как везде — увеличено, чтобы легенда-объяснение
+       читалась как отдельный блок от карточек полей, идущих следом. */
+    margin-bottom: 22px;
+  }
+  .ndvi-legend-inline-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 10px;
+  }
+  /* Gradient bar with scale markers */
+  .ndvi-scale-track-wrap {
+    position: relative;
+    margin-bottom: 6px;
+  }
+  .ndvi-scale-gradient {
+    height: 20px;
+    border-radius: 10px;
+    background: linear-gradient(to right, #8B0000 0%, #FF4500 20%, #FFA500 40%, #FFFF00 55%, #7FBF00 75%, #006400 100%);
+    box-shadow: inset 0 1px 4px rgba(0,0,0,0.35);
+    margin-bottom: 6px;
+  }
+  .ndvi-scale-ticks {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 2px;
+    margin-bottom: 10px;
+  }
+  .ndvi-scale-tick {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .ndvi-scale-tick-val {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .ndvi-scale-tick-lbl {
+    font-size: 9px;
+    color: var(--text3);
+    text-align: center;
+    max-width: 44px;
+    line-height: 1.2;
+  }
+  /* Color chips legend */
+  .ndvi-color-chips {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .ndvi-color-chip {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--bg3);
+    border-radius: 8px;
+    padding: 7px 8px;
+    border: 1px solid var(--border);
+  }
+  .ndvi-color-chip-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .ndvi-color-chip-info {}
+  .ndvi-color-chip-range {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+  }
+  .ndvi-color-chip-label {
+    font-size: 9px;
+    color: var(--text3);
+    line-height: 1.2;
+    margin-top: 1px;
+  }
+
+  /* Redesigned per-field NDVI card */
+  .ndvi-field-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+  }
+  .ndvi-field-card:active { background: var(--bg3); transform: scale(0.98); }
+  .ndvi-field-card-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .ndvi-field-dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.1);
+  }
+  .ndvi-field-card-name {
+    font-size: 16px;
+    font-weight: 700;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ndvi-field-card-coords {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 2px;
+  }
+  .ndvi-value-badge {
+    padding: 6px 13px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.3px;
+    flex-shrink: 0;
+  }
+  /* ЗАДАЧА 2.3: пометка "оценка" — расчётная модель вместо спутникового измерения */
+  .ndvi-estimated-badge {
+    display: inline-block;
+    margin-left: 5px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 1px 5px;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.28);
+    vertical-align: middle;
+  }
+  .ndvi-status-row .ndvi-estimated-badge {
+    background: var(--bg3);
+    color: var(--text3);
+    border: 1px solid var(--border);
+  }
+  /* NDVI progress bar row */
+  .ndvi-bar-section { margin-bottom: 12px; }
+  .ndvi-bar-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ndvi-bar-label { font-size: 11px; color: var(--text3); width: 36px; flex-shrink: 0; font-weight: 600; }
+  .ndvi-bar-track {
+    flex: 1; height: 10px; border-radius: 5px;
+    background: var(--bg3); overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .ndvi-bar-fill { height: 100%; border-radius: 5px; transition: width 0.7s ease; }
+  .ndvi-bar-value { font-size: 13px; font-weight: 700; width: 36px; text-align: right; flex-shrink: 0; }
+  /* Health & forecast row */
+  .ndvi-health-status-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .ndvi-health-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; border-radius: 100px;
+    font-size: 12px; font-weight: 700;
+  }
+  .ndvi-health-pill.green { background: rgba(76,175,80,0.15); color: #66bb6a; }
+  .ndvi-health-pill.orange { background: rgba(255,152,0,0.15); color: #ffa726; }
+  .ndvi-health-pill.red { background: rgba(239,83,80,0.15); color: #ef5350; }
+  .ndvi-map-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    cursor: pointer;
+    background: rgba(76,175,80,0.1);
+    border: 1px solid rgba(76,175,80,0.25);
+    border-radius: 100px;
+    padding: 5px 12px;
+    margin-top: 10px;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .ndvi-map-link:active { background: rgba(76,175,80,0.22); }
+
+  /* ══════════════════════════════════════
+     WEATHER SCREEN — new design
+  ══════════════════════════════════════ */
+  .weather-field-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0 14px;
+    margin-bottom: 8px;
+  }
+  .weather-field-selector select {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    padding: 12px 0;
+    outline: none;
+    cursor: pointer;
+  }
+  .weather-field-selector select option { background: var(--bg2); }
+  .weather-field-info {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .weather-info-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg3);
+    border-radius: 100px;
+    padding: 5px 10px;
+    font-size: 11px;
+    color: var(--text2);
+  }
+  .weather-no-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 32px 24px;
+    text-align: center;
+    color: var(--text3);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  /* 7-day forecast row */
+  .forecast-7day {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-top: 12px;
+  }
+  .forecast-7day::-webkit-scrollbar { display: none; }
+  .forecast-day-card {
+    flex-shrink: 0;
+    background: var(--bg3);
+    border-radius: 10px;
+    padding: 10px 10px;
+    text-align: center;
+    min-width: 60px;
+    border: 1px solid var(--border);
+  }
+  .forecast-day-card.today {
+    background: rgba(76,175,80,0.1);
+    border-color: var(--accent);
+  }
+  .fday-name { font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+  .fday-icon { font-size: 20px; margin-bottom: 4px; line-height: 1; }
+  .fday-max { font-size: 14px; font-weight: 700; }
+  .fday-min { font-size: 11px; color: var(--text3); }
+  .fday-rain { font-size: 10px; color: #2196F3; margin-top: 3px; }
+  /* Weather detail row */
+  .weather-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .weather-detail-card {
+    background: var(--bg3);
+    border-radius: var(--radius-xs);
+    padding: 10px 12px;
+  }
+  .weather-detail-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+  .weather-detail-val { font-size: 16px; font-weight: 700; }
+  .weather-detail-sub { font-size: 11px; color: var(--text2); }
+
+  /* ══════════════════════════════════════
+     AI COW RECOGNITION BUTTON
+  ══════════════════════════════════════ */
+  .ai-cow-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .ai-cow-btn:active { background: var(--bg3); transform: scale(0.98); }
+  .ai-cow-btn-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ai-cow-icon { font-size: 24px; line-height: 1; }
+  .ai-cow-label { font-size: 15px; font-weight: 600; text-align: left; margin-bottom: 2px; }
+  .ai-cow-sub { font-size: 12px; color: var(--text3); text-align: left; }
+  /* SOON badge kept for potential future use but hidden */
+  .ai-soon-badge { display: none; }
+
+  /* Open-link badge — beautiful gradient launch button */
+  .ai-open-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #43a047 0%, #66bb6a 100%);
+    color: #fff;
+    border: none;
+    flex-shrink: 0;
+    box-shadow: 0 3px 10px rgba(76,175,80,0.45), 0 1px 3px rgba(0,0,0,0.2);
+    transition: box-shadow 0.18s, transform 0.18s;
+  }
+  .ai-cow-btn:hover .ai-open-badge,
+  .ai-cow-btn:active .ai-open-badge {
+    box-shadow: 0 5px 18px rgba(76,175,80,0.6), 0 2px 6px rgba(0,0,0,0.25);
+    transform: scale(1.1) translateY(-1px);
+  }
+  /* Make <a> behave like the old <button> */
+  a.ai-cow-btn {
+    text-decoration: none;
+    display: flex;
+  }
+
+  /* ══════════════════════════════════════
+     RAIN PROBABILITY INDICATOR
+  ══════════════════════════════════════ */
+  .rain-prob-card {
+    background: var(--bg3);
+    border-radius: var(--radius-xs);
+    padding: 10px 12px;
+  }
+  .rain-prob-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+  .rain-prob-bar-wrap {
+    position: relative;
+    height: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+  .rain-prob-bar-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+  }
+  .rain-prob-val { font-size: 16px; font-weight: 700; }
+  .rain-prob-sub { font-size: 11px; color: var(--text2); }
+
+  /* ══════════════════════════════════════
+     ВЛАЖНОСТЬ ПОЧВЫ + ОСАДКИ ЗА 30 ДНЕЙ (v2.9.1)
+     Реальные данные Open-Meteo (тот же провайдер, что уже используется
+     для погоды): soil_moisture_* — объёмная влажность почвы (м³/м³) по
+     4 слоям от 0 до 27 см из численной модели ERA5/ECMWF, не заглушка.
+     precipitation_sum с past_days=30 — фактическая сумма осадков по дням.
+  ══════════════════════════════════════ */
+  .soil-moisture-card {
+    background: var(--bg3);
+    border-radius: var(--radius-xs);
+    padding: 12px;
+    grid-column: 1/-1;
+  }
+  .soil-moisture-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
+  .soil-layer-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .soil-layer-row:last-child { margin-bottom: 0; }
+  .soil-layer-depth { font-size: 11px; color: var(--text2); width: 52px; flex-shrink: 0; }
+  .soil-layer-track {
+    flex: 1;
+    height: 7px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .soil-layer-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .soil-layer-val { font-size: 11px; font-weight: 700; width: 40px; text-align: right; flex-shrink: 0; }
+  .rain30-card {
+    background: var(--bg3);
+    border-radius: var(--radius-xs);
+    padding: 10px 12px;
+    grid-column: 1/-1;
+  }
+  .rain30-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+  .rain30-val { font-size: 20px; font-weight: 700; color: var(--accent); }
+  .rain30-bars { display: flex; align-items: flex-end; gap: 2px; height: 36px; }
+  .rain30-bar { flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; min-height: 2px; opacity: 0.75; }
+  .light-theme .soil-moisture-card, .light-theme .rain30-card { background: #f2f5f9; border: 1px solid rgba(0,0,0,0.07); }
+  .light-theme .soil-layer-track { background: rgba(0,0,0,0.08); }
+
+  /* ══════════════════════════════════════
+     PAST SEASONS STATISTICS
+  ══════════════════════════════════════ */
+  #screen-seasons {
+    background: var(--bg);
+  }
+  .seasons-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px;
+    padding-bottom: 20px;
+  }
+  .seasons-scroll::-webkit-scrollbar { display: none; }
+  .season-record-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .season-record-card:active { background: var(--bg3); transform: scale(0.98); }
+  .season-record-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .season-record-year {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .season-record-crop {
+    font-size: 13px;
+    color: var(--text2);
+    background: var(--bg3);
+    padding: 3px 10px;
+    border-radius: 100px;
+  }
+  .season-record-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .season-stat-mini {
+    text-align: center;
+    background: var(--bg3);
+    border-radius: 8px;
+    padding: 8px 6px;
+  }
+  .season-stat-mini .val { font-size: 15px; font-weight: 700; }
+  .season-stat-mini .lbl { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 1px; }
+  .season-record-notes {
+    font-size: 12px;
+    color: var(--text3);
+    line-height: 1.5;
+    margin-top: 6px;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  .season-delete-btn {
+    background: none;
+    border: none;
+    color: var(--danger);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 2px 6px;
+  }
+
+  /* Past seasons trend chart */
+  .seasons-trend-container {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .seasons-trend-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text2);
+    margin-bottom: 10px;
+  }
+  .seasons-trend-svg {
+    width: 100%;
+    height: 80px;
+    overflow: visible;
+  }
+  .seasons-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--text3);
+  }
+  .seasons-empty-icon { font-size: 40px; opacity: 0.4; }
+  .seasons-empty p { font-size: 14px; line-height: 1.6; }
+  .add-season-fab {
+    margin: 8px 16px 16px;
+    background: var(--accent);
+    border: none;
+    border-radius: 100px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 4px 20px rgba(76,175,80,0.35);
+  }
+  .add-season-fab svg { width: 22px; height: 22px; }
+
+  /* Comparison chips */
+  .season-compare-row {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+  }
+  .season-compare-row::-webkit-scrollbar { display: none; }
+  .season-compare-chip {
+    flex-shrink: 0;
+    padding: 5px 12px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .season-compare-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+
+
+/* ===== NDVI MOBILE UI FIXES ===== */
+#fields-subview-ndvi{
+  padding: 0 14px 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex-direction: column !important;
+}
+
+.ndvi-legend-inline{
+  padding:18px;
+  border-radius:20px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+
+.ndvi-color-chips{
+  grid-template-columns: 1fr 1fr;
+}
+
+.ndvi-field-card{
+  border-radius:22px;
+  padding:18px;
+  margin-bottom:16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.22);
+}
+
+.ndvi-field-card-top{
+  align-items:flex-start;
+}
+
+.ndvi-field-card-name{
+  font-size:18px !important;
+  line-height:1.25;
+  margin-bottom:4px;
+}
+
+.ndvi-field-card .coords{
+  font-size:11px !important;
+  color: var(--text2) !important;
+  line-height:1.35;
+  word-break: break-word;
+}
+
+.ndvi-value-badge-lg{
+  min-width: 104px;
+  text-align:center;
+  font-size:24px;
+  padding:10px 16px;
+  border-radius:16px;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.15);
+}
+
+.ndvi-bar-track{
+  height:10px;
+  border-radius:999px;
+}
+
+.ndvi-bar-fill{
+  border-radius:999px;
+}
+
+.ndvi-health-status-row{
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.ndvi-map-btn{
+  padding:9px 14px;
+  font-size:12px;
+}
+
+@media (max-width: 430px){
+  .ndvi-field-card-top{
+    flex-wrap:wrap;
+  }
+
+  .ndvi-value-badge-lg{
+    width:100%;
+  }
+
+  .ndvi-color-chips{
+    grid-template-columns: 1fr;
+  }
+}
+
+/* FIX v1.9: Favorite cities styles */
+.weather-fav-section {
+  margin-top: 8px;
+}
+.weather-fav-label {
+  font-size: 11px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.weather-fav-add-btn {
+  background: rgba(76,175,80,0.12);
+  border: 1px solid rgba(76,175,80,0.3);
+  border-radius: 100px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+.weather-fav-add-btn:active { background: rgba(76,175,80,0.25); }
+.weather-fav-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.weather-fav-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 28px;
+}
+.weather-fav-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px 5px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.weather-fav-chip:hover { background: var(--bg2); border-color: var(--accent); color: var(--accent); }
+.weather-fav-chip .fav-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(239,83,80,0.15);
+  color: var(--danger);
+  font-size: 10px;
+  margin-left: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.weather-fav-chip .fav-del:hover { background: rgba(239,83,80,0.35); }
+.weather-fav-empty {
+  font-size: 12px;
+  color: var(--text3);
+  padding: 4px 2px;
+  font-style: italic;
+}
+
+
+  /* ══════════════════════════════════════
+     FIX v1.8: LIGHT THEME CONTRAST FIXES
+     Applied via .light-theme class on <html>
+  ══════════════════════════════════════ */
+
+  /* Stat inline inputs in field detail */
+  .stat-inline-input {
+    font-family: inherit;
+    font-weight: 600;
+  }
+
+  /* ══════════════════════════════════════
+     СВЕТЛАЯ ТЕМА — переопределение CSS-переменных
+     Все элементы, использующие var(--bg/--text/--border),
+     автоматически получают светлые значения
+  ══════════════════════════════════════ */
+  html.light-theme {
+    --bg:      #f2f5f9;
+    --bg2:     #ffffff;
+    --bg3:     #e9eef5;
+    --text:    #18243a;
+    --text2:   #4a5e72;
+    --text3:   #8296a8;
+    --border:  rgba(0,0,0,0.09);
+    color-scheme: light;
+  }
+
+  /* ── Tab bar ── */
+  .light-theme #tab-bar {
+    background: rgba(245,248,252,0.98);
+    border-top: 1px solid rgba(0,0,0,0.10);
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+  }
+  .light-theme .tab-btn { color: #8296a8; }
+  .light-theme .tab-btn.active { color: var(--accent); }
+  .light-theme .tab-btn.active .tab-icon-wrap { background: rgba(76,175,80,0.12); }
+
+  /* ── Screen headers ── */
+  .light-theme .screen-header { background: #f2f5f9; }
+  .light-theme .screen-title { color: #18243a; }
+  .light-theme .screen { background: #f2f5f9; }
+
+  /* ── Cards ── */
+  .light-theme .field-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .light-theme .field-card:active { background: #f5f8fc; }
+  .light-theme .stat-card-sm {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .light-theme .stat-card-primary {
+    background: rgba(76,175,80,0.08);
+    border: 1px solid rgba(76,175,80,0.30);
+    box-shadow: none;
+  }
+  .light-theme .stat-label { color: #8296a8; }
+  .light-theme .stat-value { color: #18243a; }
+
+  /* ── Weather ── */
+  .light-theme .weather-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+  }
+  .light-theme .weather-detail-card { background: #f2f5f9; border: 1px solid rgba(0,0,0,0.07); }
+  .light-theme .weather-detail-label { color: #8296a8; }
+  .light-theme .weather-detail-val { color: #18243a; }
+  .light-theme .weather-detail-sub { color: #8296a8; }
+  .light-theme .weather-temp { color: #18243a; }
+  .light-theme .weather-field-name { color: #18243a; }
+  .light-theme .weather-place-name { color: #5a7a8a; }
+  .light-theme .forecast-day-card { background: #f2f5f9; border: 1px solid rgba(0,0,0,0.07); }
+  .light-theme .forecast-day-card.today { background: rgba(76,175,80,0.08); border-color: rgba(76,175,80,0.3); }
+  .light-theme .fday-name { color: #4a5e72; }
+  .light-theme .fday-max { color: #18243a; }
+  .light-theme .fday-min { color: #8296a8; }
+  .light-theme .rain-prob-card { background: #f2f5f9; border: 1px solid rgba(0,0,0,0.07); }
+  .light-theme .rain-prob-label { color: #4a5e72; }
+  .light-theme .rain-prob-sub { color: #8296a8; }
+
+  /* ── Modals ── */
+  .light-theme .modal-overlay { background: rgba(0,0,0,0.35); }
+  .light-theme .modal-sheet { background: #ffffff; border-top: 1px solid rgba(0,0,0,0.08); box-shadow: 0 -4px 24px rgba(0,0,0,0.10); }
+  .light-theme .modal-handle { background: rgba(0,0,0,0.18); }
+  .light-theme .modal-title { color: #18243a; }
+  .light-theme .modal-label { color: #4a5e72; }
+  .light-theme .modal-input { background: #f2f5f9; color: #18243a; border: 1px solid rgba(0,0,0,0.12); }
+  .light-theme .modal-input::placeholder { color: #9aa8b5; }
+  .light-theme .modal-select { background: #f2f5f9; color: #18243a; border: 1px solid rgba(0,0,0,0.12); }
+  .light-theme .modal-textarea { background: #f2f5f9; color: #18243a; border: 1px solid rgba(0,0,0,0.12); }
+  .light-theme .modal-btn.secondary { background: #e9eef5; color: #18243a; border: 1px solid rgba(0,0,0,0.10); }
+  .light-theme .modal-cancel-btn { color: #4a5e72; }
+
+  /* ── Notes ── */
+  .light-theme .note-card { background: #ffffff; border: 1px solid rgba(0,0,0,0.07); box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  .light-theme .note-field-name { color: #18243a; }
+  .light-theme .note-meta { color: #8296a8; }
+  .light-theme .note-date { color: #8296a8; }
+  .light-theme .filter-chip { background: #e9eef5; color: #4a5e72; border: 1px solid rgba(0,0,0,0.09); }
+  .light-theme .filter-chip.active { background: var(--accent); color: #fff; border-color: transparent; }
+
+  /* ── Profile screen — completely redesigned ── */
+  .light-theme #screen-profile { background: #f2f5f9; }
+  .light-theme .profile-scroll { background: #f2f5f9; }
+
+  /* Profile card: user info */
+  .light-theme .profile-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+  }
+  .light-theme .profile-name { color: #18243a; }
+  .light-theme .profile-email { color: #8296a8; }
+  .light-theme .profile-role { color: #4a5e72; }
+  .light-theme .profile-avatar { background: #e4f0e4; }
+
+  /* Login buttons in profile (Google, Email, Guest) — muted, not full green */
+  .light-theme .profile-login-btn {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(76,175,80,0.30);
+  }
+  /* Override the login-btn styles used in profile to be less harsh */
+  .light-theme .login-btn.google {
+    background: #ffffff;
+    color: #18243a;
+    border: 1.5px solid rgba(0,0,0,0.14);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+  }
+  .light-theme .login-btn.email {
+    background: rgba(76,175,80,0.10);
+    color: var(--accent-dark);
+    border: 1.5px solid rgba(76,175,80,0.35);
+  }
+  .light-theme .login-btn.guest {
+    background: #e9eef5;
+    color: #4a5e72;
+    border: 1.5px solid rgba(0,0,0,0.10);
+  }
+
+  /* Settings groups */
+  .light-theme .settings-group { background: transparent; border: none; }
+  .light-theme .settings-group-title { color: #8296a8; }
+  .light-theme .setting-row {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .light-theme .setting-row label { color: #18243a; }
+  .light-theme .setting-row select { background: #f2f5f9; color: #18243a; border: 1px solid rgba(0,0,0,0.12); }
+  .light-theme .setting-value { color: #8296a8; }
+
+  /* AI Cow button */
+  .light-theme .ai-cow-btn {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    color: #18243a;
+  }
+  .light-theme .ai-cow-label { color: #18243a; }
+  .light-theme .ai-cow-sub { color: #8296a8; }
+
+  /* About block */
+  .light-theme .about-block { color: #4a5e72; background: transparent; }
+  .light-theme .about-logo { color: var(--accent-dark); }
+  .light-theme .about-version { color: #8296a8; }
+
+  /* ── Field detail screen ── */
+  .light-theme #screen-field-detail { background: #f2f5f9; }
+  /* FIX 2.9: make section dividers visible in light theme */
+  .light-theme #screen-field-detail hr { border-top-color: rgba(76,175,80,0.30) !important; }
+  .light-theme .detail-header { background: rgba(242,245,249,0.98); border-bottom: 1px solid rgba(0,0,0,0.09); }
+  .light-theme .detail-title { color: #18243a; }
+  .light-theme .back-btn { color: var(--accent); }
+  .light-theme .field-name-input { background: #ffffff; color: #18243a; border: 1px solid rgba(0,0,0,0.12); }
+  .light-theme .detail-stats-extended .stat-card-sm { background: #ffffff; border: 1px solid rgba(0,0,0,0.08); }
+  .light-theme .ndvi-chart-container { background: #ffffff; border: 1px solid rgba(0,0,0,0.08); }
+  .light-theme .ndvi-chart-title { color: #4a5e72; }
+  .light-theme .section-title { color: #18243a; }
+  .light-theme .crop-chip { background: #e9eef5; color: #18243a; border: 1px solid rgba(0,0,0,0.09); }
+  .light-theme .crop-chip.selected { background: var(--accent); color: #fff; border-color: transparent; }
+  .light-theme .event-type { color: #18243a; }
+  .light-theme .event-date { color: #8296a8; }
+  .light-theme .event-note { color: #8296a8; }
+  .light-theme .add-event-btn { background: #e9eef5; color: var(--accent-dark); border: 1px solid rgba(76,175,80,0.20); border-radius: var(--radius-sm); padding: 10px 14px; }
+  .light-theme .season-record-card { background: #ffffff; border: 1px solid rgba(0,0,0,0.08); }
+  .light-theme .season-record-year { color: var(--accent-dark); }
+  .light-theme .yield-forecast-card { background: linear-gradient(135deg, rgba(76,175,80,0.08) 0%, rgba(255,255,255,1) 100%); border-color: rgba(76,175,80,0.25); }
+  .light-theme .yield-fc-bar-track { background: #e9eef5; }
+  .light-theme .forest-section { background: linear-gradient(135deg, rgba(56,142,60,0.07) 0%, rgba(255,255,255,1) 100%); border-color: rgba(56,142,60,0.20); }
+  .light-theme .crop-rotation-block, .light-theme #crop-rotation-container { color: #18243a; }
+
+  /* ── Search ── */
+  .light-theme .search-input-wrap { background: #ffffff; border: 1px solid rgba(0,0,0,0.12); }
+  .light-theme .search-input-wrap input { background: transparent; color: #18243a; }
+  .light-theme .search-input-wrap svg { color: #8296a8; }
+  .light-theme .search-result-item { color: #18243a; border-bottom: 1px solid rgba(0,0,0,0.06); }
+  .light-theme .search-result-item:hover { background: #f2f5f9; }
+  .light-theme .search-history-name { color: #18243a; }
+  .light-theme .search-history-meta { color: #8296a8; }
+  .light-theme .search-history-icon { color: #8296a8; }
+
+  /* ── Sub-tabs ── */
+  .light-theme .fields-subtab-row { background: #e9eef5; }
+  .light-theme .fields-subtab { color: #4a5e72; }
+  .light-theme .fields-subtab.active { background: var(--accent); color: #fff; }
+
+  /* ── Map controls ── */
+  .light-theme .map-fields-pill { background: rgba(255,255,255,0.97); border-color: rgba(0,0,0,0.12); box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
+  .light-theme .map-fields-pill-text .title { color: #18243a; }
+  .light-theme .map-fields-pill-text .sub { color: #8296a8; }
+  .light-theme .map-icon-btn { background: rgba(255,255,255,0.97); border-color: rgba(0,0,0,0.12); color: #18243a; box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
+  .light-theme #btn-geolocate { background: rgba(255,255,255,0.97); border-color: rgba(0,0,0,0.12); color: #18243a; box-shadow: 0 2px 12px rgba(0,0,0,0.12); }
+  .light-theme #layer-switcher { background: rgba(255,255,255,0.97); border-color: rgba(0,0,0,0.12); box-shadow: 0 2px 12px rgba(0,0,0,0.12); }
+  .light-theme .layer-btn { color: #4a5e72; }
+  .light-theme .layer-btn.active { color: var(--accent); background: rgba(76,175,80,0.10); }
+
+  /* ── Draw mode ── */
+  .light-theme .draw-close-btn { background: rgba(255,255,255,0.97); color: #18243a; }
+  .light-theme .draw-mode-pill { background: rgba(255,255,255,0.97); border-color: rgba(0,0,0,0.12); }
+  .light-theme .draw-mode-pill button { color: #4a5e72; }
+  .light-theme .draw-mode-pill button.active { background: var(--accent); color: #fff; }
+  .light-theme .draw-toolbar-btn { background: rgba(255,255,255,0.97); border-color: rgba(0,0,0,0.12); color: #18243a; }
+
+  /* ── Empty states ── */
+  .light-theme .empty-state p { color: #8296a8; }
+  .light-theme .empty-state svg { color: #b0bec9; }
+
+  /* ── NDVI section ── */
+  .light-theme .ndvi-panel-header { color: #18243a; }
+  .light-theme .ndvi-legend-inline { background: #ffffff; border: 1px solid rgba(0,0,0,0.09); }
+  .light-theme .ndvi-legend-inline-title { color: #4a5e72; }
+  .light-theme .ndvi-field-card { background: #ffffff; border: 1px solid rgba(0,0,0,0.08); }
+  .light-theme .ndvi-field-card-name { color: #18243a; }
+
+  /* ── Seasons section ── */
+  .light-theme .seasons-empty p { color: #8296a8; }
+  .light-theme .seasons-trend-container { background: #ffffff; border: 1px solid rgba(0,0,0,0.08); }
+  .light-theme .seasons-trend-title { color: #4a5e72; }
+  .light-theme .season-stat-mini { background: #f2f5f9; }
+
+  /* ── Login screen ── */
+  .light-theme #login-screen {
+    background: linear-gradient(160deg, #e8f4ea 0%, #f2f5f9 50%, #e2eff8 100%);
+  }
+  .light-theme .login-subtitle { color: #4a5e72; }
+
+  /* ── Field cards (expanded, NDVI view) ── */
+  .light-theme .field-card-name { color: #18243a; }
+  .light-theme .field-card-area { color: #4a5e72; }
+  .light-theme .field-card-crop { color: #8296a8; }
+  .light-theme .field-card-date { color: #8296a8; }
+  .light-theme .field-card-edit { color: #8296a8; }
+  .light-theme .fields-group-label .group-name { color: #4a5e72; }
+  .light-theme .fields-group-label .group-area { color: #8296a8; }
+  .light-theme .field-card-expanded { background: #ffffff; border: 1px solid rgba(0,0,0,0.08); }
+
+  /* ── Icon buttons in headers ── */
+  .light-theme .icon-btn { color: #18243a; }
+  .light-theme .icon-btn:active { background: rgba(0,0,0,0.07); }
+
+  /* ── Note action buttons ── */
+  .light-theme .note-action-btn { background: #e9eef5; border-color: rgba(0,0,0,0.10); color: #4a5e72; }
+
+  /* ── Field thumb ── */
+  .light-theme .field-thumb { background: #e9eef5; }
+  .light-theme .note-field-thumb { background: #e9eef5; }
+
+  /* ── Toast ── */
+  .light-theme #toast { background: #18243a; color: #fff; border-color: transparent; }
+
+  /* ── All-fields link / season label ── */
+  .light-theme .all-fields-link { color: #4a5e72; }
+  .light-theme #notes-season-label { color: #4a5e72; }
+
+  /* ── Weather field selector ── */
+  .light-theme .weather-field-selector { background: #ffffff; border: 1px solid rgba(0,0,0,0.12); }
+  .light-theme .weather-field-selector select { color: #18243a; }
+
+  /* ── Stat inline inputs ── */
+  .light-theme .stat-inline-input { color: #18243a; border-bottom-color: rgba(0,0,0,0.18); }
+
+  /* ── Map search results dropdown ── */
+  .light-theme .search-results-dropdown { background: #ffffff; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 4px 20px rgba(0,0,0,0.10); }
+
+  /* ── Event action buttons ── */
+  .light-theme .event-edit-btn, .light-theme .event-delete-btn { background: #f2f5f9; border-color: rgba(0,0,0,0.10); color: #4a5e72; }
+
+  /* ── Field detail scroll area ── */
+  .light-theme #field-detail-scroll { background: #f2f5f9; }
+
+  /* ── Firebase auth sheet ── */
+  .light-theme .fb-auth-sheet { background: #ffffff; border-color: rgba(0,0,0,0.10); }
+  .light-theme .fb-auth-title { color: #18243a; }
+  .light-theme .fb-auth-sub { color: #4a5e72; }
+  .light-theme .fb-auth-input { background: #f2f5f9; color: #18243a; border-color: rgba(0,0,0,0.12); }
+  .light-theme .fb-auth-btn.secondary { background: #e9eef5; color: #4a5e72; }
+
+  /* ══ PWA standalone: status bar compensation ══
+     When running as installed PWA (home screen), status bar overlays content.
+     We use @media (display-mode: standalone) AND the JS-added class .pwa-standalone
+     to apply extra top padding so nothing hides under the status bar. */
+  @media (display-mode: standalone) {
+    html, body {
+      height: 100% !important;
+      height: -webkit-fill-available !important;
+      /* FIX v2.9 п.5: явно снимаем ограничения высоты при работе с домашнего экрана */
+      min-height: 100vh !important;
+      min-height: -webkit-fill-available !important;
+      overflow: hidden !important;
+    }
+    #app-wrapper {
+      /* FIX 3 v2.9: full-screen on iOS home screen — remove max-width cap */
+      width: 100vw !important;
+      max-width: 100vw !important;
+      height: 100% !important;
+      height: -webkit-fill-available !important;
+      min-height: unset !important;
+      max-height: 100% !important;
+      /* Respect safe-area on all sides */
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+    }
+    .screen-header {
+      padding-top: calc(env(safe-area-inset-top, 20px) + 20px) !important;
+    }
+    .screen {
+      top: env(safe-area-inset-top, 20px) !important;
+    }
+    #screen-map {
+      top: 0 !important; /* карта всегда с 0, её контролы уже учитывают safe-top */
+    }
+  }
+  /* JS-detected standalone fallback for iOS where matchMedia doesn't always fire */
+  html.pwa-standalone, html.pwa-standalone body {
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+  html.pwa-standalone #app-wrapper {
+    /* FIX 3 v2.9: full-screen width for iOS PWA */
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100% !important;
+    min-height: unset !important;
+    max-height: 100% !important;
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  html.pwa-standalone .screen-header {
+    padding-top: calc(var(--safe-top) + 20px);
+  }
+  html.pwa-standalone .screen {
+    top: var(--safe-top);
+  }
+  .light-theme .tab-btn.active { color: var(--accent); }
+  .light-theme .tab-btn.active .tab-icon-wrap { background: rgba(76,175,80,0.12); }
+
+  /* ── Screen headers ── */
+  .light-theme .screen-header { background: #f0f4f8; }
+  .light-theme .screen-title { color: #1a2332; }
+  .light-theme .screen { background: #f0f4f8; }
+
+  /* ── Cards (field list, stat cards, weather cards) ── */
+  .light-theme .field-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+  }
+  .light-theme .field-card:active { background: #f5f8fc; }
+  .light-theme .stat-card-sm {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  }
+  .light-theme .stat-label { color: #7a8fa0; }
+  .light-theme .stat-value { color: #1a2332; }
+
+  /* ── Weather ── */
+  .light-theme .weather-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+    box-shadow: 0 1px 8px rgba(0,0,0,0.08);
+  }
+  .light-theme .weather-detail-card {
+    background: #f0f4f8;
+    border: 1px solid rgba(0,0,0,0.09);
+  }
+  .light-theme .weather-detail-label { color: #7a8fa0; }
+  .light-theme .weather-detail-val { color: #1a2332; }
+  .light-theme .weather-detail-sub { color: #7a8fa0; }
+  .light-theme .weather-temp { color: #1a2332; }
+  .light-theme .weather-field-name { color: #1a2332; }
+  .light-theme .weather-place-name { color: #5a7a8a; } /* FIX 1: light theme place name */
+  .light-theme .forecast-day-card {
+    background: #f0f4f8;
+    border: 1px solid rgba(0,0,0,0.09);
+  }
+  .light-theme .forecast-day-card.today {
+    background: rgba(76,175,80,0.08);
+    border-color: rgba(76,175,80,0.3);
+  }
+  .light-theme .fday-name { color: #4a5e72; }
+  .light-theme .fday-max { color: #1a2332; }
+  .light-theme .fday-min { color: #7a8fa0; }
+  .light-theme .rain-prob-card {
+    background: #f0f4f8;
+    border: 1px solid rgba(0,0,0,0.09);
+  }
+  .light-theme .rain-prob-label { color: #4a5e72; }
+  .light-theme .rain-prob-sub { color: #7a8fa0; }
+
+  /* ── Modals ── */
+  .light-theme .modal-overlay { background: rgba(0,0,0,0.4); }
+  .light-theme .modal-sheet {
+    background: #ffffff;
+    border-top: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .modal-title { color: #1a2332; }
+  .light-theme .modal-label { color: #4a5e72; }
+  .light-theme .modal-input {
+    background: #f0f4f8;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.14);
+  }
+  .light-theme .modal-input::placeholder { color: #9aa8b5; }
+  .light-theme .modal-select {
+    background: #f0f4f8;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.14);
+  }
+  .light-theme .modal-textarea {
+    background: #f0f4f8;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.14);
+  }
+  .light-theme .modal-btn.secondary {
+    background: #e8eef4;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.12);
+  }
+
+  /* ── Notes ── */
+  .light-theme .note-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.09);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .light-theme .note-field-name { color: #1a2332; }
+  .light-theme .note-meta { color: #7a8fa0; }
+  .light-theme .note-date { color: #7a8fa0; }
+  .light-theme .filter-chip {
+    background: #e8eef4;
+    color: #4a5e72;
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .filter-chip.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: transparent;
+  }
+
+  /* ── Profile ── */
+  .light-theme .profile-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.09);
+  }
+  .light-theme .profile-name { color: #1a2332; }
+  .light-theme .profile-email { color: #8a9fb0; }
+  .light-theme .profile-role { color: #7a8fa0; }
+  .light-theme .settings-group {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.09);
+  }
+  .light-theme .settings-group-title { color: #7a8fa0; }
+  .light-theme .setting-row label { color: #1a2332; }
+  .light-theme .setting-row select {
+    background: #f0f4f8;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.14);
+  }
+  .light-theme .about-block { color: #4a5e72; }
+  .light-theme .about-logo { color: #1a2332; }
+  .light-theme .about-version { color: #7a8fa0; }
+
+  /* ── Field detail screen ── */
+  .light-theme #screen-field-detail {
+    background: #f0f4f8;
+  }
+  /* FIX 2.9: make section dividers visible in light theme */
+  .light-theme #screen-field-detail hr {
+    border-top-color: rgba(76,175,80,0.30) !important;
+  }
+  .light-theme .detail-header {
+    background: rgba(240,244,248,0.98);
+    border-bottom: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .detail-title { color: #1a2332; }
+  .light-theme .back-btn { color: var(--accent); }
+  .light-theme .field-name-input {
+    background: #ffffff;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.14);
+  }
+  .light-theme .detail-stats-extended .stat-card-sm {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .ndvi-chart-container {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .ndvi-chart-title { color: #4a5e72; }
+  .light-theme .section-title { color: #1a2332; }
+  .light-theme .crop-chip {
+    background: #e8eef4;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .crop-chip.selected {
+    background: var(--accent);
+    color: #fff;
+    border-color: transparent;
+  }
+  .light-theme .event-type { color: #1a2332; }
+  .light-theme .event-date { color: #7a8fa0; }
+  .light-theme .event-note { color: #7a8fa0; }
+  .light-theme .add-event-btn {
+    background: #e8eef4;
+    color: #1a2332;
+    border: 1px solid rgba(0,0,0,0.12);
+  }
+  .light-theme .season-record-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .season-record-year { color: #1a2332; }
+
+  /* ── Search input ── */
+  .light-theme .search-input-wrap {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.14);
+  }
+  .light-theme .search-input-wrap input {
+    background: transparent;
+    color: #1a2332;
+  }
+  .light-theme .search-input-wrap svg { color: #7a8fa0; }
+  .light-theme .search-result-item {
+    color: #1a2332;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .light-theme .search-result-item:hover { background: #f0f4f8; }
+
+  /* ── Sub-tabs (Fields) ── */
+  .light-theme .subtab-bar {
+    background: #f0f4f8;
+    border-bottom: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .subtab-btn { color: #7a8fa0; }
+  .light-theme .subtab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Map fields pill ── */
+  .light-theme .map-fields-pill {
+    background: rgba(255,255,255,0.95);
+    border-color: rgba(0,0,0,0.12);
+  }
+  .light-theme .map-fields-pill-text .title { color: #1a2332; }
+  .light-theme .map-fields-pill-text .sub { color: #7a8fa0; }
+  .light-theme .map-icon-btn {
+    background: rgba(255,255,255,0.95);
+    border-color: rgba(0,0,0,0.12);
+    color: #1a2332;
+  }
+
+  /* ── Empty states ── */
+  .light-theme .empty-state p { color: #7a8fa0; }
+  .light-theme .empty-state svg { color: #b0bec9; }
+
+  /* ── NDVI section ── */
+  .light-theme .ndvi-panel-header { color: #1a2332; }
+  .light-theme .ndvi-legend-inline { 
+    background: #ffffff; 
+    border: 1px solid rgba(0,0,0,0.10); 
+  }
+  .light-theme .ndvi-legend-inline-title { color: #4a5e72; }
+
+  /* ── Seasons section ── */
+  .light-theme .seasons-empty p { color: #7a8fa0; }
+  .light-theme .seasons-trend-container { 
+    background: #ffffff; 
+    border: 1px solid rgba(0,0,0,0.10); 
+  }
+  .light-theme .seasons-trend-title { color: #4a5e72; }
+
+  /* ── Login screen ── */
+  .light-theme #login-screen {
+    background: linear-gradient(160deg, #e8f4ea 0%, #f0f4f8 40%, #e0f0e8 100%);
+  }
+  .light-theme .login-subtitle { color: #4a5e72; }
+  .light-theme .login-btn.email { 
+    background: #e8eef4; 
+    color: #1a2332; 
+    border-color: rgba(0,0,0,0.14); 
+  }
+
+  /* FIX v1.8: weather field selector in light mode */
+  .light-theme .weather-field-selector {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.14);
+  }
+  .light-theme .weather-field-selector select { color: #1a2332; }
+
+
+
+  /* ══════════════════════════════════════
+     FIX v1.8 R2: YIELD FORECAST CARD
+  ══════════════════════════════════════ */
+  .yield-forecast-card {
+    background: linear-gradient(135deg, rgba(76,175,80,0.12) 0%, rgba(76,175,80,0.04) 100%);
+    border: 1px solid rgba(76,175,80,0.3);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    grid-column: 1 / -1;
+  }
+  .yield-forecast-card.yield-forecast-no-data {
+    background: var(--bg2);
+    border-color: var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .yield-fc-icon { font-size: 20px; }
+  .yield-fc-text {
+    font-size: 13px;
+    color: var(--text2);
+  }
+  .yield-fc-top { margin-bottom: 10px; }
+  .yield-fc-main {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 3px;
+  }
+  .yield-fc-detail {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.2px;
+  }
+  .yield-fc-bar-wrap { margin-bottom: 6px; }
+  .yield-fc-bar-track {
+    height: 8px;
+    background: var(--bg3);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+  .yield-fc-bar-range {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: rgba(76,175,80,0.25);
+    border-radius: 4px;
+  }
+  .yield-fc-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    position: relative;
+    z-index: 1;
+    transition: width 0.6s ease;
+  }
+  .yield-fc-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text3);
+  }
+  .yield-fc-source {
+    font-size: 10px;
+    color: var(--text3);
+    margin-top: 4px;
+  }
+
+  /* ══════════════════════════════════════
+     FOREST SUBTRACTION FEATURE
+  ══════════════════════════════════════ */
+  .forest-section {
+    background: linear-gradient(135deg, rgba(56,142,60,0.10) 0%, rgba(56,142,60,0.04) 100%);
+    border: 1px solid rgba(56,142,60,0.25);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .forest-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .forest-area-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  .forest-area-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+  .forest-area-line .lbl { color: var(--text2); }
+  .forest-area-line .val { font-weight: 600; color: var(--text); }
+  .forest-area-line.net .lbl { color: var(--accent); font-weight: 700; }
+  .forest-area-line.net .val { color: var(--accent); font-size: 15px; font-weight: 700; }
+  .forest-area-line.subtracted .val { color: #ef5350; }
+  .forest-zones-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .forest-zone-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg3);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .forest-zone-item .fz-icon { font-size: 16px; flex-shrink: 0; }
+  .forest-zone-item .fz-label { flex: 1; color: var(--text2); }
+  .forest-zone-item .fz-area { font-weight: 600; color: var(--text); }
+  .forest-zone-item .fz-del {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text3);
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .forest-zone-item .fz-del:active, .forest-zone-item .fz-del:hover {
+    background: rgba(239,83,80,0.15);
+    border-color: rgba(239,83,80,0.4);
+    color: var(--danger);
+  }
+  .btn-add-forest {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: var(--radius-sm);
+    border: 1.5px dashed rgba(56,142,60,0.45);
+    background: rgba(56,142,60,0.06);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.15s;
+  }
+  .btn-add-forest:active, .btn-add-forest:hover {
+    background: rgba(56,142,60,0.14);
+    border-color: rgba(56,142,60,0.7);
+  }
+  /* draw-mode-ui in forest mode — hint text change only, no structural change */
+  #draw-hint.forest-hint { color: #a5d6a7; }
+
+  /* ══════════════════════════════════════
+     FIX v1.8 R2: EVENT EDIT/DELETE BUTTONS
+  ══════════════════════════════════════ */
+  .event-item {
+    position: relative;
+  }
+  .event-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: auto;
+    padding-left: 8px;
+  }
+  .event-edit-btn,
+  .event-delete-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    color: var(--text2);
+  }
+  .event-edit-btn:active,
+  .event-edit-btn:hover {
+    background: rgba(76,175,80,0.15);
+    border-color: rgba(76,175,80,0.4);
+    color: var(--accent);
+  }
+  .event-delete-btn:active,
+  .event-delete-btn:hover {
+    background: rgba(239,83,80,0.15);
+    border-color: rgba(239,83,80,0.4);
+    color: var(--danger);
+  }
+
+  /* ── Note action buttons ── */
+  .light-theme .note-action-btn {
+    background: #e8eef4;
+    border-color: rgba(0,0,0,0.12);
+    color: #4a5e72;
+  }
+
+  /* ── Field card text elements ── */
+  .light-theme .field-card-name { color: #1a2332; }
+  .light-theme .field-card-area { color: #4a5e72; }
+  .light-theme .field-card-crop { color: #7a8fa0; }
+  .light-theme .field-card-date { color: #7a8fa0; }
+  .light-theme .field-card-edit { color: #7a8fa0; }
+
+  /* ── Field group labels ── */
+  .light-theme .fields-group-label .group-name { color: #4a5e72; }
+  .light-theme .fields-group-label .group-area { color: #7a8fa0; }
+
+  /* ── Icon buttons in headers ── */
+  .light-theme .icon-btn { color: #1a2332; }
+  .light-theme .icon-btn:active { background: rgba(0,0,0,0.08); }
+
+  /* ── Layer switcher (карта) ── */
+  .light-theme #layer-switcher {
+    background: rgba(255,255,255,0.97);
+    border-color: rgba(0,0,0,0.14);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  }
+  .light-theme .layer-btn {
+    color: #4a5e72;
+  }
+  .light-theme .layer-btn.active {
+    color: var(--accent);
+    background: rgba(76,175,80,0.10);
+  }
+
+  /* ── Geolocation button ── */
+  .light-theme #btn-geolocate {
+    background: rgba(255,255,255,0.97);
+    border-color: rgba(0,0,0,0.14);
+    color: #1a2332;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  }
+
+  /* ── Map icon buttons (search, add) ── */
+  .light-theme .map-icon-btn {
+    background: rgba(255,255,255,0.97);
+    border-color: rgba(0,0,0,0.14);
+    color: #1a2332;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  }
+
+  /* ── Field thumb backgrounds ── */
+  .light-theme .field-thumb { background: #e8eef4; }
+  .light-theme .note-field-thumb { background: #e8eef4; }
+
+  /* ── Toast notifications ── */
+  .light-theme .toast {
+    background: #1a2332;
+    color: #fff;
+  }
+
+  /* ── Draw mode UI ── */
+  .light-theme .draw-close-btn {
+    background: rgba(255,255,255,0.97);
+    color: #1a2332;
+  }
+  .light-theme .draw-mode-pill {
+    background: rgba(255,255,255,0.97);
+    border-color: rgba(0,0,0,0.14);
+    color: #1a2332;
+  }
+  .light-theme .draw-mode-pill button { color: #4a5e72; }
+  .light-theme .draw-mode-pill button.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  .light-theme .draw-area-pill {
+    background: rgba(255,255,255,0.97);
+    color: #1a2332;
+    border-color: rgba(0,0,0,0.14);
+  }
+  .light-theme .draw-finish-btn {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  /* ── NDVI field cards (Fields → NDVI tab) ── */
+  .light-theme .ndvi-field-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+  .light-theme .ndvi-field-name-block { color: #1a2332; }
+
+  /* ── Season record cards ── */
+  .light-theme .season-record-card {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+    color: #1a2332;
+  }
+
+  /* ── Event item rows in field detail ── */
+  .light-theme .event-item {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.09);
+  }
+
+  /* ── Field detail scroll content ── */
+  .light-theme #field-detail-scroll { background: #f0f4f8; }
+
+  /* ── Stat inline inputs ── */
+  .light-theme .stat-inline-input {
+    color: #1a2332;
+    border-bottom-color: rgba(0,0,0,0.20);
+  }
+
+  /* ── All fields link / Season label in Notes ── */
+  .light-theme .all-fields-link { color: #4a5e72; }
+  .light-theme #notes-season-label { color: #4a5e72; }
+
+  /* ── Weather field meta pill ── */
+  .light-theme #weather-field-meta {
+    background: rgba(255,255,255,0.95);
+    border-color: rgba(0,0,0,0.12);
+    color: #1a2332;
+  }
+
+  /* ── Profile avatar circle ── */
+  .light-theme .profile-avatar {
+    background: #e0eee1;
+    color: var(--accent);
+  }
+
+  /* ── Setting rows ── */
+  .light-theme .setting-row {
+    border-bottom-color: rgba(0,0,0,0.07);
+  }
+  .light-theme .setting-value { color: #7a8fa0; }
+
+  /* ── Expanded field cards (NDVI view) ── */
+  .light-theme .field-card-expanded {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.10);
+  }
+
+  /* ── Map search results ── */
+  .light-theme .search-results-dropdown {
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.14);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  }
+
+
+  .light-theme .yield-forecast-card {
+    background: linear-gradient(135deg, rgba(76,175,80,0.08) 0%, rgba(255,255,255,1) 100%);
+    border-color: rgba(76,175,80,0.25);
+  }
+  .light-theme .yield-fc-bar-track { background: #e8eef4; }
+  .light-theme .event-edit-btn,
+  .light-theme .event-delete-btn {
+    background: #f0f4f8;
+    border-color: rgba(0,0,0,0.12);
+    color: #4a5e72;
+  }
+
+/* ══════════════════════════════════════
+   CROP ROTATION TIMELINE
+══════════════════════════════════════ */
+.rotation-tl-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 6px 0 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.rotation-tl-wrap::-webkit-scrollbar { display: none; }
+.rotation-tl-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-width: 64px;
+}
+.rotation-tl-year {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text2);
+}
+.rotation-tl-crop {
+  font-size: 10px;
+  font-weight: 600;
+  color: #1a2332;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.3;
+}
+.rotation-tl-arrow {
+  color: var(--text3);
+  font-size: 14px;
+  flex-shrink: 0;
+  margin: 0 2px;
+  padding-top: 12px;
+}
+.rotation-tl-warn .rotation-tl-crop {
+  outline: 2px solid #ff9800;
+  outline-offset: 1px;
+}
+.rotation-tl-alert {
+  font-size: 10px;
+  line-height: 1;
+}
+
+/* ══════════════════════════════════════
+   DOSE CALCULATOR
+══════════════════════════════════════ */
+.calc-presets-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.calc-preset-chip {
+  font-size: 11px;
+  font-family: inherit;
+  padding: 5px 10px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text2);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.calc-preset-chip:active,
+.calc-preset-chip:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.calc-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.calc-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.calc-input-row label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+}
+.calc-input-pair {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.calc-input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text);
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.calc-input:focus {
+  border-color: var(--accent);
+}
+.calc-unit-select {
+  padding: 10px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  min-width: 56px;
+}
+.calc-currency {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text3);
+  min-width: 24px;
+  text-align: center;
+}
+.calc-results {
+  background: rgba(76, 175, 80, 0.08);
+  border: 1px solid rgba(76, 175, 80, 0.2);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.calc-result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: var(--text2);
+  padding: 4px 0;
+}
+.calc-result-row strong {
+  color: var(--accent);
+  font-size: 16px;
+}
+
+
+  /* ══════════════════════════════════════
+     ОШИБКА ПЕРЕСЕЧЕНИЯ ЛИНИЙ (Draw)
+  ══════════════════════════════════════ */
+  #draw-intersect-error {
+    display: none;
+    position: absolute;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: calc(var(--z-draw) + 10);
+    background: #ef5350;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 10px 22px;
+    border-radius: 100px;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(239,83,80,0.5);
+    pointer-events: none;
+    animation: slideDown 0.25s ease;
+  }
+  #draw-intersect-error.visible { display: block; }
+  @keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+  /* Firebase auth modal */
+  .fb-auth-modal {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.7);
+    display: flex; align-items: flex-end; justify-content: center;
+    /* FIX 2.4: lift sheet above bottom nav bar so "Cancel" is fully visible */
+    padding-bottom: var(--nav-total, 64px);
+  }
+  .fb-auth-sheet {
+    background: var(--bg2);
+    border-radius: 24px 24px 0 0;
+    padding: 24px 24px 28px;
+    width: 100%; max-width: 480px;
+    border: 1px solid var(--border);
+    border-bottom: none;
+  }
+  .fb-auth-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .fb-auth-sub { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+  .fb-auth-input {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    font-size: 15px; padding: 12px 14px; margin-bottom: 10px;
+    outline: none; font-family: inherit; box-sizing: border-box;
+  }
+  .fb-auth-input:focus { border-color: var(--accent); }
+  .fb-auth-btn {
+    width: 100%; padding: 14px; border-radius: var(--radius-sm);
+    border: none; font-size: 15px; font-weight: 600;
+    cursor: pointer; margin-bottom: 8px; transition: opacity 0.2s;
+  }
+  .fb-auth-btn.primary { background: var(--accent); color: #fff; }
+  .fb-auth-btn.google {
+    background: #fff; color: #222;
+    border: 1px solid #ddd;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .fb-auth-btn.secondary { background: var(--bg3); color: var(--text2); }
+  .fb-auth-toggle { text-align: center; font-size: 13px; color: var(--text3); margin-top: 6px; cursor: pointer; }
+  .fb-auth-toggle span { color: var(--accent); text-decoration: underline; }
+  .fb-auth-error { color: var(--danger); font-size: 12px; margin-bottom: 8px; min-height: 16px; }
+  .fb-sync-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--accent);
+    background: rgba(76,175,80,0.12);
+    border: 1px solid rgba(76,175,80,0.25);
+    border-radius: 100px; padding: 3px 8px;
+    margin-top: 4px;
+  }
+
+  /* ══════════════════════════════════════
+     NDVI НАСТРОЙКИ И СТАТУС
+  ══════════════════════════════════════ */
+  #ndvi-status-panel {
+    display: none;
+    position: absolute;
+    bottom: calc(var(--nav-total) + 130px);
+    left: 16px;
+    right: 16px;
+    z-index: var(--z-map);
+    background: var(--bg2);
+    border: 1px solid rgba(76,175,80,0.3);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    max-width: 280px;
+  }
+  #ndvi-status-panel.visible { display: block; }
+  .ndvi-status-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ndvi-status-row {
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 3px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .ndvi-status-row span:last-child { color: var(--text); font-weight: 600; }
+  .ndvi-field-avg {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .ndvi-loading-spinner {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
