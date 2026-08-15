@@ -704,9 +704,9 @@ function loadFields() {
     return JSON.parse(data || '[]');
   } catch { return []; }
 }
-function saveFields(fields) {
+let saveFields = function(fields) {
   localStorage.setItem(STORAGE_PREFIX + '-fields', JSON.stringify(fields));
-}
+};
 
 // ════════════════════════════════════════════════════
 // АВТОРИЗАЦИЯ (localStorage, без сервера)
@@ -754,9 +754,9 @@ function initLanguage() {
   else if (settings.language === 'ru' || settings.language === 'en') lang = settings.language;
   else lang = 'en';
 }
-function saveSettings(settings) {
+let saveSettings = function(settings) {
   localStorage.setItem(STORAGE_PREFIX + '-settings', JSON.stringify(settings));
-}
+};
 function getAreaUnit() {
   const s = loadSettings();
   return s.units === 'acres' ? t('acres') : t('ha');
@@ -4295,9 +4295,9 @@ const FAVS_KEY = STORAGE_PREFIX + '-weather-favs';
 function loadFavouriteCities() {
   try { return JSON.parse(localStorage.getItem(FAVS_KEY) || '[]'); } catch { return []; }
 }
-function saveFavouriteCities(favs) {
+let saveFavouriteCities = function(favs) {
   localStorage.setItem(FAVS_KEY, JSON.stringify(favs));
-}
+};
 
 function renderFavouriteCities() {
   const list = document.getElementById('weather-fav-list');
@@ -5341,7 +5341,7 @@ function loadSeasonRecords() {
   } catch(e) { return []; }
 }
 
-function saveSeasonRecords(records) {
+let saveSeasonRecords = function(records) {
   localStorage.setItem(SEASONS_STORAGE_KEY, JSON.stringify(records));
   // FIX 2.5: sync season records to Firebase if logged in
   if (typeof _fbGetUser === 'function' && _fbGetUser()) {
@@ -5603,15 +5603,15 @@ function loadSeasonManagerData() {
     return JSON.parse(localStorage.getItem(STORAGE_PREFIX + '-seasons-mgr') || '[]');
   } catch { return []; }
 }
-function saveSeasonManagerData(data) {
+let saveSeasonManagerData = function(data) {
   localStorage.setItem(STORAGE_PREFIX + '-seasons-mgr', JSON.stringify(data));
-}
+};
 function loadActiveSeason() {
   return localStorage.getItem(STORAGE_PREFIX + '-active-season') || 'Сезон 2026';
 }
-function saveActiveSeason(name) {
+let saveActiveSeason = function(name) {
   localStorage.setItem(STORAGE_PREFIX + '-active-season', name);
-}
+};
 
 function updateSeasonLabel() {
   const label = document.getElementById('current-season-label');
