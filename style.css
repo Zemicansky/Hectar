@@ -369,8 +369,8 @@
   ══════════════════════════════════════ */
   .screen {
     position: absolute;
-    /* top с учётом safe-top для notch/Dynamic Island */
-    top: var(--safe-top);
+    /* top = 0 чтобы заполнить экран до верха (safe-top учитывается внутри screen-header) */
+    top: 0;
     left: 0;
     right: 0;
     /* bottom = полная высота таббара включая safe-bottom */
@@ -3247,7 +3247,7 @@
       padding-top: calc(var(--safe-top) + 20px) !important;
     }
     .screen {
-      top: var(--safe-top) !important;
+      top: 0 !important;
     }
     #screen-map {
       top: 0 !important; /* карта всегда с 0, её контролы уже учитывают safe-top */
@@ -3266,7 +3266,7 @@
     padding-top: calc(var(--safe-top) + 20px);
   }
   html.pwa-standalone .screen {
-    top: var(--safe-top);
+    top: 0;
   }
   .light-theme .tab-btn.active { color: var(--accent); }
   .light-theme .tab-btn.active .tab-icon-wrap { background: rgba(76,175,80,0.12); }
