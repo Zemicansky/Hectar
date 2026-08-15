@@ -3239,22 +3239,15 @@
       overflow: hidden !important;
     }
     #app-wrapper {
-      /* FIX 3 v2.9: full-screen on iOS home screen — remove max-width cap */
-      width: 100vw !important;
-      max-width: 100vw !important;
-      height: 100% !important;
-      height: -webkit-fill-available !important;
-      min-height: unset !important;
-      max-height: 100% !important;
       /* Respect safe-area on all sides */
       padding-left: env(safe-area-inset-left, 0px);
       padding-right: env(safe-area-inset-right, 0px);
     }
     .screen-header {
-      padding-top: calc(env(safe-area-inset-top, 20px) + 20px) !important;
+      padding-top: calc(var(--safe-top) + 20px) !important;
     }
     .screen {
-      top: env(safe-area-inset-top, 20px) !important;
+      top: var(--safe-top) !important;
     }
     #screen-map {
       top: 0 !important; /* карта всегда с 0, её контролы уже учитывают safe-top */
@@ -3266,12 +3259,6 @@
     overflow: hidden !important;
   }
   html.pwa-standalone #app-wrapper {
-    /* FIX 3 v2.9: full-screen width for iOS PWA */
-    width: 100vw !important;
-    max-width: 100vw !important;
-    height: 100% !important;
-    min-height: unset !important;
-    max-height: 100% !important;
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
   }
