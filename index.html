@@ -110,25 +110,78 @@
   </div>
 
   
-  <!-- Модалка Настройки Заезда -->
+  
+  <!-- Модалка быстрого действия с плюса -->
+  <div class="modal-overlay" id="modal-add-menu" onclick="if(event.target===this)closeAddMenuModal()">
+    <div class="modal-sheet" style="max-width:400px;margin:0 auto;">
+      <div class="modal-handle"></div>
+      <div class="modal-header-row">
+        <div class="modal-title">✨ Быстрое действие</div>
+        <button type="button" class="icon-btn" onclick="closeAddMenuModal()">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-sheet-body" style="display:flex;flex-direction:column;gap:10px;padding-bottom:calc(var(--safe-bottom) + 20px);">
+        <button class="menu-action-card" onclick="closeAddMenuModal();startDrawMode();">
+          <div class="menu-action-icon" style="background:rgba(76,175,80,0.15);color:var(--accent);">🌱</div>
+          <div class="menu-action-info">
+            <div class="menu-action-title">Добавить / нарисовать поле</div>
+            <div class="menu-action-sub">Очертите контур поля на спутниковой карте</div>
+          </div>
+        </button>
+        <button class="menu-action-card" onclick="closeAddMenuModal();openTractorSetupModal();">
+          <div class="menu-action-icon" style="background:rgba(33,150,243,0.15);color:#2196f3;">🚜</div>
+          <div class="menu-action-info">
+            <div class="menu-action-title">Заезд на тракторе</div>
+            <div class="menu-action-sub">Агронавигатор, полосы движения и закрашивание следа</div>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+    <!-- Модалка Настройки Заезда -->
   <div class="modal-overlay" id="modal-tractor-setup" onclick="if(event.target===this)closeTractorSetupModal()">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-header-row">
-        <div class="modal-title">🚜 Настройки заезда</div>
+        <div class="modal-title">🚜 Параллельное вождение</div>
         <button type="button" class="icon-btn" onclick="closeTractorSetupModal()">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
       <div class="modal-sheet-body">
-        <p style="font-size:14px;color:var(--text2);margin-bottom:16px;">
-          Включите GPS. Траектория вашего движения будет отрисовываться на карте с учетом ширины оборудования.
+        <p style="font-size:13px;color:var(--text2);margin-bottom:14px;">
+          Выберите поле и ширину орудия. Система построит параллельные направляющие линии (гоны) и будет закрашивать обработанный участок по GPS.
         </p>
-        <div style="margin-bottom: 20px;">
-          <label style="display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;">Ширина оборудования (метры)</label>
-          <input type="number" id="tractor-width-input" class="modal-input" value="12" step="0.5" min="1">
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;">Поле для обработки</label>
+          <select id="tractor-field-select" class="modal-select"></select>
         </div>
-        <button class="modal-btn primary" onclick="startTractorTracking()">Начать работу</button>
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;">Ширина захвата оборудования (метры)</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="number" id="tractor-width-input" class="modal-input" value="12" step="0.5" min="1" style="flex:1;">
+            <div style="display:flex;gap:4px;">
+              <button type="button" class="preset-chip" onclick="document.getElementById('tractor-width-input').value='6'">6м</button>
+              <button type="button" class="preset-chip" onclick="document.getElementById('tractor-width-input').value='12'">12м</button>
+              <button type="button" class="preset-chip" onclick="document.getElementById('tractor-width-input').value='18'">18м</button>
+              <button type="button" class="preset-chip" onclick="document.getElementById('tractor-width-input').value='24'">24м</button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-bottom:18px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;">Тип операции</label>
+          <select id="tractor-op-select" class="modal-select">
+            <option value="sowing">🌱 Посев / Посадка</option>
+            <option value="spraying">💧 Опрыскивание / СЗР</option>
+            <option value="fertilizing">🧪 Внесение удобрений</option>
+            <option value="tillage">🚜 Вспашка / Дискование</option>
+            <option value="harvest">🌾 Уборка урожая</option>
+            <option value="other">⚙️ Другая операция</option>
+          </select>
+        </div>
+        <button class="modal-btn primary" onclick="startTractorTracking()">Начать заезд</button>
       </div>
     </div>
   </div>
@@ -190,7 +243,7 @@
         <div class="map-icon-btn" onclick="openSearchModal()">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </div>
-        <div class="map-icon-btn" onclick="startDrawMode()">
+        <div class="map-icon-btn" onclick="openAddMenuModal()" title="Добавить / Действия">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </div>
       </div>
@@ -248,13 +301,6 @@
       <button id="btn-geolocate" onclick="geolocate()">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/><circle cx="12" cy="12" r="9" opacity="0.3"/></svg>
       </button>
-
-      
-      <!-- Кнопка Трактор/Заезд -->
-      <button id="btn-tractor-mode" onclick="openTractorSetupModal()">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="10" width="14" height="8" rx="2"/><circle cx="6" cy="18" r="2"/><circle cx="14" cy="18" r="2"/><path d="M17 14h3a2 2 0 0 0 2-2v-2l-3-2H8"/><path d="M12 10V6a1 1 0 0 1 1-1h2"/></svg>
-        <span data-i18n="tractorMode">Заезд</span>
-      </button>
       <!-- Кнопка добавить поле -->
       <button id="btn-add-field-map" onclick="startDrawMode()">
         <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -301,32 +347,42 @@
     </div>
 
     
-    <!-- Режим трактора -->
+            <!-- Панель активного заезда -->
     <div id="tractor-active-ui" style="display:none; position:fixed; top:0; left:0; width:100%; z-index:900; pointer-events:none;">
-      <div style="padding:calc(var(--safe-top) + 16px) 16px 0;">
-        <div style="background:var(--glass);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:16px;pointer-events:auto;box-shadow:var(--shadow);">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <div style="font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px;">
-              <span class="pulse-dot" style="width:10px;height:10px;background:#ff6b6b;border-radius:50%;display:inline-block;animation:pulse 1.5s infinite;"></span>
-              <span id="tractor-status-text">Запись трека</span>
+      <div style="padding:calc(var(--safe-top) + 12px) 14px 0; max-width:430px; margin:0 auto;">
+        <div style="background:rgba(15, 25, 35, 0.88);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.12);border-radius:var(--radius-lg);padding:14px 16px;pointer-events:auto;box-shadow:0 12px 36px rgba(0,0,0,0.5);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="pulse-dot" style="width:10px;height:10px;background:#00e676;border-radius:50%;display:inline-block;animation:pulse-green 1.5s infinite;"></span>
+              <div>
+                <div style="font-weight:700;font-size:15px;color:#fff;" id="tractor-active-field-name">Заезд на поле</div>
+                <div style="font-size:11px;color:var(--text3);" id="tractor-active-op-name">Ширина: 12м</div>
+              </div>
             </div>
-            <button class="modal-btn secondary" onclick="stopTractorTracking()" style="width:auto;padding:8px 16px;font-size:14px;background:#ff6b6b20;color:#ff6b6b;border:1px solid #ff6b6b40;">Завершить</button>
+            <div style="display:flex;gap:6px;">
+              <button class="modal-btn secondary" onclick="toggleTractorSimulation()" title="Включить тест/симуляцию" style="width:auto;padding:7px 10px;font-size:12px;font-weight:600;background:rgba(33,150,243,0.18);color:#64b5f6;border:1px solid rgba(33,150,243,0.4);border-radius:100px;">▶ Демо</button>
+              <button class="modal-btn secondary" onclick="stopTractorTracking()" style="width:auto;padding:7px 14px;font-size:13px;font-weight:700;background:rgba(255,107,107,0.18);color:#ff6b6b;border:1px solid rgba(255,107,107,0.4);border-radius:100px;">Завершить</button>
+            </div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;background:rgba(255,255,255,0.04);padding:8px 10px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.05);">
             <div>
-              <div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Площадь</div>
-              <div style="font-size:22px;font-weight:800;color:var(--accent);"><span id="tractor-stat-area">0.00</span> <span style="font-size:14px;color:var(--text2);">га</span></div>
+              <div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600;">Обработано</div>
+              <div style="font-size:18px;font-weight:800;color:#00e676;"><span id="tractor-stat-area">0.0</span> <span style="font-size:11px;color:var(--text2);font-weight:500;">га</span></div>
             </div>
             <div>
-              <div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Дистанция</div>
-              <div style="font-size:22px;font-weight:800;color:#fff;"><span id="tractor-stat-dist">0.0</span> <span style="font-size:14px;color:var(--text2);">км</span></div>
+              <div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600;">Дистанция</div>
+              <div style="font-size:18px;font-weight:800;color:#fff;"><span id="tractor-stat-dist">0.0</span> <span style="font-size:11px;color:var(--text2);font-weight:500;">км</span></div>
             </div>
             <div>
-              <div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Скорость</div>
-              <div style="font-size:16px;font-weight:700;color:#fff;"><span id="tractor-stat-speed">0</span> <span style="font-size:12px;color:var(--text2);">км/ч</span></div>
+              <div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600;">Скорость</div>
+              <div style="font-size:18px;font-weight:800;color:#64b5f6;"><span id="tractor-stat-speed">0.0</span> <span style="font-size:11px;color:var(--text2);font-weight:500;">км/ч</span></div>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+      </div>
+    </div>
       </div>
     </div>
 

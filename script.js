@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════
 // КОНСТАНТЫ ПРИЛОЖЕНИЯ
 // ════════════════════════════════════════════════════
-const APP_VERSION = '3.0.1';
+const APP_VERSION = '3.0';
 const STORAGE_PREFIX = 'hectar';
 const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
 const DEFAULT_MAP_ZOOM = 11;
@@ -60,7 +60,7 @@ function cropLabel(c) { return lang === 'ru' ? c.ru : c.en; }
 
 // ════════════════════════════════════════════════════
 // ЗАДАЧА 2: Умный севооборот
-// AUDIT v3.0.1: проведена сверка ROTATION_RULES со списком CROPS.
+// AUDIT v3.0: проведена сверка ROTATION_RULES со списком CROPS.
 // Все 21 культура из CROPS (кроме 'other', для которой логика отдельная —
 // см. getCropRotationRecommendation) имеют запись в ROTATION_RULES,
 // включая mustard (строка ниже). Явных агрономических противоречий
@@ -399,7 +399,7 @@ function renderCropRotationBlock(field) {
   const rec = getCropRotationRecommendation(field);
   const isRu = lang === 'ru';
 
-  // v3.0.1 UX FIX: "хорошие" культуры раньше рендерились как 4 одинаковые
+  // v3.0 UX FIX: "хорошие" культуры раньше рендерились как 4 одинаковые
   // крупные карточки с дословно повторяющимся текстом объяснения
   // ("Хороший предшественник после Пшеница" x4) — избыточная когнитивная
   // нагрузка. Теперь: общая подпись-обоснование один раз сверху,
@@ -1446,7 +1446,7 @@ function addNdviLayer() {
   ndviLayer.addTo(map);
   ndviLayer.setZIndex(450);
 
-  // FIX 3.0.1: раньше tileerror никак не обрабатывался — если NASA GIBS был
+  // FIX 3.0: раньше tileerror никак не обрабатывался — если NASA GIBS был
   // полностью недоступен, слой просто тихо не отрисовывался без сообщения.
   // Показываем тост один раз за загрузку слоя (не на каждый упавший тайл).
   let _ndviErrorShown = false;
@@ -1880,96 +1880,7 @@ function getHealthStatus(ndvi) {
   return { label: lang === 'ru' ? 'Критично' : 'Critical', cls: 'red' };
 }
 
-/** v3.0: Field Health Index — comprehensive field health assessment
- * Returns a score from 1-10 and detailed factor breakdown for a farmer.
- * Combines NDVI, crop type, season timing, estimated soil quality, and weather risk. */
-function computeFieldHealthIndex(field, ndvi) {
-  const isRu = lang === 'ru';
-  const month = new Date().getMonth() + 1;
-  
-  // Factor 1: Vegetation (NDVI) — weight 40%
-  const vegScore = Math.min(10, Math.max(0, ndvi * 12.5)); // 0.8 NDVI => 10
-  
-  // Factor 2: Season timing — weight 20%
-  const seasonalPeak = [3, 3, 4, 6, 8, 9, 10, 9, 7, 5, 3, 3];
-  const seasonScore = seasonalPeak[month - 1];
-  
-  // Factor 3: Crop suitability (simplified) — weight 15%
-  const cropScores = { wheat: 8, corn: 9, sunflower: 7, barley: 8, soybean: 8, rapeseed: 7, rice: 6 };
-  const cropScore = cropScores[field.crop] || 6;
-  
-  // Factor 4: Field size efficiency — weight 10%
-  const areaHa = field.area || 0;
-  const sizeScore = areaHa > 100 ? 9 : areaHa > 30 ? 8 : areaHa > 10 ? 7 : areaHa > 1 ? 6 : 4;
-  
-  // Factor 5: Moisture estimate (from season) — weight 15%
-  const moistureBase = [5, 5, 6, 7, 7, 6, 5, 5, 6, 7, 6, 5];
-  const moistureScore = Math.min(10, moistureBase[month - 1] + (ndvi > 0.5 ? 2 : 0));
-  
-  // Weighted total
-  const total = (vegScore * 0.40) + (seasonScore * 0.20) + (cropScore * 0.15) + (sizeScore * 0.10) + (moistureScore * 0.15);
-  const score = Math.min(10, Math.max(1, Math.round(total * 10) / 10));
-  
-  // Color based on score
-  let color, label;
-  if (score >= 8) { color = '#4CAF50'; label = isRu ? 'Отличное' : 'Excellent'; }
-  else if (score >= 6) { color = '#8BC34A'; label = isRu ? 'Хорошее' : 'Good'; }
-  else if (score >= 4) { color = '#FFA500'; label = isRu ? 'Среднее' : 'Average'; }
-  else if (score >= 2.5) { color = '#FF6B6B'; label = isRu ? 'Слабое' : 'Weak'; }
-  else { color = '#8B0000'; label = isRu ? 'Критичное' : 'Critical'; }
-  
-  return {
-    score: score.toFixed(1),
-    color,
-    label,
-    factors: [
-      { icon: '🌿', name: isRu ? 'Вегетация (NDVI)' : 'Vegetation (NDVI)', value: vegScore.toFixed(1), color: getNdviColor(ndvi), pct: vegScore * 10 },
-      { icon: '📅', name: isRu ? 'Сезон' : 'Season timing', value: seasonScore.toFixed(1), color: seasonScore >= 7 ? '#4CAF50' : '#FFA500', pct: seasonScore * 10 },
-      { icon: '🌾', name: isRu ? 'Культура' : 'Crop type', value: cropScore.toFixed(1), color: cropScore >= 7 ? '#4CAF50' : '#FFA500', pct: cropScore * 10 },
-      { icon: '📐', name: isRu ? 'Размер поля' : 'Field size', value: sizeScore.toFixed(1), color: sizeScore >= 7 ? '#4CAF50' : '#FFA500', pct: sizeScore * 10 },
-      { icon: '💧', name: isRu ? 'Влага (оценка)' : 'Moisture (est.)', value: moistureScore.toFixed(1), color: moistureScore >= 6 ? '#4CAF50' : '#FFA500', pct: moistureScore * 10 }
-    ]
-  };
-}
 
-/** v3.0: Renders the Health Index card HTML */
-function renderHealthIndexCard(field, ndvi) {
-  const hi = computeFieldHealthIndex(field, ndvi);
-  const isRu = lang === 'ru';
-  return `
-    <div class="health-index-card">
-      <div class="health-index-header">
-        <div>
-          <div class="health-index-title">🏥 ${isRu ? 'Индекс здоровья поля' : 'Field Health Index'}</div>
-          <div class="health-index-label" style="color:${hi.color};text-align:left;">${hi.label}</div>
-        </div>
-        <div class="health-index-score" style="background:${hi.color};">
-          ${hi.score}
-        </div>
-      </div>
-      <div class="health-index-metrics">
-        <div class="health-metric">
-          <div class="health-metric-label">NDVI</div>
-          <div class="health-metric-value" style="color:${getNdviColor(ndvi)};">${ndvi}</div>
-          <div class="health-metric-bar"><div class="health-metric-bar-fill" style="width:${Math.round(ndvi*100)}%;background:${getNdviColor(ndvi)};"></div></div>
-        </div>
-        <div class="health-metric">
-          <div class="health-metric-label">${isRu ? 'Оценка' : 'Score'}</div>
-          <div class="health-metric-value" style="color:${hi.color};">${hi.score}<span style="font-size:11px;color:var(--text3);">/10</span></div>
-          <div class="health-metric-bar"><div class="health-metric-bar-fill" style="width:${hi.score*10}%;background:${hi.color};"></div></div>
-        </div>
-      </div>
-      <div class="health-index-factors">
-        ${hi.factors.map(f => `
-          <div class="health-factor-row">
-            <div class="health-factor-icon" style="background:${f.color}20;">${f.icon}</div>
-            <div class="health-factor-name">${f.name}</div>
-            <div class="health-factor-value" style="color:${f.color};">${f.value}</div>
-          </div>
-        `).join('')}
-      </div>
-    </div>`;
-}
 
 function getYieldForecast(field, ndvi) {
   // FIX v1.8 R2: improved yield forecast in t/ha — also used internally
@@ -2353,6 +2264,10 @@ function clearTempDrawLayers() {
 }
 
 function onMapClick(e) {
+  if (typeof tractorActive !== 'undefined' && tractorActive) {
+    updateTractorLocation([e.latlng.lat, e.latlng.lng]);
+    return;
+  }
   // Ruler / measure mode — unlimited points, shows segment + total distance
   if (isMeasureMode) {
     const pt = [e.latlng.lat, e.latlng.lng];
@@ -3109,7 +3024,7 @@ function renderFieldDetailHTML(field) {
 
     <hr style="border:none;border-top:2px solid rgba(76,175,80,0.25);margin:22px 0 12px;">
 
-    <!-- v3.0.1: REDESIGN — единый стиль карточки для всех секций (как прогноз урожайности + NDVI) -->
+    <!-- v3.0: REDESIGN — единый стиль карточки для всех секций (как прогноз урожайности + NDVI) -->
     <!-- FIX v2.0: Yield Forecast Card — pessimistic base + continent + NDVI -->
     ${(() => {
       const fc = getDetailedYieldForecast(field, ndvi);
@@ -3162,7 +3077,7 @@ function renderFieldDetailHTML(field) {
       <div style="font-size:10px;color:var(--text3);margin-top:4px;text-align:right;">NASA MODIS · ${lang === 'ru' ? 'расчётные данные' : 'estimated data'}</div>
     </div>
 
-    ${renderHealthIndexCard(field, ndvi)}
+    
 
     <!-- Умный севооборот — та же карточка, что и выше -->
     <div class="detail-uniform-card">
@@ -4652,7 +4567,7 @@ async function loadWeather() {
 
   try {
     const [lat, lng] = field.center;
-    // v3.0.1: добавлены soil_moisture (4 слоя) и past_days=30 для суммы
+    // v3.0: добавлены soil_moisture (4 слоя) и past_days=30 для суммы
     // осадков за последние 30 дней — тот же запрос, тот же бесплатный
     // Open-Meteo API без ключа, реальные модельные данные (ERA5/ECMWF),
     // не тестовые/случайные значения.
@@ -4675,7 +4590,7 @@ async function loadWeather() {
     const feelsLike = cur.apparent_temperature;
     const canSpray = wind < 5 && rain === 0;
 
-    // v3.0.1: с добавлением past_days=30 массив daily.time содержит
+    // v3.0: с добавлением past_days=30 массив daily.time содержит
     // past_days + forecast_days записей (37: 30 прошедших + сегодня + 6
     // будущих), упорядоченных от самой ранней даты к самой поздней.
     // Индекс "сегодня" детерминирован — он всегда равен past_days (30),
@@ -4704,7 +4619,7 @@ async function loadWeather() {
         </div>`;
     }).join('');
 
-    // v3.0.1: сумма осадков за последние 30 дней (дни до todayIdx, не включая
+    // v3.0: сумма осадков за последние 30 дней (дни до todayIdx, не включая
     // сегодня) — реальные дневные суммы из daily.precipitation_sum.
     const past30 = daily.precipitation_sum.slice(Math.max(0, todayIdx - PAST_DAYS), todayIdx);
     const rain30Total = past30.reduce((s, v) => s + (v || 0), 0);
@@ -4714,7 +4629,7 @@ async function loadWeather() {
       return `<div class="rain30-bar" style="height:${h}px;" title="${(v||0).toFixed(1)} mm"></div>`;
     }).join('');
 
-    // v3.0.1: влажность почвы — реальные данные Open-Meteo (модель ERA5/ECMWF).
+    // v3.0: влажность почвы — реальные данные Open-Meteo (модель ERA5/ECMWF).
     // Берём последнее доступное почасовое значение с непустыми данными по
     // всем слоям — это самый свежий снимок влажности. Прямое сравнение с
     // Date.now() здесь ненадёжно: hourly.time приходит в локальном времени
@@ -4877,7 +4792,7 @@ async function loadWeather() {
           </div>`;
           })()}
 
-          <!-- v3.0.1: сумма осадков за последние 30 дней (реальные данные Open-Meteo) -->
+          <!-- v3.0: сумма осадков за последние 30 дней (реальные данные Open-Meteo) -->
           <div class="rain30-card">
             <div class="rain30-top">
               <span class="soil-moisture-label" style="margin-bottom:0;">🌧 ${isRu ? 'Осадки за 30 дней' : 'Rain, last 30 days'}</span>
@@ -4886,7 +4801,7 @@ async function loadWeather() {
             ${past30.length ? `<div class="rain30-bars">${rain30BarsHTML}</div>` : ''}
           </div>
 
-          <!-- v3.0.1: влажность почвы по слоям (реальные данные Open-Meteo) -->
+          <!-- v3.0: влажность почвы по слоям (реальные данные Open-Meteo) -->
           ${soilHTML}
         </div>
 
@@ -6262,7 +6177,7 @@ async function fbForgotPassword() {
       err.textContent = lang === 'ru' ? '✅ Письмо отправлено на ' + email : '✅ Reset email sent to ' + email;
     }
   } catch(e) {
-    // FIX 3.0.1: добавлена английская версия сообщений (раньше были только на русском)
+    // FIX 3.0: добавлена английская версия сообщений (раньше были только на русском)
     const msgs = lang === 'ru'
       ? { 'auth/user-not-found': 'Пользователь не найден', 'auth/invalid-email': 'Некорректный email' }
       : { 'auth/user-not-found': 'User not found', 'auth/invalid-email': 'Invalid email' };
@@ -6289,7 +6204,7 @@ async function fbSubmitEmail() {
     // FIX 2.5: startApp() вызывается через onAuthStateChanged — не дублируем
     showToast('✅ ' + (lang === 'ru' ? 'Вход выполнен!' : 'Signed in!'));
   } catch(e) {
-    // FIX 3.0.1: добавлены английские версии — раньше эти сообщения были
+    // FIX 3.0: добавлены английские версии — раньше эти сообщения были
     // захардкожены только на русском, хотя остальное приложение двуязычное.
     const msgsRu = {
       'auth/wrong-password': 'Неверный пароль',
@@ -6436,7 +6351,7 @@ async function submitDeleteAccount() {
         fieldsSnap.forEach(d => batch.delete(d.ref));
         await batch.commit();
       } catch(_) {}
-      // FIX 3.0.1: удаляем и подколлекцию notes — Firestore не каскадирует
+      // FIX 3.0: удаляем и подколлекцию notes — Firestore не каскадирует
       // удаление подколлекций автоматически, поэтому раньше заметки оставались в облаке навсегда.
       try {
         const notesCol = fb.collection(fbDb, 'users', uid, 'notes');
@@ -6454,7 +6369,7 @@ async function submitDeleteAccount() {
     // Delete the Auth user
     await window._fbFns.deleteUser(fbCurrentUser);
     // Clear local data
-    // FIX 3.0.1: раньше чистились только -fields/-settings/-auth — остальные
+    // FIX 3.0: раньше чистились только -fields/-settings/-auth — остальные
     // локальные ключи (сезоны, избранные города) оставались после удаления аккаунта.
     localStorage.removeItem(STORAGE_PREFIX + '-fields');
     localStorage.removeItem(STORAGE_PREFIX + '-settings');
@@ -6481,7 +6396,7 @@ function _fbGetUser() {
   return fbCurrentUser || (fbAuth && fbAuth.currentUser) || null;
 }
 
-// FIX 3.0.1: раньше сбои синхронизации с Firestore (нет сети, недостаточно прав,
+// FIX 3.0: раньше сбои синхронизации с Firestore (нет сети, недостаточно прав,
 // превышена квота) уходили только в console.warn — пользователь думал, что всё
 // сохранено в облако, хотя это было не так. Показываем тост, но не чаще раза в
 // 60 секунд, чтобы не заспамить пользователя при серии неудачных попыток подряд.
@@ -6618,7 +6533,7 @@ async function fbSaveSeasonRecords(records) {
   } catch(e) { console.warn('fbSaveSeasonRecords error:', e); }
 }
 
-// FIX 3.0.1: сохранение избранных городов погоды в Firestore —
+// FIX 3.0: сохранение избранных городов погоды в Firestore —
 // раньше такой функции не было вообще, поэтому избранные города
 // никогда не отправлялись в облако (только читались, да и то не под тем ключом).
 async function fbSaveFavouriteCities(favs) {
@@ -6886,7 +6801,7 @@ saveSeasonRecords = function(records) {
   }
 };
 
-// ── Патч saveFavouriteCities (FIX 3.0.1: избранные города вообще не уходили в облако) ──
+// ── Патч saveFavouriteCities (FIX 3.0: избранные города вообще не уходили в облако) ──
 const _origSaveFavouriteCitiesFb = saveFavouriteCities;
 saveFavouriteCities = function(favs) {
   localStorage.setItem(FAVS_KEY, JSON.stringify(favs));
@@ -7285,116 +7200,390 @@ self.addEventListener('fetch', function(event) {
 
 
 
-// ==========================================
-// TRACTOR GPS TRACKING MODE
-// ==========================================
+
+
+
+
+
+// ══════════════════════════════════════════════════════════════
+// v3.0: АГРОНАВИГАЦИЯ, ПАРАЛЛЕЛЬНОЕ ВОЖДЕНИЕ И ЗАЕЗД НА ТРАКТОРЕ
+// ══════════════════════════════════════════════════════════════
 let tractorWatchId = null;
 let tractorActive = false;
+let tractorStartTime = null;
 let tractorPath = [];
-let tractorWidth = 12; // meters
+let tractorWidth = 12; // метры
 let tractorAreaHa = 0;
 let tractorDistKm = 0;
+let tractorCurrentSpeed = 0;
+let tractorCurrentHeading = 0;
 let tractorMarker = null;
 let tractorTrailGroup = null;
+let tractorGuidelineGroup = null;
+let tractorActiveField = null;
+let tractorOpType = 'sowing';
+let tractorSimInterval = null;
+
+function openAddMenuModal() {
+  const m = document.getElementById('modal-add-menu');
+  if (m) m.classList.add('open');
+}
+
+function closeAddMenuModal() {
+  const m = document.getElementById('modal-add-menu');
+  if (m) m.classList.remove('open');
+}
 
 function openTractorSetupModal() {
-  document.getElementById('modal-tractor-setup').classList.add('open');
+  const sel = document.getElementById('tractor-field-select');
+  const allFields = (typeof loadFields === 'function') ? loadFields() : [];
+  
+  if (sel) {
+    sel.innerHTML = '';
+    const defOpt = document.createElement('option');
+    defOpt.value = '';
+    defOpt.textContent = lang === 'ru' ? '— Выберите поле (для направляющих полос) —' : '— Select field (for guideline tracks) —';
+    sel.appendChild(defOpt);
+    
+    allFields.forEach(f => {
+      const opt = document.createElement('option');
+      opt.value = f.id;
+      const cropName = f.crop ? (lang === 'ru' ? (CROPS.find(c=>c.id===f.crop)?.ru || f.crop) : f.crop) : '';
+      opt.textContent = `${f.name} (${formatArea(f.area)}${cropName ? ', ' + cropName : ''})`;
+      sel.appendChild(opt);
+    });
+
+    const freeOpt = document.createElement('option');
+    freeOpt.value = 'free';
+    freeOpt.textContent = lang === 'ru' ? '🚜 Свободный заезд (без контура поля)' : '🚜 Free drive (no field bounds)';
+    sel.appendChild(freeOpt);
+
+    // Если сейчас открыто поле, предвыбрать его
+    if (typeof currentFieldId !== 'undefined' && currentFieldId && allFields.some(f => f.id === currentFieldId)) {
+      sel.value = currentFieldId;
+    }
+  }
+
+  const m = document.getElementById('modal-tractor-setup');
+  if (m) m.classList.add('open');
 }
+
 function closeTractorSetupModal() {
-  document.getElementById('modal-tractor-setup').classList.remove('open');
+  const m = document.getElementById('modal-tractor-setup');
+  if (m) m.classList.remove('open');
+}
+
+/** Генерация параллельных направляющих линий (гонов / AB-траекторий) по контуру поля */
+function generateGuidelineTracks(field, widthMeters) {
+  const coords = field ? (field.coordinates || field.coords) : null;
+  if (!coords || coords.length < 3) return;
+  
+  if (!tractorGuidelineGroup) {
+    tractorGuidelineGroup = L.layerGroup().addTo(map);
+  } else {
+    tractorGuidelineGroup.clearLayers();
+  }
+
+  try {
+    // GeoJSON polygon coordinates [lng, lat]
+    const ring = coords.map(c => [c[1], c[0]]);
+    if (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1]) {
+      ring.push([ring[0][0], ring[0][1]]);
+    }
+    const fieldPoly = turf.polygon([ring]);
+    const bbox = turf.bbox(fieldPoly); // [minLng, minLat, maxLng, maxLat]
+
+    const minLng = bbox[0], minLat = bbox[1], maxLng = bbox[2], maxLat = bbox[3];
+    
+    // Шаг между полосами в градусах широты (~111320 м на 1 градус)
+    const spacingDeg = (widthMeters / 111320);
+    const numLines = Math.min(200, Math.ceil((maxLat - minLat) / spacingDeg));
+
+    for (let i = 0; i <= numLines; i++) {
+      const lat = minLat + (i * spacingDeg);
+      const leftLng = minLng - 0.002;
+      const rightLng = maxLng + 0.002;
+      
+      // Находим точки пересечения линии с полигоном
+      try {
+        const lineGeo = turf.lineString([[leftLng, lat], [rightLng, lat]]);
+        const split = turf.lineIntersect(lineGeo, fieldPoly);
+        
+        if (split && split.features && split.features.length >= 2) {
+          const pts = split.features.map(f => f.geometry.coordinates).sort((a, b) => a[0] - b[0]);
+          for (let p = 0; p < pts.length - 1; p += 2) {
+            const p1 = pts[p];
+            const p2 = pts[p + 1];
+            if (p1 && p2) {
+              L.polyline([[p1[1], p1[0]], [p2[1], p2[0]]], {
+                color: '#ffffff',
+                weight: 2,
+                dashArray: '6, 8',
+                opacity: 0.75,
+                interactive: false
+              }).addTo(tractorGuidelineGroup);
+            }
+          }
+        } else {
+          const mid = turf.midpoint(turf.point([minLng, lat]), turf.point([maxLng, lat]));
+          if (turf.booleanPointInPolygon(mid, fieldPoly)) {
+            L.polyline([[lat, minLng], [lat, maxLng]], {
+              color: '#ffffff',
+              weight: 2,
+              dashArray: '6, 8',
+              opacity: 0.7,
+              interactive: false
+            }).addTo(tractorGuidelineGroup);
+          }
+        }
+      } catch (_) {
+        L.polyline([[lat, minLng], [lat, maxLng]], {
+          color: '#ffffff',
+          weight: 1.5,
+          dashArray: '4, 8',
+          opacity: 0.5,
+          interactive: false
+        }).addTo(tractorGuidelineGroup);
+      }
+    }
+  } catch (err) {
+    console.warn('Guideline generation warning:', err);
+  }
 }
 
 function startTractorTracking() {
   const widthInput = document.getElementById('tractor-width-input');
   if (widthInput && widthInput.value) {
-    tractorWidth = parseFloat(widthInput.value) || 12;
+    tractorWidth = Math.max(1, parseFloat(widthInput.value) || 12);
   }
+
+  const allFields = (typeof loadFields === 'function') ? loadFields() : [];
+  const fieldSel = document.getElementById('tractor-field-select');
+  const fieldId = fieldSel ? fieldSel.value : '';
+  tractorActiveField = allFields.find(f => f.id === fieldId) || null;
+
+  const opSel = document.getElementById('tractor-op-select');
+  tractorOpType = opSel ? opSel.value : 'sowing';
+
   closeTractorSetupModal();
-  
-  if (!navigator.geolocation) {
-    showToast(lang === 'ru' ? 'GPS не поддерживается' : 'GPS not supported');
-    return;
+
+  // Очистка старых слоёв
+  if (tractorTrailGroup) tractorTrailGroup.clearLayers();
+  else tractorTrailGroup = L.layerGroup().addTo(map);
+
+  if (tractorGuidelineGroup) tractorGuidelineGroup.clearLayers();
+  else tractorGuidelineGroup = L.layerGroup().addTo(map);
+
+  if (tractorMarker) {
+    map.removeLayer(tractorMarker);
+    tractorMarker = null;
   }
-  
+
+  if (tractorSimInterval) {
+    clearInterval(tractorSimInterval);
+    tractorSimInterval = null;
+  }
+
+  // Определение начальной точки
+  let initialPoint = DEFAULT_MAP_CENTER;
+  if (tractorActiveField) {
+    const coords = tractorActiveField.coordinates || tractorActiveField.coords;
+    if (coords && coords.length > 0) {
+      initialPoint = tractorActiveField.center || coords[0];
+    }
+    generateGuidelineTracks(tractorActiveField, tractorWidth);
+    map.setView(initialPoint, 17);
+  } else {
+    map.setView(initialPoint, 16);
+  }
+
   tractorActive = true;
+  tractorStartTime = new Date();
   tractorPath = [];
   tractorAreaHa = 0;
   tractorDistKm = 0;
-  
-  document.getElementById('tractor-stat-area').textContent = '0.00';
+  tractorCurrentSpeed = 0;
+
+  // Обновление панели активного заезда
+  const titleEl = document.getElementById('tractor-active-field-name');
+  if (titleEl) {
+    titleEl.textContent = tractorActiveField ? tractorActiveField.name : (lang === 'ru' ? 'Свободный заезд' : 'Free drive');
+  }
+  const opEl = document.getElementById('tractor-active-op-name');
+  if (opEl) {
+    const opNames = {
+      sowing: lang === 'ru' ? '🌱 Посев' : '🌱 Sowing',
+      spraying: lang === 'ru' ? '💧 Опрыскивание' : '💧 Spraying',
+      fertilizing: lang === 'ru' ? '🧪 Удобрения' : '🧪 Fertilizing',
+      tillage: lang === 'ru' ? '🚜 Вспашка' : '🚜 Tillage',
+      harvest: lang === 'ru' ? '🌾 Уборка' : '🌾 Harvest',
+      other: lang === 'ru' ? '⚙️ Работа' : '⚙️ Work'
+    };
+    opEl.textContent = `${opNames[tractorOpType] || 'Работа'} · захват ${tractorWidth}м`;
+  }
+
+  document.getElementById('tractor-stat-area').textContent = '0.0';
   document.getElementById('tractor-stat-dist').textContent = '0.0';
-  document.getElementById('tractor-stat-speed').textContent = '0';
-  
-  document.getElementById('tractor-active-ui').style.display = 'block';
-  
-  if (!tractorTrailGroup) {
-    tractorTrailGroup = L.layerGroup().addTo(map);
-  } else {
-    tractorTrailGroup.clearLayers();
+  document.getElementById('tractor-stat-speed').textContent = '0.0';
+
+  const activeUi = document.getElementById('tractor-active-ui');
+  if (activeUi) activeUi.style.display = 'block';
+
+  // Иконка трактора
+  const tractorSvg = `
+    <div class="tractor-marker-wrap" style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
+      <div id="tractor-cone" style="position:absolute;top:-10px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:12px solid #00e676;opacity:0.9;"></div>
+      <div style="width:34px;height:34px;border-radius:50%;background:#162231;border:2.5px solid #00e676;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,0.6);font-size:18px;">
+        🚜
+      </div>
+    </div>
+  `;
+  tractorMarker = L.marker(initialPoint, {
+    icon: L.divIcon({
+      html: tractorSvg,
+      className: 'tractor-marker-icon',
+      iconSize: [40, 40],
+      iconAnchor: [20, 20]
+    }),
+    zIndexOffset: 1000
+  }).addTo(map);
+
+  tractorPath.push(initialPoint);
+
+  // Запуск GPS
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { onTractorPosition(pos); },
+      () => {},
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+
+    tractorWatchId = navigator.geolocation.watchPosition(
+      onTractorPosition,
+      (err) => {
+        console.warn('GPS watch warning:', err);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
+    );
   }
-  
-  if (tractorMarker) {
-    map.removeLayer(tractorMarker);
-  }
-  
-  const iconHtml = `<div style="background:var(--accent);width:24px;height:24px;border-radius:50%;border:3px solid #fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.5);"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24" width="14" height="14"><rect x="3" y="10" width="14" height="8" rx="2"/><circle cx="6" cy="18" r="2"/><circle cx="14" cy="18" r="2"/><path d="M17 14h3a2 2 0 0 0 2-2v-2l-3-2H8"/><path d="M12 10V6a1 1 0 0 1 1-1h2"/></svg></div>`;
-  tractorMarker = L.marker([0,0], {
-    icon: L.divIcon({ html: iconHtml, className: '', iconSize: [24,24], iconAnchor: [12,12] })
-  });
-  
-  tractorWatchId = navigator.geolocation.watchPosition(
-    onTractorPosition,
-    (err) => { console.error('GPS Error:', err); },
-    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-  );
-  
-  showToast(lang === 'ru' ? 'Заезд начат!' : 'Tractor mode started!');
+
+  showToast(lang === 'ru' ? '🚜 Заезд начат! Двигайтесь по полосам' : '🚜 Drive started! Follow guidelines');
 }
 
 function onTractorPosition(pos) {
-  if (!tractorActive) return;
+  if (!tractorActive || !pos || !pos.coords) return;
   const lat = pos.coords.latitude;
   const lng = pos.coords.longitude;
-  const speed = pos.coords.speed || 0; // m/s
+  const speedMs = pos.coords.speed || 0;
   
-  const speedKmh = (speed * 3.6).toFixed(1);
-  document.getElementById('tractor-stat-speed').textContent = speedKmh;
-  
-  const currentPoint = [lat, lng];
-  
+  tractorCurrentSpeed = Math.max(0, speedMs * 3.6);
+  const speedEl = document.getElementById('tractor-stat-speed');
+  if (speedEl) speedEl.textContent = tractorCurrentSpeed.toFixed(1);
+
+  updateTractorLocation([lat, lng]);
+}
+
+/** Обновление положения трактора и закрашивание следа */
+function updateTractorLocation(newPoint) {
+  if (!tractorActive || !tractorMarker) return;
+  const lat = newPoint[0];
+  const lng = newPoint[1];
+
   if (tractorPath.length === 0) {
-    tractorMarker.setLatLng(currentPoint).addTo(map);
-    map.setView(currentPoint, 18);
-  } else {
-    tractorMarker.setLatLng(currentPoint);
-    
-    // Calculate distance added
-    const prevPoint = tractorPath[tractorPath.length - 1];
-    const segLine = turf.lineString([[prevPoint[1], prevPoint[0]], [lng, lat]]);
-    const segKm = turf.length(segLine, { units: 'kilometers' });
+    tractorMarker.setLatLng(newPoint);
+    map.setView(newPoint, 18);
+    tractorPath.push(newPoint);
+    return;
+  }
+
+  const prevPoint = tractorPath[tractorPath.length - 1];
+
+  // Дистанция отрезка
+  const segLine = turf.lineString([[prevPoint[1], prevPoint[0]], [lng, lat]]);
+  const segKm = turf.length(segLine, { units: 'kilometers' });
+
+  // Фильтр мелкого GPS-шума (меньше 0.5 метра)
+  if (segKm >= 0.0005) {
+    // Вычисляем угол курса (heading)
+    const dLng = lng - prevPoint[1];
+    const dLat = lat - prevPoint[0];
+    let heading = Math.atan2(dLng, dLat) * (180 / Math.PI);
+    if (heading < 0) heading += 360;
+    tractorCurrentHeading = heading;
+
+    tractorMarker.setLatLng(newPoint);
+
+    // Поворот иконки трактора
+    const markerEl = tractorMarker.getElement();
+    if (markerEl) {
+      markerEl.style.transform = `${markerEl.style.transform.replace(/rotate\([^)]+\)/g, '')} rotate(${heading.toFixed(0)}deg)`;
+    }
+
     tractorDistKm += segKm;
     
-    // Calculate area added based on equipment width
-    // segment length (m) * width (m) = area (sq m)
+    // Площадь обработанной полосы = длина * ширина орудия
     const segMeters = segKm * 1000;
     const addedAreaHa = (segMeters * tractorWidth) / 10000;
     tractorAreaHa += addedAreaHa;
-    
-    document.getElementById('tractor-stat-dist').textContent = tractorDistKm.toFixed(2);
-    document.getElementById('tractor-stat-area').textContent = tractorAreaHa.toFixed(2);
-    
-    // Draw the trail using a polyline with dynamic width, or better: Turf buffer.
-    // For simplicity and speed in real-time, we draw a filled polyline with high weight.
-    // To be perfectly accurate across zooms, Turf buffer is better.
-    const buffered = turf.buffer(segLine, (tractorWidth / 2) / 1000, { units: 'kilometers' });
-    if (buffered) {
-      L.geoJSON(buffered, {
-        style: { color: 'var(--accent)', weight: 1, fillOpacity: 0.4, fillColor: 'var(--accent)' }
-      }).addTo(tractorTrailGroup);
+
+    const distEl = document.getElementById('tractor-stat-dist');
+    if (distEl) distEl.textContent = tractorDistKm.toFixed(2);
+
+    const areaEl = document.getElementById('tractor-stat-area');
+    if (areaEl) areaEl.textContent = tractorAreaHa.toFixed(2);
+
+    // Закрашивание обработанной площади (сочный изумрудно-зелёный след)
+    try {
+      const buffered = turf.buffer(segLine, (tractorWidth / 2) / 1000, { units: 'kilometers' });
+      if (buffered) {
+        L.geoJSON(buffered, {
+          style: {
+            color: '#00c853',
+            weight: 1,
+            fillColor: '#00e676',
+            fillOpacity: 0.55
+          },
+          interactive: false
+        }).addTo(tractorTrailGroup);
+      }
+    } catch (err) {
+      console.warn('Trail buffer error:', err);
     }
+
+    tractorPath.push(newPoint);
   }
-  
-  tractorPath.push(currentPoint);
+}
+
+/** Симуляция движения (для тестирования функции без реального трактора) */
+function toggleTractorSimulation() {
+  if (!tractorActive) return;
+  if (tractorSimInterval) {
+    clearInterval(tractorSimInterval);
+    tractorSimInterval = null;
+    showToast(lang === 'ru' ? '⏸ Демо-заезд на паузе' : '⏸ Simulation paused');
+    return;
+  }
+
+  showToast(lang === 'ru' ? '▶ Демо-заезд запущен' : '▶ Simulation running');
+  let angle = (tractorCurrentHeading || 90) * (Math.PI / 180);
+  let step = 0.0001; // ~10 метров за шаг
+
+  tractorSimInterval = setInterval(() => {
+    if (!tractorActive || !tractorMarker) {
+      clearInterval(tractorSimInterval);
+      tractorSimInterval = null;
+      return;
+    }
+    const current = tractorMarker.getLatLng();
+    const newLat = current.lat + Math.cos(angle) * step;
+    const newLng = current.lng + Math.sin(angle) * step;
+
+    // Имитация скорости 12 км/ч
+    const speedEl = document.getElementById('tractor-stat-speed');
+    if (speedEl) speedEl.textContent = '12.4';
+
+    updateTractorLocation([newLat, newLng]);
+  }, 500);
 }
 
 function stopTractorTracking() {
@@ -7402,9 +7591,86 @@ function stopTractorTracking() {
     navigator.geolocation.clearWatch(tractorWatchId);
     tractorWatchId = null;
   }
+  if (tractorSimInterval) {
+    clearInterval(tractorSimInterval);
+    tractorSimInterval = null;
+  }
   tractorActive = false;
-  document.getElementById('tractor-active-ui').style.display = 'none';
-  
+
+  // 1. Убираем иконку трактора с карты
+  if (tractorMarker) {
+    map.removeLayer(tractorMarker);
+    tractorMarker = null;
+  }
+
+  // 2. Скрываем активную плашку
+  const activeUi = document.getElementById('tractor-active-ui');
+  if (activeUi) activeUi.style.display = 'none';
+
+  const endTime = new Date();
+  const durationMin = tractorStartTime ? Math.max(1, Math.round((endTime - tractorStartTime) / 60000)) : 1;
   const isRu = lang === 'ru';
-  alert(`${isRu ? 'Заезд завершен!' : 'Tracking finished!'}\n\n${isRu ? 'Пройдено' : 'Distance'}: ${tractorDistKm.toFixed(2)} км\n${isRu ? 'Обработано' : 'Area'}: ${tractorAreaHa.toFixed(2)} га`);
+  const fieldName = tractorActiveField ? tractorActiveField.name : (isRu ? 'Без поля' : 'No field');
+
+  // 3. Сохранение заезда в историю
+  const driveRecord = {
+    id: 'drive_' + Date.now(),
+    fieldId: tractorActiveField ? tractorActiveField.id : null,
+    fieldName: fieldName,
+    date: new Date().toISOString(),
+    areaHa: parseFloat(tractorAreaHa.toFixed(2)),
+    distKm: parseFloat(tractorDistKm.toFixed(2)),
+    durationMin: durationMin,
+    widthMeters: tractorWidth,
+    opType: tractorOpType
+  };
+
+  try {
+    const savedDrives = JSON.parse(localStorage.getItem('hectar_tractor_drives') || '[]');
+    savedDrives.unshift(driveRecord);
+    localStorage.setItem('hectar_tractor_drives', JSON.stringify(savedDrives.slice(0, 50)));
+
+    // Если было поле — добавляем в его историю сезона
+    if (tractorActiveField && typeof loadFields === 'function' && typeof saveFields === 'function') {
+      const allFields = loadFields();
+      const targetField = allFields.find(f => f.id === tractorActiveField.id);
+      if (targetField) {
+        if (!targetField.season) targetField.season = [];
+        const opTitle = {
+          sowing: isRu ? 'Сев' : 'Sowing',
+          spraying: isRu ? 'Опрыскивание' : 'Spraying',
+          fertilizing: isRu ? 'Внесение удобрений' : 'Fertilizing',
+          tillage: isRu ? 'Вспашка' : 'Tillage',
+          harvest: isRu ? 'Уборка' : 'Harvest',
+          other: isRu ? 'Обработка' : 'Operation'
+        }[tractorOpType] || 'Заезд';
+
+        targetField.season.push({
+          id: 'ev_' + Date.now(),
+          type: tractorOpType,
+          title: `${opTitle}: ${tractorAreaHa.toFixed(1)} га (${tractorWidth}м)`,
+          date: new Date().toISOString().split('T')[0],
+          cost: 0,
+          notes: `Пройдено ${tractorDistKm.toFixed(1)} км за ${durationMin} мин`
+        });
+        saveFields(allFields);
+      }
+    }
+  } catch (err) {
+    console.error('Save drive record error:', err);
+  }
+
+  // 4. Показываем детальный отчет
+  const summaryMsg = `${isRu ? '🎉 Заезд успешно завершён!' : '🎉 Drive completed!'}\n\n` +
+    `📍 ${isRu ? 'Поле' : 'Field'}: ${fieldName}\n` +
+    `🌾 ${isRu ? 'Обработано' : 'Covered Area'}: ${tractorAreaHa.toFixed(2)} га\n` +
+    `📏 ${isRu ? 'Дистанция' : 'Distance'}: ${tractorDistKm.toFixed(2)} км\n` +
+    `⏱ ${isRu ? 'Время работы' : 'Duration'}: ${durationMin} мин\n\n` +
+    `${isRu ? 'Данные сохранены в историю поля. Оставить обработанный след на карте?' : 'Saved to field history. Keep track layer on map?'}`;
+
+  const keepLayer = confirm(summaryMsg);
+  if (!keepLayer) {
+    if (tractorTrailGroup) tractorTrailGroup.clearLayers();
+    if (tractorGuidelineGroup) tractorGuidelineGroup.clearLayers();
+  }
 }

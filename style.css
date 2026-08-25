@@ -52,13 +52,13 @@
     --safe-right: env(safe-area-inset-right, 0px);
 
     /* Nav bar: fixed icon area + safe bottom padding */
-    /* FIX v3.0.1: было 54px. Увеличено на 10px — ровно на величину, на
+    /* FIX v3.0: было 54px. Увеличено на 10px — ровно на величину, на
        которую вырос padding-bottom у #tab-bar (6px → 16px), — чтобы
        --nav-total (и все bottom/padding-bottom на экранах и модалках,
        завязанные на эту переменную) правильно резервировали место под
        панель на новой позиции. Верстка других экранов не меняется вручную —
        она пересчитывается автоматически через переменную. */
-    --nav-h: 64px;
+    --nav-h: 56px;
     --nav-total: calc(var(--nav-h) + var(--safe-bottom));
 
     --header-h: 60px;
@@ -148,7 +148,7 @@
   #login-screen {
     position: absolute;
     inset: 0;
-    z-index: 1000;
+    z-index: 50000;
     background: linear-gradient(160deg, #0a1520 0%, #0f1923 40%, #0d2a1a 100%);
     display: flex;
     flex-direction: column;
@@ -233,7 +233,7 @@
   #splash-screen {
     position: fixed;
     inset: 0;
-    z-index: 2000;
+    z-index: 999999;
     background: linear-gradient(160deg, #0a1520 0%, #0f1923 40%, #0d2a1a 100%);
     display: flex;
     flex-direction: column;
@@ -246,7 +246,7 @@
     opacity: 0;
     pointer-events: none;
   }
-  #splash-screen.hidden { display: none; }
+  #splash-screen.hidden { display: none !important; }
 
   .splash-logo {
     margin-bottom: 20px;
@@ -317,32 +317,25 @@
     transform: translateX(-50%) translateZ(0);
     width: 100%;
     max-width: 430px;
-    /* Высота задаётся контентом + отступы; safe-area заполняет низ под home-indicator */
     height: auto;
     min-height: var(--nav-h);
-    /* Иконки + подписи сверху, safe-area padding снизу */
-    padding-top: 10px;
-    /* FIX v3.0.1: увеличен нижний паддинг (6px → 16px), чтобы визуально
-       сместить панель вниз и снизить дискомфорт при нажатии на иконки.
-       Работает через --nav-h/--nav-total, поэтому все экраны и модалки,
-       завязанные на эти переменные, автоматически резервируют новое место. */
-    padding-bottom: calc(var(--safe-bottom) + 16px);
-    /* Landscape iPhone side safe-areas */
+    padding-top: 8px;
+    padding-bottom: max(var(--safe-bottom), 10px);
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
-    background: rgba(15, 25, 35, 0.75);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    background: rgba(15, 25, 35, 0.82);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-top: 1px solid var(--border);
-    display: flex !important;
+    display: flex;
     align-items: flex-start;
     z-index: var(--z-nav);
-    /* Force stacking context so nothing overlaps the tab bar */
     isolation: isolate;
-    will-change: transform;
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: all !important;
+  }
+
+  /* Hide tab-bar when main app is not active */
+  #main-app:not(.visible) #tab-bar {
+    display: none !important;
   }
   .tab-btn {
     flex: 1;
@@ -905,7 +898,7 @@
     overflow-y: auto;
     overflow-x: hidden; /* FIX 3.0: prevent horizontal trackpad scroll on PC */
     padding: 20px;
-    padding-bottom: calc(20px + 40px + env(safe-area-inset-bottom, 0px)); /* FIX v3.0.1: last card (Фото) was clipped/unreachable on mobile — extra bottom breathing room + safe-area */
+    padding-bottom: calc(20px + 40px + env(safe-area-inset-bottom, 0px)); /* FIX v3.0: last card (Фото) was clipped/unreachable on mobile — extra bottom breathing room + safe-area */
     /* Prevent rubber-band horizontal scroll on desktop */
     overscroll-behavior-x: none;
   }
@@ -937,7 +930,7 @@
     color: var(--text2);
   }
 
-  /* v3.0.1: field-detail — unified card style, same look for every section (matches yield/NDVI cards) */
+  /* v3.0: field-detail — unified card style, same look for every section (matches yield/NDVI cards) */
   .detail-uniform-card {
     background: var(--glass);
     backdrop-filter: var(--glass-blur);
@@ -2152,7 +2145,7 @@
   }
 
   /* ══════════════════════════════════════
-     СЕВООБОРОТ — компактные чипы (v3.0.1)
+     СЕВООБОРОТ — компактные чипы (v3.0)
      "Хорошие" культуры сжаты в чипы с общей подписью сверху (раньше — 4
      одинаковые крупные карточки с повторяющимся текстом объяснения).
      "Плохие" остаются акцентными карточками — критичная информация должна
@@ -2585,7 +2578,7 @@
   .rain-prob-sub { font-size: 11px; color: var(--text2); }
 
   /* ══════════════════════════════════════
-     ВЛАЖНОСТЬ ПОЧВЫ + ОСАДКИ ЗА 30 ДНЕЙ (v3.0.1)
+     ВЛАЖНОСТЬ ПОЧВЫ + ОСАДКИ ЗА 30 ДНЕЙ (v3.0)
      Реальные данные Open-Meteo (тот же провайдер, что уже используется
      для погоды): soil_moisture_* — объёмная влажность почвы (м³/м³) по
      4 слоям от 0 до 27 см из численной модели ERA5/ECMWF, не заглушка.
@@ -4090,178 +4083,96 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
 
-/* ══════════════════════════════════════
-   FIELD HEALTH INDEX — v3.0
-══════════════════════════════════════ */
-.health-index-card {
-  background: linear-gradient(135deg, var(--glass) 0%, rgba(76, 175, 80, 0.08) 100%);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  padding: 18px;
-  margin-bottom: 14px;
-}
-.health-index-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-.health-index-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.health-index-score {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  font-size: 22px;
-  font-weight: 800;
-  color: #fff;
-  position: relative;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-}
-.health-index-score::after {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.15);
-}
-.health-index-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-top: 4px;
-  text-align: center;
-}
-.health-index-metrics {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 12px;
-}
-.health-metric {
-  background: rgba(255,255,255,0.04);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  border: 1px solid rgba(255,255,255,0.04);
-}
-.health-metric-label {
-  font-size: 10px;
-  color: var(--text3);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  margin-bottom: 4px;
-}
-.health-metric-value {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text);
-}
-.health-metric-bar {
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(255,255,255,0.08);
-  margin-top: 6px;
-  overflow: hidden;
-}
-.health-metric-bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.5s ease;
-}
-.health-index-factors {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-.health-factor-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
-  font-size: 12px;
-  color: var(--text2);
-}
-.health-factor-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-.health-factor-name {
-  flex: 1;
-}
-.health-factor-value {
-  font-weight: 700;
-  font-size: 13px;
-}
-
 /* Light theme overrides for Health Index */
-.light-theme .health-index-card {
-  background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(76,175,80,0.06) 100%);
-  border: 1px solid rgba(0,0,0,0.08);
-}
-.light-theme .health-metric {
-  background: rgba(0,0,0,0.03);
-  border: 1px solid rgba(0,0,0,0.06);
-}
-.light-theme .health-metric-bar {
-  background: rgba(0,0,0,0.06);
-}
-.light-theme .health-index-factors {
-  border-top-color: rgba(0,0,0,0.08);
-}
+.light-theme 
+.light-theme 
+.light-theme 
+.light-theme 
 
-/* Phase 1: PWA iPhone Layout Fix */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  body, #app-wrapper, .bottom-nav {
-    padding-bottom: env(safe-area-inset-bottom) !important;
-  }
-}
+/* PWA Safe-area layout handled natively in :root and tab-bar */
 
-#btn-tractor-mode {
-  position: absolute;
-  right: 16px;
-  bottom: calc(var(--nav-total) + 90px);
-  z-index: var(--z-map);
-  background: var(--bg2);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: 100px;
-  padding: 10px 18px 10px 14px;
-  color: #fff;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: var(--shadow);
-  cursor: pointer;
-  transition: transform 0.1s;
-}
-#btn-tractor-mode:active { transform: scale(0.95); }
-#btn-tractor-mode svg { width: 22px; height: 22px; color: var(--accent-light); }
+
+
+
 
 @keyframes pulse {
   0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
   70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(255, 107, 107, 0); }
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+}
+
+/* ══════════════════════════════════════
+   v3.0 AGRO-NAVIGATION & ACTION MENU
+══════════════════════════════════════ */
+.menu-action-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  transition: transform 0.15s, background 0.15s, border-color 0.15s;
+  color: var(--text);
+  font-family: inherit;
+}
+.menu-action-card:active {
+  transform: scale(0.98);
+  background: var(--bg3);
+  border-color: var(--accent);
+}
+.menu-action-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.menu-action-info {
+  flex: 1;
+  min-width: 0;
+}
+.menu-action-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.menu-action-sub {
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.3;
+}
+
+.preset-chip {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.preset-chip:active, .preset-chip:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+@keyframes pulse-green {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(0, 230, 118, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); }
+}
+
+.tractor-marker-icon {
+  transition: transform 0.2s ease-out;
 }
