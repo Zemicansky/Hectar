@@ -406,23 +406,14 @@
         </div>
       </div>
 
-      <!-- Виртуальное управление для смартфона / ПК -->
-      <div class="tractor-3d-controls-wrap">
-        <div class="tractor-3d-steer-group">
-          <button type="button" class="btn-3d-ctrl" onmousedown="start3DSteer(-1)" onmouseup="stop3DSteer()" ontouchstart="start3DSteer(-1)" ontouchend="stop3DSteer()"><i data-lucide="arrow-left" class="icon-sm"></i> Влево</button>
-          <button type="button" class="btn-3d-ctrl" onmousedown="start3DSteer(1)" onmouseup="stop3DSteer()" ontouchstart="start3DSteer(1)" ontouchend="stop3DSteer()">Вправо <i data-lucide="arrow-right" class="icon-sm"></i></button>
-        </div>
-        <div class="tractor-3d-action-group">
-          <button type="button" class="btn-3d-ctrl demo" onclick="toggleTractorSimulation()"><i data-lucide="arrow-right" class="icon-sm"></i> Демо</button>
-          <button type="button" class="btn-3d-ctrl gas" onmousedown="start3DGas(1)" onmouseup="stop3DGas()" ontouchstart="start3DGas(1)" ontouchend="stop3DGas()"><i data-lucide="zap" class="icon-sm"></i> Газ</button>
-        </div>
-      </div>
-
-      <!-- Переключение камер (Только 3D режимы) -->
-      <div class="tractor-3d-cam-bar">
-        <button type="button" class="btn-3d-cam active" id="btn-cam-cockpit" onclick="setTractor3DCamera('cockpit')"><i data-lucide="tractor" class="icon-sm"></i> Из кабины</button>
-        <button type="button" class="btn-3d-cam" id="btn-cam-chase" onclick="setTractor3DCamera('chase')"><i data-lucide="eye" class="icon-sm"></i> Сзади</button>
-        <button type="button" class="btn-3d-cam finish" onclick="stopTractorTracking()">✕ Завершить</button>
+      <!-- Нижняя панель действий в 3D (GPS-навигатор) -->
+      <div class="tractor-3d-bottom-bar">
+        <button type="button" class="btn-3d-action demo" id="btn-3d-sim" onclick="toggleTractorSimulation()">
+          <i data-lucide="play" class="icon-sm"></i> Демо заезд
+        </button>
+        <button type="button" class="btn-3d-action finish" onclick="stopTractorTracking()">
+          <i data-lucide="check" class="icon-sm"></i> Завершить
+        </button>
       </div>
     </div>
     <!-- Панель активного заезда -->

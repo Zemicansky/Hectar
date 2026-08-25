@@ -342,11 +342,8 @@
     isolation: isolate;
   }
 
-  /* Hide tab-bar when main app is not active or during splash / 3D tractor view */
-  #main-app:not(.visible) #tab-bar,
-  #splash-screen:not(.hidden):not(.fade-out) ~ #main-app #tab-bar,
-  #splash-screen:not(.hidden):not(.fade-out) ~ * #tab-bar,
-  body:has(#splash-screen:not(.hidden):not(.fade-out)) #tab-bar {
+  /* Hide tab-bar when main app is not active */
+  #main-app:not(.visible) #tab-bar {
     display: none !important;
   }
   .tab-btn {
@@ -4192,75 +4189,27 @@
 /* ══════════════════════════════════════
    v3.0 3D TRACTOR VIEWPORT STYLES
 ══════════════════════════════════════ */
-.tractor-3d-controls-wrap {
+.tractor-3d-bottom-bar {
   position: absolute;
-  bottom: calc(var(--safe-bottom) + 58px);
-  left: 12px;
-  right: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  z-index: 860;
-  pointer-events: none;
-}
-.tractor-3d-steer-group,
-.tractor-3d-action-group {
-  display: flex;
-  gap: 6px;
-  pointer-events: auto;
-}
-.tractor-3d-cam-bar {
-  position: absolute;
-  bottom: calc(var(--safe-bottom) + 12px);
-  left: 12px;
-  right: 12px;
+  bottom: calc(var(--safe-bottom) + 16px);
+  left: 16px;
+  right: 16px;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   z-index: 860;
   pointer-events: auto;
-  flex-wrap: wrap;
 }
-.btn-3d-cam {
-  background: rgba(22, 34, 49, 0.85);
+.btn-3d-action {
+  flex: 1;
+  max-width: 180px;
+  background: rgba(15, 25, 35, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 100px;
-  padding: 7px 14px;
-  color: var(--text2);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.18s;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-.btn-3d-cam.active, .btn-3d-cam:active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-  transform: scale(1.03);
-}
-.btn-3d-cam.finish {
-  background: rgba(255, 107, 107, 0.2);
-  color: #ff6b6b;
-  border-color: rgba(255, 107, 107, 0.4);
-}
-.btn-3d-ctrl {
-  background: rgba(22, 34, 49, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
-  padding: 10px 14px;
+  padding: 12px 18px;
   color: #fff;
   font-family: inherit;
   font-size: 13px;
@@ -4272,35 +4221,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
   white-space: nowrap;
+  transition: transform 0.15s ease, background 0.15s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
-.btn-3d-ctrl:active {
-  background: rgba(255, 255, 255, 0.2);
-  transform: scale(0.95);
+.btn-3d-action:active {
+  transform: scale(0.96);
 }
-.btn-3d-ctrl.gas {
-  background: rgba(0, 230, 118, 0.25);
-  border-color: rgba(0, 230, 118, 0.5);
-  color: #00e676;
-}
-.btn-3d-ctrl.gas:active {
-  background: rgba(0, 230, 118, 0.45);
-}
-.btn-3d-ctrl.demo {
+.btn-3d-action.demo {
   background: rgba(33, 150, 243, 0.25);
   border-color: rgba(33, 150, 243, 0.5);
   color: #64b5f6;
 }
-@media (max-width: 380px) {
-  .btn-3d-ctrl {
-    padding: 8px 10px;
-    font-size: 12px;
-  }
-  .btn-3d-cam {
-    padding: 5px 8px;
-    font-size: 11px;
-  }
+.btn-3d-action.finish {
+  background: rgba(255, 107, 107, 0.22);
+  border-color: rgba(255, 107, 107, 0.45);
+  color: #ff6b6b;
 }
 .tractor-note-badge {
   display: inline-flex;
