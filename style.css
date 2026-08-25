@@ -41,7 +41,9 @@
     /* v3.0 Design Upgrade */
     --glass: rgba(22, 34, 49, 0.65);
     --glass-border: rgba(255, 255, 255, 0.08);
-    --glass-blur: blur(20px);
+    --glass-blur: blur(24px);
+    --glow-primary: 0 8px 24px rgba(0, 230, 118, 0.35);
+    --border-light: rgba(255,255,255,0.03);
     --transition-fast: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-spring: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 
@@ -4228,3 +4230,158 @@
 .btn-3d-ctrl.gas:active {
   background: rgba(0, 230, 118, 0.45);
 }
+
+/* ══════════════════════════════════════
+   v3.0 TRACTOR RUN NOTES & 3D CONTROLS
+══════════════════════════════════════ */
+.btn-3d-ctrl.demo {
+  background: rgba(33, 150, 243, 0.25);
+  border-color: rgba(33, 150, 243, 0.5);
+  color: #64b5f6;
+}
+.tractor-note-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(76, 175, 80, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.tractor-note-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: rgba(0,0,0,0.15);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.tractor-note-stat-item {
+  color: var(--text2);
+}
+.tractor-note-stat-item strong {
+  color: var(--text);
+}
+
+/* ══════════════════════════════════════
+   v3.0 ULTRA-PREMIUM DESIGN OVERRIDES
+══════════════════════════════════════ */
+/* Истинный Glassmorphism для нижней панели */
+.bottom-nav {
+  background: rgba(15, 23, 33, 0.65) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border-top: 1px solid rgba(255,255,255,0.04) !important;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.1) !important;
+}
+.light-theme .bottom-nav {
+  background: rgba(255, 255, 255, 0.75) !important;
+  border-top: 1px solid rgba(0,0,0,0.04) !important;
+}
+
+/* Индикатор активного таба (точка снизу) */
+.tab-btn {
+  position: relative;
+}
+.tab-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%) scale(0);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.tab-btn.active::after {
+  transform: translateX(-50%) scale(1);
+}
+.tab-btn span {
+  margin-bottom: 6px;
+}
+
+/* Избавляемся от жестких рамок у карточек */
+.field-card, .detail-uniform-card, .modal-sheet, .health-index-card {
+  border: 1px solid var(--border-light) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12) !important;
+}
+.light-theme .field-card, .light-theme .detail-uniform-card, .light-theme .modal-sheet {
+  border: 1px solid rgba(0,0,0,0.03) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.04) !important;
+}
+
+/* Светящиеся главные кнопки (Neon Glow) и упругие нажатия */
+.modal-btn.primary, .fb-auth-btn.primary, #btn-add-field-map, .btn-3d-cam.active {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border: none !important;
+  box-shadow: var(--glow-primary) !important;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease !important;
+}
+.modal-btn.primary:active, #btn-add-field-map:active, .btn-3d-cam.active:active {
+  transform: scale(0.94) !important;
+  box-shadow: 0 4px 12px rgba(0, 230, 118, 0.15) !important;
+}
+
+/* Вторичные кнопки */
+.modal-btn.secondary, .btn-3d-ctrl {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease !important;
+}
+.modal-btn.secondary:active, .btn-3d-ctrl:active {
+  transform: scale(0.95) !important;
+}
+
+/* Элегантные поля ввода */
+.modal-input, .modal-select {
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: rgba(0,0,0,0.15) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+.modal-input:focus, .modal-select:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(0, 230, 118, 0.15) !important;
+}
+.light-theme .modal-input, .light-theme .modal-select {
+  border: 1px solid rgba(0,0,0,0.1) !important;
+  background: rgba(255,255,255,0.8) !important;
+}
+
+/* Улучшаем шапки экранов */
+.screen-header {
+  background: rgba(15, 23, 33, 0.8) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.03) !important;
+}
+.light-theme .screen-header {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-bottom: 1px solid rgba(0,0,0,0.03) !important;
+}
+
+/* Заголовки */
+h1, h2, h3, .modal-title, .screen-title {
+  letter-spacing: -0.02em; /* Делает шрифт более плотным и современным */
+}
+
+.icon-sm {
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
+  stroke-width: 2.2px;
+  display: inline-block;
+}
+.modal-btn .icon-sm, .btn-3d-cam .icon-sm, .btn-3d-ctrl .icon-sm {
+  width: 18px;
+  height: 18px;
+  vertical-align: -4px;
+  margin-right: 4px;
+}
+
