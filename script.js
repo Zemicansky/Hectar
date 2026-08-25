@@ -7320,15 +7320,21 @@ function startTractorTracking() {
 
   closeTractorSetupModal();
 
-  // Очистка старых слоёв
-  if (tractorTrailGroup) tractorTrailGroup.clearLayers();
-  else tractorTrailGroup = L.layerGroup().addTo(map);
+  // Очистка старых слоёв на 2D карте
+  if (tractorTrailGroup) {
+    tractorTrailGroup.clearLayers();
+  } else if (typeof map !== 'undefined' && map) {
+    tractorTrailGroup = L.layerGroup().addTo(map);
+  }
 
-  if (tractorGuidelineGroup) tractorGuidelineGroup.clearLayers();
-  else tractorGuidelineGroup = L.layerGroup().addTo(map);
+  if (tractorGuidelineGroup) {
+    tractorGuidelineGroup.clearLayers();
+  } else if (typeof map !== 'undefined' && map) {
+    tractorGuidelineGroup = L.layerGroup().addTo(map);
+  }
 
-  if (tractorMarker) {
-    map.removeLayer(tractorMarker);
+  if (tractorMarker && typeof map !== 'undefined' && map) {
+    try { map.removeLayer(tractorMarker); } catch (_) {}
     tractorMarker = null;
   }
 
@@ -7346,8 +7352,8 @@ function startTractorTracking() {
   tractor3DPos = { x: 0, z: 0 };
   tractor3DHeading = 0;
 
-  // Определение центра поля
-  let initialPoint = DEFAULT_MAP_CENTER;
+  // Определение начальной точки / центра поля
+  let initialPoint = (typeof DEFAULT_MAP_CENTER !== 'undefined') ? DEFAULT_MAP_CENTER : [55.75, 37.61];
   if (tractorActiveField) {
     const coords = tractorActiveField.coordinates || tractorActiveField.coords;
     if (coords && coords.length > 0) {
@@ -7361,31 +7367,40 @@ function startTractorTracking() {
     fieldTitleEl.textContent = tractorActiveField ? tractorActiveField.name : (lang === 'ru' ? 'Свободный заезд' : 'Free drive');
   }
 
-  document.getElementById('tractor-3d-stat-area').textContent = '0.0';
-  document.getElementById('tractor-3d-stat-dist').textContent = '0.0';
-  document.getElementById('tractor-3d-stat-speed').textContent = '0.0';
+  const statArea = document.getElementById('tractor-3d-stat-area');
+  if (statArea) statArea.textContent = '0.0';
+  const statDist = document.getElementById('tractor-3d-stat-dist');
+  if (statDist) statDist.textContent = '0.0';
+  const statSpeed = document.getElementById('tractor-3d-stat-speed');
+  if (statSpeed) statSpeed.textContent = '0.0';
 
   // ЗАПУСК 3D РЕЖИМА
   toggleTractor3DView(true);
 
-  // Инициализация маркер на 2D карте
-  const tractorSvg = `
-    <div class="tractor-marker-wrap" style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
-      <div id="tractor-cone" style="position:absolute;top:-10px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:12px solid #00e676;opacity:0.9;"></div>
-      <div style="width:34px;height:34px;border-radius:50%;background:#162231;border:2.5px solid #00e676;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,0.6);font-size:18px;">
-        <i data-lucide="tractor" class="icon-sm"></i>
+  // Инициализация маркера на 2D карте (если карта доступна)
+  if (typeof map !== 'undefined' && map && typeof L !== 'undefined') {
+    const tractorSvg = `
+      <div class="tractor-marker-wrap" style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
+        <div id="tractor-cone" style="position:absolute;top:-10px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:12px solid #00e676;opacity:0.9;"></div>
+        <div style="width:34px;height:34px;border-radius:50%;background:#162231;border:2.5px solid #00e676;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,0.6);font-size:18px;">
+          <i data-lucide="tractor" class="icon-sm"></i>
+        </div>
       </div>
-    </div>
-  `;
-  tractorMarker = L.marker(initialPoint, {
-    icon: L.divIcon({
-      html: tractorSvg,
-      className: 'tractor-marker-icon',
-      iconSize: [40, 40],
-      iconAnchor: [20, 20]
-    }),
-    zIndexOffset: 1000
-  }).addTo(map);
+    `;
+    try {
+      tractorMarker = L.marker(initialPoint, {
+        icon: L.divIcon({
+          html: tractorSvg,
+          className: 'tractor-marker-icon',
+          iconSize: [40, 40],
+          iconAnchor: [20, 20]
+        }),
+        zIndexOffset: 1000
+      }).addTo(map);
+    } catch (e) {
+      console.warn('2D marker init notice:', e);
+    }
+  }
 
   // Запуск GPS
   if (navigator.geolocation) {
@@ -7402,7 +7417,7 @@ function startTractorTracking() {
     );
   }
 
-  showToast(lang === 'ru' ? '<i data-lucide="tractor" class="icon-sm"></i> 3D Заезд запущен! Управляйте трактором' : '<i data-lucide="tractor" class="icon-sm"></i> 3D Drive started!');
+  showToast(lang === 'ru' ? '<i data-lucide="tractor" class="icon-sm"></i> 3D Заезд запущен!' : '<i data-lucide="tractor" class="icon-sm"></i> 3D Drive started!');
 }
 
 function onTractorPosition(pos) {
@@ -7470,6 +7485,14 @@ function updateTractorLocation(newPoint) {
       paint3DSoilCoverage(tractor3DPos.x, tractor3DPos.z, tractorWidth || 12);
     }
 
+    // Синхронизация с 3D миром по центру поля
+    if (fieldCenter3D) {
+      tractor3DPos.x = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
+      tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
+      tractor3DHeading = heading;
+      paint3DSoilCoverage(tractor3DPos.x, tractor3DPos.z, tractorWidth || 12);
+    }
+
     // Закрашивание на 2D Leaflet
     try {
       const buffered = turf.buffer(segLine, (tractorWidth / 2) / 1000, { units: 'kilometers' });
@@ -7504,7 +7527,7 @@ function init3DScene() {
   scene3D.background = new THREE.Color(0x7ec0ee); // Realistic Sky
   scene3D.fog = new THREE.FogExp2(0x7ec0ee, 0.003);
 
-  camera3D = new THREE.PerspectiveCamera(62, w / h, 0.1, 1000);
+  camera3D = new THREE.PerspectiveCamera(65, w / h, 0.1, 1000);
 
   const hemiLight = new THREE.HemisphereLight(0xffffff, 0x3d5c32, 1.1);
   scene3D.add(hemiLight);
@@ -7967,6 +7990,32 @@ function paint3DSoilCoverage(x, z, widthMeters) {
   coverage3DCtx.fill();
 
   coverage3DTexture.needsUpdate = true;
+}
+
+function toggleTractor3DView(show) {
+  tractor3DActive = show;
+  const container = document.getElementById('tractor-3d-view');
+  const tabBar = document.getElementById('tab-bar');
+  if (!container) return;
+
+  if (show) {
+    container.style.display = 'block';
+    if (tabBar) tabBar.style.display = 'none';
+    if (init3DScene()) {
+      if (tractorActiveField) update3DFieldBounds(tractorActiveField);
+      start3DAnimationLoop();
+    }
+  } else {
+    container.style.display = 'none';
+    if (tabBar && document.getElementById('main-app').classList.contains('visible')) {
+      tabBar.style.display = 'flex';
+    }
+    if (tractor3DAnimId) {
+      cancelAnimationFrame(tractor3DAnimId);
+      tractor3DAnimId = null;
+    }
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function start3DAnimationLoop() {
