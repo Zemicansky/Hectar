@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════
 // КОНСТАНТЫ ПРИЛОЖЕНИЯ
 // ════════════════════════════════════════════════════
-const APP_VERSION = '2.9.1';
+const APP_VERSION = '3.0.1';
 const STORAGE_PREFIX = 'hectar';
 const DEFAULT_MAP_CENTER = [51.128, 71.430]; // Астана, Казахстан
 const DEFAULT_MAP_ZOOM = 11;
@@ -60,7 +60,7 @@ function cropLabel(c) { return lang === 'ru' ? c.ru : c.en; }
 
 // ════════════════════════════════════════════════════
 // ЗАДАЧА 2: Умный севооборот
-// AUDIT v2.9.1: проведена сверка ROTATION_RULES со списком CROPS.
+// AUDIT v3.0.1: проведена сверка ROTATION_RULES со списком CROPS.
 // Все 21 культура из CROPS (кроме 'other', для которой логика отдельная —
 // см. getCropRotationRecommendation) имеют запись в ROTATION_RULES,
 // включая mustard (строка ниже). Явных агрономических противоречий
@@ -356,65 +356,7 @@ const CALC_PRESETS = [
 /**
  * Генерирует HTML секции калькулятора.
  */
-function renderCalcSection(field) {
-  const isRu = lang === 'ru';
-  const netArea = getNetFieldArea(field);
-  const fid = escapeHtml(field.id);
-  const unitSetting = loadSettings().units === 'acres' ? 'acres' : 'ha';
-  const areaLabel = unitSetting === 'acres' ? 'ac' : (isRu ? 'га' : 'ha');
-  const displayArea = unitSetting === 'acres' ? (netArea * 2.47105).toFixed(2) : netArea.toFixed(2);
-
-  const presetsHTML = CALC_PRESETS.map(p =>
-    `<button class="calc-preset-chip" onclick="applyCalcPreset('${fid}', ${p.rate}, '${p.unit}')" title="${isRu ? p.ru : p.en}">
-      ${isRu ? p.ru : p.en} (${p.rate} ${isRu ? (p.unit === 'l' ? 'л' : 'кг') : p.unit}/${areaLabel})
-    </button>`
-  ).join('');
-
-  return `
-    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">
-      ${isRu ? 'Чистая площадь поля' : 'Net field area'}: <strong style="color:var(--accent);">${displayArea} ${areaLabel}</strong>
-    </div>
-
-    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;">
-      ${isRu ? 'Быстрый выбор:' : 'Quick presets:'}
-    </div>
-    <div class="calc-presets-wrap">${presetsHTML}</div>
-
-    <div class="calc-input-group">
-      <div class="calc-input-row">
-        <label>${isRu ? 'Норма расхода' : 'Rate per'} ${areaLabel}</label>
-        <div class="calc-input-pair">
-          <input type="number" id="calc-rate-${fid}" class="calc-input" placeholder="0" min="0" step="0.1"
-            oninput="calcFieldDose('${fid}', ${netArea})"/>
-          <select id="calc-unit-${fid}" class="calc-unit-select" onchange="calcFieldDose('${fid}', ${netArea})">
-            <option value="kg">${isRu ? 'кг' : 'kg'}</option>
-            <option value="l">${isRu ? 'л' : 'l'}</option>
-            <option value="pcs">${isRu ? 'шт' : 'pcs'}</option>
-          </select>
-        </div>
-      </div>
-      <div class="calc-input-row">
-        <label>${isRu ? 'Цена за единицу' : 'Price per unit'}</label>
-        <div class="calc-input-pair">
-          <input type="number" id="calc-price-${fid}" class="calc-input" placeholder="0" min="0" step="0.01"
-            oninput="calcFieldDose('${fid}', ${netArea})"/>
-          <span class="calc-currency">${isRu ? '₸' : '$'}</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="calc-results" id="calc-results-${fid}">
-      <div class="calc-result-row">
-        <span>${isRu ? 'Итого на поле:' : 'Total for field:'}</span>
-        <strong id="calc-total-${fid}">—</strong>
-      </div>
-      <div class="calc-result-row">
-        <span>${isRu ? 'Общая стоимость:' : 'Total cost:'}</span>
-        <strong id="calc-cost-${fid}">—</strong>
-      </div>
-    </div>
-  `;
-}
+function renderCalcSection(field) { return ""; }
 
 /**
  * Пересчёт калькулятора при вводе.
@@ -457,7 +399,7 @@ function renderCropRotationBlock(field) {
   const rec = getCropRotationRecommendation(field);
   const isRu = lang === 'ru';
 
-  // v2.9.1 UX FIX: "хорошие" культуры раньше рендерились как 4 одинаковые
+  // v3.0.1 UX FIX: "хорошие" культуры раньше рендерились как 4 одинаковые
   // крупные карточки с дословно повторяющимся текстом объяснения
   // ("Хороший предшественник после Пшеница" x4) — избыточная когнитивная
   // нагрузка. Теперь: общая подпись-обоснование один раз сверху,
@@ -1007,7 +949,7 @@ function escapeHtml(str) {
 // ════════════════════════════════════════════════════
 // ── Search history (localStorage) ────────────────────────────────────────────
 const SEARCH_HISTORY_KEY = 'hectar-search-history';
-const SEARCH_HISTORY_MAX = 3; // FIX 2.9: store up to 3 recent places
+const SEARCH_HISTORY_MAX = 3; // FIX 3.0: store up to 3 recent places
 
 function loadSearchHistory() {
   try { return JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || '[]'); }
@@ -1504,7 +1446,7 @@ function addNdviLayer() {
   ndviLayer.addTo(map);
   ndviLayer.setZIndex(450);
 
-  // FIX 2.9.1: раньше tileerror никак не обрабатывался — если NASA GIBS был
+  // FIX 3.0.1: раньше tileerror никак не обрабатывался — если NASA GIBS был
   // полностью недоступен, слой просто тихо не отрисовывался без сообщения.
   // Показываем тост один раз за загрузку слоя (не на каждый упавший тайл).
   let _ndviErrorShown = false;
@@ -1821,7 +1763,7 @@ function setFieldsSubTab(tab) {
   if (seasonsView) seasonsView.style.display = tab === 'seasons' ? 'flex' : 'none';
   if (tab === 'seasons') renderSeasonsList();
   if (tab === 'ndvi') {
-    // FIX 2.9: removed toggle btn — NDVI overlay auto-enables on tab open
+    // FIX 3.0: removed toggle btn — NDVI overlay auto-enables on tab open
     const inlineDate = document.getElementById('ndvi-inline-date');
     if (inlineDate) {
       const d = new Date(); d.setDate(d.getDate() - 10);
@@ -1835,12 +1777,12 @@ function setFieldsSubTab(tab) {
       ndviVisible = true;
     }
     renderNdviFieldsPanel();
-    // FIX 2.9: auto-refresh satellite images on NDVI tab open — lightweight date bump only
+    // FIX 3.0: auto-refresh satellite images on NDVI tab open — lightweight date bump only
     autoRefreshNdvi();
   }
 }
 
-// FIX 2.9: auto-refresh NDVI on tab switch — updates date label and re-applies tile layer if visible
+// FIX 3.0: auto-refresh NDVI on tab switch — updates date label and re-applies tile layer if visible
 function autoRefreshNdvi() {
   const inlineDate = document.getElementById('ndvi-inline-date');
   if (inlineDate) {
@@ -1877,13 +1819,16 @@ function estimateFieldNdvi(field) {
 }
 
 function getNdviColor(ndvi) {
-  // NDVI 0..1 → цвет от красного к зелёному
-  if (ndvi < 0.2) return '#8B0000';
-  if (ndvi < 0.35) return '#FF4500';
-  if (ndvi < 0.5) return '#FFA500';
-  if (ndvi < 0.65) return '#c8d400';
-  if (ndvi < 0.75) return '#7FBF00';
-  return '#006400';
+  // v3.0: 9-step gradient for more precise field health visualization
+  if (ndvi < 0.1)  return '#5c1010'; // Very dark red — bare soil / no data
+  if (ndvi < 0.2)  return '#8B0000'; // Dark red — no vegetation
+  if (ndvi < 0.3)  return '#d84315'; // Deep orange — sparse
+  if (ndvi < 0.4)  return '#FF8C00'; // Orange — stressed vegetation
+  if (ndvi < 0.5)  return '#FFB300'; // Amber — moderate
+  if (ndvi < 0.6)  return '#c0ca33'; // Lime — developing
+  if (ndvi < 0.7)  return '#7cb342'; // Light green — healthy
+  if (ndvi < 0.8)  return '#43a047'; // Green — very healthy
+  return '#1b5e20';                  // Dark green — dense, excellent
 }
 
 // ЗАДАЧА 2: Длительность вегетационного цикла по культурам (дни)
@@ -1933,6 +1878,97 @@ function getHealthStatus(ndvi) {
   if (ndvi >= 0.45) return { label: lang === 'ru' ? 'Норма' : 'Normal', cls: 'green' };
   if (ndvi >= 0.3) return { label: lang === 'ru' ? 'Ослаблено' : 'Weak', cls: 'orange' };
   return { label: lang === 'ru' ? 'Критично' : 'Critical', cls: 'red' };
+}
+
+/** v3.0: Field Health Index — comprehensive field health assessment
+ * Returns a score from 1-10 and detailed factor breakdown for a farmer.
+ * Combines NDVI, crop type, season timing, estimated soil quality, and weather risk. */
+function computeFieldHealthIndex(field, ndvi) {
+  const isRu = lang === 'ru';
+  const month = new Date().getMonth() + 1;
+  
+  // Factor 1: Vegetation (NDVI) — weight 40%
+  const vegScore = Math.min(10, Math.max(0, ndvi * 12.5)); // 0.8 NDVI => 10
+  
+  // Factor 2: Season timing — weight 20%
+  const seasonalPeak = [3, 3, 4, 6, 8, 9, 10, 9, 7, 5, 3, 3];
+  const seasonScore = seasonalPeak[month - 1];
+  
+  // Factor 3: Crop suitability (simplified) — weight 15%
+  const cropScores = { wheat: 8, corn: 9, sunflower: 7, barley: 8, soybean: 8, rapeseed: 7, rice: 6 };
+  const cropScore = cropScores[field.crop] || 6;
+  
+  // Factor 4: Field size efficiency — weight 10%
+  const areaHa = field.area || 0;
+  const sizeScore = areaHa > 100 ? 9 : areaHa > 30 ? 8 : areaHa > 10 ? 7 : areaHa > 1 ? 6 : 4;
+  
+  // Factor 5: Moisture estimate (from season) — weight 15%
+  const moistureBase = [5, 5, 6, 7, 7, 6, 5, 5, 6, 7, 6, 5];
+  const moistureScore = Math.min(10, moistureBase[month - 1] + (ndvi > 0.5 ? 2 : 0));
+  
+  // Weighted total
+  const total = (vegScore * 0.40) + (seasonScore * 0.20) + (cropScore * 0.15) + (sizeScore * 0.10) + (moistureScore * 0.15);
+  const score = Math.min(10, Math.max(1, Math.round(total * 10) / 10));
+  
+  // Color based on score
+  let color, label;
+  if (score >= 8) { color = '#4CAF50'; label = isRu ? 'Отличное' : 'Excellent'; }
+  else if (score >= 6) { color = '#8BC34A'; label = isRu ? 'Хорошее' : 'Good'; }
+  else if (score >= 4) { color = '#FFA500'; label = isRu ? 'Среднее' : 'Average'; }
+  else if (score >= 2.5) { color = '#FF6B6B'; label = isRu ? 'Слабое' : 'Weak'; }
+  else { color = '#8B0000'; label = isRu ? 'Критичное' : 'Critical'; }
+  
+  return {
+    score: score.toFixed(1),
+    color,
+    label,
+    factors: [
+      { icon: '🌿', name: isRu ? 'Вегетация (NDVI)' : 'Vegetation (NDVI)', value: vegScore.toFixed(1), color: getNdviColor(ndvi), pct: vegScore * 10 },
+      { icon: '📅', name: isRu ? 'Сезон' : 'Season timing', value: seasonScore.toFixed(1), color: seasonScore >= 7 ? '#4CAF50' : '#FFA500', pct: seasonScore * 10 },
+      { icon: '🌾', name: isRu ? 'Культура' : 'Crop type', value: cropScore.toFixed(1), color: cropScore >= 7 ? '#4CAF50' : '#FFA500', pct: cropScore * 10 },
+      { icon: '📐', name: isRu ? 'Размер поля' : 'Field size', value: sizeScore.toFixed(1), color: sizeScore >= 7 ? '#4CAF50' : '#FFA500', pct: sizeScore * 10 },
+      { icon: '💧', name: isRu ? 'Влага (оценка)' : 'Moisture (est.)', value: moistureScore.toFixed(1), color: moistureScore >= 6 ? '#4CAF50' : '#FFA500', pct: moistureScore * 10 }
+    ]
+  };
+}
+
+/** v3.0: Renders the Health Index card HTML */
+function renderHealthIndexCard(field, ndvi) {
+  const hi = computeFieldHealthIndex(field, ndvi);
+  const isRu = lang === 'ru';
+  return `
+    <div class="health-index-card">
+      <div class="health-index-header">
+        <div>
+          <div class="health-index-title">🏥 ${isRu ? 'Индекс здоровья поля' : 'Field Health Index'}</div>
+          <div class="health-index-label" style="color:${hi.color};text-align:left;">${hi.label}</div>
+        </div>
+        <div class="health-index-score" style="background:${hi.color};">
+          ${hi.score}
+        </div>
+      </div>
+      <div class="health-index-metrics">
+        <div class="health-metric">
+          <div class="health-metric-label">NDVI</div>
+          <div class="health-metric-value" style="color:${getNdviColor(ndvi)};">${ndvi}</div>
+          <div class="health-metric-bar"><div class="health-metric-bar-fill" style="width:${Math.round(ndvi*100)}%;background:${getNdviColor(ndvi)};"></div></div>
+        </div>
+        <div class="health-metric">
+          <div class="health-metric-label">${isRu ? 'Оценка' : 'Score'}</div>
+          <div class="health-metric-value" style="color:${hi.color};">${hi.score}<span style="font-size:11px;color:var(--text3);">/10</span></div>
+          <div class="health-metric-bar"><div class="health-metric-bar-fill" style="width:${hi.score*10}%;background:${hi.color};"></div></div>
+        </div>
+      </div>
+      <div class="health-index-factors">
+        ${hi.factors.map(f => `
+          <div class="health-factor-row">
+            <div class="health-factor-icon" style="background:${f.color}20;">${f.icon}</div>
+            <div class="health-factor-name">${f.name}</div>
+            <div class="health-factor-value" style="color:${f.color};">${f.value}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
 }
 
 function getYieldForecast(field, ndvi) {
@@ -2366,7 +2402,7 @@ function onMapClick(e) {
         if (n === 2) {
           label.textContent = fmtKm(totalKm);
         } else {
-          label.textContent = `${fmtKm(totalKm)} (${lang === 'ru' ? 'участок' : 'seg'}: ${fmtKm(segKm)}, ${n} ${lang === 'ru' ? 'точек' : 'pts'})`;
+          label.textContent = `${fmtKm(totalKm)} (${lang === \'ru\' ? \'последний\' : \'seg\'}: ${fmtKm(segKm)})`;
         }
       }
     }
@@ -2500,7 +2536,7 @@ function undoLastPoint() {
         } else {
           const lastTwo = currentMeasurePoints.slice(-2);
           const segKm = turf.length(turf.lineString(lastTwo.map(c => [c[1], c[0]])), { units: 'kilometers' });
-          label.textContent = `${fmtKm(totalKm)} (${lang === 'ru' ? 'участок' : 'seg'}: ${fmtKm(segKm)}, ${n} ${lang === 'ru' ? 'точек' : 'pts'})`;
+          label.textContent = `${fmtKm(totalKm)} (${lang === \'ru\' ? \'последний\' : \'seg\'}: ${fmtKm(segKm)})`;
         }
       }
     } else {
@@ -3073,7 +3109,7 @@ function renderFieldDetailHTML(field) {
 
     <hr style="border:none;border-top:2px solid rgba(76,175,80,0.25);margin:22px 0 12px;">
 
-    <!-- v2.9.1: REDESIGN — единый стиль карточки для всех секций (как прогноз урожайности + NDVI) -->
+    <!-- v3.0.1: REDESIGN — единый стиль карточки для всех секций (как прогноз урожайности + NDVI) -->
     <!-- FIX v2.0: Yield Forecast Card — pessimistic base + continent + NDVI -->
     ${(() => {
       const fc = getDetailedYieldForecast(field, ndvi);
@@ -3126,6 +3162,8 @@ function renderFieldDetailHTML(field) {
       <div style="font-size:10px;color:var(--text3);margin-top:4px;text-align:right;">NASA MODIS · ${lang === 'ru' ? 'расчётные данные' : 'estimated data'}</div>
     </div>
 
+    ${renderHealthIndexCard(field, ndvi)}
+
     <!-- Умный севооборот — та же карточка, что и выше -->
     <div class="detail-uniform-card">
       <div class="detail-uniform-card-title">🌱 ${lang === 'ru' ? 'Умный севооборот' : 'Smart crop rotation'}</div>
@@ -3134,21 +3172,7 @@ function renderFieldDetailHTML(field) {
       </div>
     </div>
 
-    <!-- Калькулятор норм расхода -->
-    <details class="detail-uniform-card">
-      <summary class="detail-uniform-card-title">
-        <span class="detail-uniform-card-title-left">🧮 ${lang === 'ru' ? 'Калькулятор расхода' : 'Dose Calculator'}</span>
-        <span class="detail-uniform-card-title-right">
-          ${formatAreaShort(getNetFieldArea(field))} ${getAreaUnit()}
-          <svg class="detail-uniform-card-chevron" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6,9 12,15 18,9"/></svg>
-        </span>
-      </summary>
-      <div class="detail-uniform-card-body">
-        <div id="hectar-calc-${escapeHtml(field.id)}">
-          ${renderCalcSection(field)}
-        </div>
-      </div>
-    </details>
+    
 
     <!-- Леса и нерабочие зоны — та же карточка -->
     <div class="detail-uniform-card">
@@ -3306,7 +3330,7 @@ function renderForestSectionHTML(field) {
         <div class="forest-zone-item">
           <span class="fz-icon">${zoneTypeIcon(fz)}</span>
           <span class="fz-label">${zoneTypeLabel(fz)} ${idx + 1}</span>
-          <span class="fz-area" title="${pct}%">${fz.area.toFixed(2)} ${getAreaUnit()} <span style="font-size:10px;color:var(--text3);">(${pct}%)</span></span>
+          <span class="fz-area" title="${pct}%">${fz.area.toFixed(1)} ${getAreaUnit()} <span style="font-size:10px;color:var(--text3);">(${pct}%)</span></span>
           <button class="fz-del" onclick="deleteForestZone('${escapeHtml(field.id)}', ${idx})" title="${isRu ? 'Удалить' : 'Delete'}">
             <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
@@ -3452,7 +3476,7 @@ function finishForestDrawing() {
   }).addTo(map);
   const zoneIcons = { road: '🛤️', water: '💧', building: '🏗️', forest: '🌲' };
   poly2.bindTooltip(`${zoneIcons[zoneType] || '🌲'} ${forestArea.toFixed(2)} ${getAreaUnit()}`, { permanent: false });
-  // FIX v2.9 п.1: Разрешаем клики везде (включая лесные/нерабочие зоны).
+  // FIX v3.0 п.1: Разрешаем клики везде (включая лесные/нерабочие зоны).
   // Убрали stopPropagation — теперь клик проходит до карты,
   // и метки рулетки/рисования ставятся в любой точке.
   poly2.on('click', function() {
@@ -3656,7 +3680,7 @@ function exportFieldsPDF() {
     const totalNet = fields.reduce((s, f) => s + getNetFieldArea(f), 0);
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-    <title>Hectar 2.9 — ${isRu ? 'Отчёт по полям' : 'Fields Report'}</title>
+    <title>Hectar 3.0 — ${isRu ? 'Отчёт по полям' : 'Fields Report'}</title>
     <style>
       body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#1a2332;font-size:13px;}
       @media print{body{padding:0;} .no-print{display:none!important;}}
@@ -3672,7 +3696,7 @@ function exportFieldsPDF() {
     </div>
     <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid ${BRAND.accentDark};padding-bottom:10px;margin-bottom:18px;">
       <div>
-        <div style="font-size:22px;font-weight:800;color:${BRAND.accentDark};">Hectar 2.9</div>
+        <div style="font-size:22px;font-weight:800;color:${BRAND.accentDark};">Hectar 3.0</div>
         <div style="font-size:14px;color:#555;">${isRu ? 'Отчёт по полям' : 'Fields Report'} — ${date}</div>
       </div>
       <div style="text-align:right;">
@@ -3682,7 +3706,7 @@ function exportFieldsPDF() {
       </div>
     </div>
     ${rowsHTML}
-    <div style="margin-top:14px;font-size:11px;color:#aaa;text-align:center;">Hectar 2.9 — ${isRu ? 'Мониторинг сельскохозяйственных полей' : 'Field Monitoring'}</div>
+    <div style="margin-top:14px;font-size:11px;color:#aaa;text-align:center;">Hectar 3.0 — ${isRu ? 'Мониторинг сельскохозяйственных полей' : 'Field Monitoring'}</div>
     <div class="no-print" style="margin-top:18px;text-align:center;padding-bottom:24px;">
       <button onclick="window.close()" style="
         display:inline-flex;align-items:center;gap:8px;
@@ -3993,8 +4017,8 @@ function renderForestPolygonsForField(field) {
       weight: 2,
       dashArray: '6,4'
     }).addTo(map);
-    poly.bindTooltip(`🌲 ${lang === 'ru' ? 'Лес' : 'Forest'} ${fz.area.toFixed(2)} ${getAreaUnit()}`, { permanent: false });
-    // FIX v2.9 п.1 (загруженные леса): убираем stopPropagation — клик проходит на карту,
+    poly.bindTooltip(`🌲 ${lang === 'ru' ? 'Лес' : 'Forest'} ${fz.area.toFixed(1)} ${getAreaUnit()}`, { permanent: false });
+    // FIX v3.0 п.1 (загруженные леса): убираем stopPropagation — клик проходит на карту,
     // метки рулетки/рисования ставятся в любой зоне включая лесные.
     poly.on('click', function() {
       poly.closeTooltip();
@@ -4628,7 +4652,7 @@ async function loadWeather() {
 
   try {
     const [lat, lng] = field.center;
-    // v2.9.1: добавлены soil_moisture (4 слоя) и past_days=30 для суммы
+    // v3.0.1: добавлены soil_moisture (4 слоя) и past_days=30 для суммы
     // осадков за последние 30 дней — тот же запрос, тот же бесплатный
     // Open-Meteo API без ключа, реальные модельные данные (ERA5/ECMWF),
     // не тестовые/случайные значения.
@@ -4651,7 +4675,7 @@ async function loadWeather() {
     const feelsLike = cur.apparent_temperature;
     const canSpray = wind < 5 && rain === 0;
 
-    // v2.9.1: с добавлением past_days=30 массив daily.time содержит
+    // v3.0.1: с добавлением past_days=30 массив daily.time содержит
     // past_days + forecast_days записей (37: 30 прошедших + сегодня + 6
     // будущих), упорядоченных от самой ранней даты к самой поздней.
     // Индекс "сегодня" детерминирован — он всегда равен past_days (30),
@@ -4680,7 +4704,7 @@ async function loadWeather() {
         </div>`;
     }).join('');
 
-    // v2.9.1: сумма осадков за последние 30 дней (дни до todayIdx, не включая
+    // v3.0.1: сумма осадков за последние 30 дней (дни до todayIdx, не включая
     // сегодня) — реальные дневные суммы из daily.precipitation_sum.
     const past30 = daily.precipitation_sum.slice(Math.max(0, todayIdx - PAST_DAYS), todayIdx);
     const rain30Total = past30.reduce((s, v) => s + (v || 0), 0);
@@ -4690,7 +4714,7 @@ async function loadWeather() {
       return `<div class="rain30-bar" style="height:${h}px;" title="${(v||0).toFixed(1)} mm"></div>`;
     }).join('');
 
-    // v2.9.1: влажность почвы — реальные данные Open-Meteo (модель ERA5/ECMWF).
+    // v3.0.1: влажность почвы — реальные данные Open-Meteo (модель ERA5/ECMWF).
     // Берём последнее доступное почасовое значение с непустыми данными по
     // всем слоям — это самый свежий снимок влажности. Прямое сравнение с
     // Date.now() здесь ненадёжно: hourly.time приходит в локальном времени
@@ -4853,7 +4877,7 @@ async function loadWeather() {
           </div>`;
           })()}
 
-          <!-- v2.9.1: сумма осадков за последние 30 дней (реальные данные Open-Meteo) -->
+          <!-- v3.0.1: сумма осадков за последние 30 дней (реальные данные Open-Meteo) -->
           <div class="rain30-card">
             <div class="rain30-top">
               <span class="soil-moisture-label" style="margin-bottom:0;">🌧 ${isRu ? 'Осадки за 30 дней' : 'Rain, last 30 days'}</span>
@@ -4862,7 +4886,7 @@ async function loadWeather() {
             ${past30.length ? `<div class="rain30-bars">${rain30BarsHTML}</div>` : ''}
           </div>
 
-          <!-- v2.9.1: влажность почвы по слоям (реальные данные Open-Meteo) -->
+          <!-- v3.0.1: влажность почвы по слоям (реальные данные Open-Meteo) -->
           ${soilHTML}
         </div>
 
@@ -6238,7 +6262,7 @@ async function fbForgotPassword() {
       err.textContent = lang === 'ru' ? '✅ Письмо отправлено на ' + email : '✅ Reset email sent to ' + email;
     }
   } catch(e) {
-    // FIX 2.9.1: добавлена английская версия сообщений (раньше были только на русском)
+    // FIX 3.0.1: добавлена английская версия сообщений (раньше были только на русском)
     const msgs = lang === 'ru'
       ? { 'auth/user-not-found': 'Пользователь не найден', 'auth/invalid-email': 'Некорректный email' }
       : { 'auth/user-not-found': 'User not found', 'auth/invalid-email': 'Invalid email' };
@@ -6265,7 +6289,7 @@ async function fbSubmitEmail() {
     // FIX 2.5: startApp() вызывается через onAuthStateChanged — не дублируем
     showToast('✅ ' + (lang === 'ru' ? 'Вход выполнен!' : 'Signed in!'));
   } catch(e) {
-    // FIX 2.9.1: добавлены английские версии — раньше эти сообщения были
+    // FIX 3.0.1: добавлены английские версии — раньше эти сообщения были
     // захардкожены только на русском, хотя остальное приложение двуязычное.
     const msgsRu = {
       'auth/wrong-password': 'Неверный пароль',
@@ -6412,7 +6436,7 @@ async function submitDeleteAccount() {
         fieldsSnap.forEach(d => batch.delete(d.ref));
         await batch.commit();
       } catch(_) {}
-      // FIX 2.9.1: удаляем и подколлекцию notes — Firestore не каскадирует
+      // FIX 3.0.1: удаляем и подколлекцию notes — Firestore не каскадирует
       // удаление подколлекций автоматически, поэтому раньше заметки оставались в облаке навсегда.
       try {
         const notesCol = fb.collection(fbDb, 'users', uid, 'notes');
@@ -6430,7 +6454,7 @@ async function submitDeleteAccount() {
     // Delete the Auth user
     await window._fbFns.deleteUser(fbCurrentUser);
     // Clear local data
-    // FIX 2.9.1: раньше чистились только -fields/-settings/-auth — остальные
+    // FIX 3.0.1: раньше чистились только -fields/-settings/-auth — остальные
     // локальные ключи (сезоны, избранные города) оставались после удаления аккаунта.
     localStorage.removeItem(STORAGE_PREFIX + '-fields');
     localStorage.removeItem(STORAGE_PREFIX + '-settings');
@@ -6457,7 +6481,7 @@ function _fbGetUser() {
   return fbCurrentUser || (fbAuth && fbAuth.currentUser) || null;
 }
 
-// FIX 2.9.1: раньше сбои синхронизации с Firestore (нет сети, недостаточно прав,
+// FIX 3.0.1: раньше сбои синхронизации с Firestore (нет сети, недостаточно прав,
 // превышена квота) уходили только в console.warn — пользователь думал, что всё
 // сохранено в облако, хотя это было не так. Показываем тост, но не чаще раза в
 // 60 секунд, чтобы не заспамить пользователя при серии неудачных попыток подряд.
@@ -6594,7 +6618,7 @@ async function fbSaveSeasonRecords(records) {
   } catch(e) { console.warn('fbSaveSeasonRecords error:', e); }
 }
 
-// FIX 2.9.1: сохранение избранных городов погоды в Firestore —
+// FIX 3.0.1: сохранение избранных городов погоды в Firestore —
 // раньше такой функции не было вообще, поэтому избранные города
 // никогда не отправлялись в облако (только читались, да и то не под тем ключом).
 async function fbSaveFavouriteCities(favs) {
@@ -6862,7 +6886,7 @@ saveSeasonRecords = function(records) {
   }
 };
 
-// ── Патч saveFavouriteCities (FIX 2.9.1: избранные города вообще не уходили в облако) ──
+// ── Патч saveFavouriteCities (FIX 3.0.1: избранные города вообще не уходили в облако) ──
 const _origSaveFavouriteCitiesFb = saveFavouriteCities;
 saveFavouriteCities = function(favs) {
   localStorage.setItem(FAVS_KEY, JSON.stringify(favs));
@@ -7006,7 +7030,7 @@ function renderProfile() {
     <div class="settings-group">
       <div class="settings-group-title">${t('aboutApp')}</div>
       <div class="about-block">
-        <div class="about-logo">Hectar 2.9</div>
+        <div class="about-logo">Hectar 3.0</div>
         <div>${t('aboutTagline')}</div>
         <div class="about-version">${t('version')} ${APP_VERSION}</div>
       </div>
@@ -7258,3 +7282,129 @@ self.addEventListener('fetch', function(event) {
     lastTouchEnd = now;
   }, { passive: false });
 })();
+
+
+
+// ==========================================
+// TRACTOR GPS TRACKING MODE
+// ==========================================
+let tractorWatchId = null;
+let tractorActive = false;
+let tractorPath = [];
+let tractorWidth = 12; // meters
+let tractorAreaHa = 0;
+let tractorDistKm = 0;
+let tractorMarker = null;
+let tractorTrailGroup = null;
+
+function openTractorSetupModal() {
+  document.getElementById('modal-tractor-setup').classList.add('open');
+}
+function closeTractorSetupModal() {
+  document.getElementById('modal-tractor-setup').classList.remove('open');
+}
+
+function startTractorTracking() {
+  const widthInput = document.getElementById('tractor-width-input');
+  if (widthInput && widthInput.value) {
+    tractorWidth = parseFloat(widthInput.value) || 12;
+  }
+  closeTractorSetupModal();
+  
+  if (!navigator.geolocation) {
+    showToast(lang === 'ru' ? 'GPS не поддерживается' : 'GPS not supported');
+    return;
+  }
+  
+  tractorActive = true;
+  tractorPath = [];
+  tractorAreaHa = 0;
+  tractorDistKm = 0;
+  
+  document.getElementById('tractor-stat-area').textContent = '0.00';
+  document.getElementById('tractor-stat-dist').textContent = '0.0';
+  document.getElementById('tractor-stat-speed').textContent = '0';
+  
+  document.getElementById('tractor-active-ui').style.display = 'block';
+  
+  if (!tractorTrailGroup) {
+    tractorTrailGroup = L.layerGroup().addTo(map);
+  } else {
+    tractorTrailGroup.clearLayers();
+  }
+  
+  if (tractorMarker) {
+    map.removeLayer(tractorMarker);
+  }
+  
+  const iconHtml = `<div style="background:var(--accent);width:24px;height:24px;border-radius:50%;border:3px solid #fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.5);"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24" width="14" height="14"><rect x="3" y="10" width="14" height="8" rx="2"/><circle cx="6" cy="18" r="2"/><circle cx="14" cy="18" r="2"/><path d="M17 14h3a2 2 0 0 0 2-2v-2l-3-2H8"/><path d="M12 10V6a1 1 0 0 1 1-1h2"/></svg></div>`;
+  tractorMarker = L.marker([0,0], {
+    icon: L.divIcon({ html: iconHtml, className: '', iconSize: [24,24], iconAnchor: [12,12] })
+  });
+  
+  tractorWatchId = navigator.geolocation.watchPosition(
+    onTractorPosition,
+    (err) => { console.error('GPS Error:', err); },
+    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+  );
+  
+  showToast(lang === 'ru' ? 'Заезд начат!' : 'Tractor mode started!');
+}
+
+function onTractorPosition(pos) {
+  if (!tractorActive) return;
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
+  const speed = pos.coords.speed || 0; // m/s
+  
+  const speedKmh = (speed * 3.6).toFixed(1);
+  document.getElementById('tractor-stat-speed').textContent = speedKmh;
+  
+  const currentPoint = [lat, lng];
+  
+  if (tractorPath.length === 0) {
+    tractorMarker.setLatLng(currentPoint).addTo(map);
+    map.setView(currentPoint, 18);
+  } else {
+    tractorMarker.setLatLng(currentPoint);
+    
+    // Calculate distance added
+    const prevPoint = tractorPath[tractorPath.length - 1];
+    const segLine = turf.lineString([[prevPoint[1], prevPoint[0]], [lng, lat]]);
+    const segKm = turf.length(segLine, { units: 'kilometers' });
+    tractorDistKm += segKm;
+    
+    // Calculate area added based on equipment width
+    // segment length (m) * width (m) = area (sq m)
+    const segMeters = segKm * 1000;
+    const addedAreaHa = (segMeters * tractorWidth) / 10000;
+    tractorAreaHa += addedAreaHa;
+    
+    document.getElementById('tractor-stat-dist').textContent = tractorDistKm.toFixed(2);
+    document.getElementById('tractor-stat-area').textContent = tractorAreaHa.toFixed(2);
+    
+    // Draw the trail using a polyline with dynamic width, or better: Turf buffer.
+    // For simplicity and speed in real-time, we draw a filled polyline with high weight.
+    // To be perfectly accurate across zooms, Turf buffer is better.
+    const buffered = turf.buffer(segLine, (tractorWidth / 2) / 1000, { units: 'kilometers' });
+    if (buffered) {
+      L.geoJSON(buffered, {
+        style: { color: 'var(--accent)', weight: 1, fillOpacity: 0.4, fillColor: 'var(--accent)' }
+      }).addTo(tractorTrailGroup);
+    }
+  }
+  
+  tractorPath.push(currentPoint);
+}
+
+function stopTractorTracking() {
+  if (tractorWatchId) {
+    navigator.geolocation.clearWatch(tractorWatchId);
+    tractorWatchId = null;
+  }
+  tractorActive = false;
+  document.getElementById('tractor-active-ui').style.display = 'none';
+  
+  const isRu = lang === 'ru';
+  alert(`${isRu ? 'Заезд завершен!' : 'Tracking finished!'}\n\n${isRu ? 'Пройдено' : 'Distance'}: ${tractorDistKm.toFixed(2)} км\n${isRu ? 'Обработано' : 'Area'}: ${tractorAreaHa.toFixed(2)} га`);
+}

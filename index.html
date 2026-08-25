@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <!-- FIX 2: Full mobile/PWA adaptation — viewport-fit=cover ensures content fills notch/Dynamic Island area -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Hectar 2.9 — Field Monitoring</title>
+<title>Hectar 3.0 — Field Monitoring</title>
 
-<!-- FIX v2.9 п.5: apple-touch-fullscreen — дополнительный тег для старых iOS -->
+<!-- FIX v3.0 п.5: apple-touch-fullscreen — дополнительный тег для старых iOS -->
 <meta name="apple-touch-fullscreen" content="yes">
-<!-- FIX v2.9 п.5: PWA full-screen on iOS — black-translucent hides Safari URL bar when added to home screen -->
+<!-- FIX v3.0 п.5: PWA full-screen on iOS — black-translucent hides Safari URL bar when added to home screen -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Hectar">
@@ -93,11 +93,11 @@
     <div class="login-title">Hec<span>tar</span></div>
     <div class="login-subtitle" id="login-subtitle">
       Agricultural field monitoring<br>
-      v2.9
+      v3.0
     </div>
 
     <button class="login-btn google" onclick="openFbAuthModal('google')">
-      <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.97h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v3.07h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c3.07 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
       <span data-i18n="signInGoogle">Sign in with Google</span>
     </button>
     <button class="login-btn email" onclick="openFbAuthModal('email')">
@@ -109,6 +109,30 @@
     </button>
   </div>
 
+  
+  <!-- Модалка Настройки Заезда -->
+  <div class="modal-overlay" id="modal-tractor-setup" onclick="if(event.target===this)closeTractorSetupModal()">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-header-row">
+        <div class="modal-title">🚜 Настройки заезда</div>
+        <button type="button" class="icon-btn" onclick="closeTractorSetupModal()">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-sheet-body">
+        <p style="font-size:14px;color:var(--text2);margin-bottom:16px;">
+          Включите GPS. Траектория вашего движения будет отрисовываться на карте с учетом ширины оборудования.
+        </p>
+        <div style="margin-bottom: 20px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;">Ширина оборудования (метры)</label>
+          <input type="number" id="tractor-width-input" class="modal-input" value="12" step="0.5" min="1">
+        </div>
+        <button class="modal-btn primary" onclick="startTractorTracking()">Начать работу</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Firebase Auth Modal -->
   <div id="fb-auth-modal" style="display:none;" class="fb-auth-modal" onclick="if(event.target===this)closeFbAuthModal()">
     <div class="fb-auth-sheet">
@@ -117,7 +141,7 @@
       <div class="fb-auth-error" id="fb-auth-error"></div>
       <div id="fb-auth-google-section">
         <button class="fb-auth-btn google" onclick="fbSignInGoogle()">
-          <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.97h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v3.07h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c3.07 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
           Sign in with Google
         </button>
         <div style="text-align:center;color:var(--text3);font-size:12px;margin:10px 0;">— or —</div>
@@ -225,6 +249,12 @@
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/><circle cx="12" cy="12" r="9" opacity="0.3"/></svg>
       </button>
 
+      
+      <!-- Кнопка Трактор/Заезд -->
+      <button id="btn-tractor-mode" onclick="openTractorSetupModal()">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="10" width="14" height="8" rx="2"/><circle cx="6" cy="18" r="2"/><circle cx="14" cy="18" r="2"/><path d="M17 14h3a2 2 0 0 0 2-2v-2l-3-2H8"/><path d="M12 10V6a1 1 0 0 1 1-1h2"/></svg>
+        <span data-i18n="tractorMode">Заезд</span>
+      </button>
       <!-- Кнопка добавить поле -->
       <button id="btn-add-field-map" onclick="startDrawMode()">
         <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -267,6 +297,36 @@
           <span data-i18n="finishShort">Finish</span>
           <span class="area-label" id="draw-area-label"></span>
         </button>
+      </div>
+    </div>
+
+    
+    <!-- Режим трактора -->
+    <div id="tractor-active-ui" style="display:none; position:fixed; top:0; left:0; width:100%; z-index:900; pointer-events:none;">
+      <div style="padding:calc(var(--safe-top) + 16px) 16px 0;">
+        <div style="background:var(--glass);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:16px;pointer-events:auto;box-shadow:var(--shadow);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px;">
+              <span class="pulse-dot" style="width:10px;height:10px;background:#ff6b6b;border-radius:50%;display:inline-block;animation:pulse 1.5s infinite;"></span>
+              <span id="tractor-status-text">Запись трека</span>
+            </div>
+            <button class="modal-btn secondary" onclick="stopTractorTracking()" style="width:auto;padding:8px 16px;font-size:14px;background:#ff6b6b20;color:#ff6b6b;border:1px solid #ff6b6b40;">Завершить</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Площадь</div>
+              <div style="font-size:22px;font-weight:800;color:var(--accent);"><span id="tractor-stat-area">0.00</span> <span style="font-size:14px;color:var(--text2);">га</span></div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Дистанция</div>
+              <div style="font-size:22px;font-weight:800;color:#fff;"><span id="tractor-stat-dist">0.0</span> <span style="font-size:14px;color:var(--text2);">км</span></div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Скорость</div>
+              <div style="font-size:16px;font-weight:700;color:#fff;"><span id="tractor-stat-speed">0</span> <span style="font-size:12px;color:var(--text2);">км/ч</span></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
