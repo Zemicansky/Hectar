@@ -2402,7 +2402,7 @@ function onMapClick(e) {
         if (n === 2) {
           label.textContent = fmtKm(totalKm);
         } else {
-          label.textContent = `${fmtKm(totalKm)} (${lang === \'ru\' ? \'последний\' : \'seg\'}: ${fmtKm(segKm)})`;
+          label.textContent = `${fmtKm(totalKm)} (${lang === 'ru' ? 'последний' : 'seg'}: ${fmtKm(segKm)})`;
         }
       }
     }
@@ -2536,7 +2536,7 @@ function undoLastPoint() {
         } else {
           const lastTwo = currentMeasurePoints.slice(-2);
           const segKm = turf.length(turf.lineString(lastTwo.map(c => [c[1], c[0]])), { units: 'kilometers' });
-          label.textContent = `${fmtKm(totalKm)} (${lang === \'ru\' ? \'последний\' : \'seg\'}: ${fmtKm(segKm)})`;
+          label.textContent = `${fmtKm(totalKm)} (${lang === 'ru' ? 'последний' : 'seg'}: ${fmtKm(segKm)})`;
         }
       }
     } else {
