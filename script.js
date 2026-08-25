@@ -5247,6 +5247,7 @@ function openModal(id) {
   el.classList.add('open');
   document.body.classList.add('modal-open');
   openModalId = id;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function closeModal(id) {
@@ -5263,8 +5264,9 @@ let toastTimer;
 function showToast(msg) {
   const el = document.getElementById('toast');
   if (!el) return;
-  el.textContent = msg;
+  el.innerHTML = msg;
   el.classList.add('show');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
 }
@@ -5874,6 +5876,18 @@ function startApp() {
   // Reset draw state safely after map is ready
   isDrawing = false;
   currentDrawPoints = [];
+
+  const splash = document.getElementById('splash-screen');
+  const splashActive = splash && !splash.classList.contains('hidden') && !splash.classList.contains('fade-out');
+  const tabBar = document.getElementById('tab-bar');
+  if (tabBar) {
+    if (splashActive || tractor3DActive) {
+      tabBar.style.display = 'none';
+    } else {
+      tabBar.style.display = 'flex';
+    }
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 // Sets --app-height CSS var to window.innerHeight so layouts use actual visible height.
@@ -6970,7 +6984,15 @@ function hideSplash() {
   const splash = document.getElementById('splash-screen');
   if (!splash || splash.classList.contains('hidden')) return;
   splash.classList.add('fade-out');
-  setTimeout(() => splash.classList.add('hidden'), 420);
+  setTimeout(() => {
+    splash.classList.add('hidden');
+    const tabBar = document.getElementById('tab-bar');
+    const mainApp = document.getElementById('main-app');
+    if (tabBar && mainApp && mainApp.classList.contains('visible') && !tractor3DActive) {
+      tabBar.style.display = 'flex';
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }, 420);
 }
 
 (function startWithSplash() {
@@ -7245,6 +7267,7 @@ let tractorSimInterval = null;
 function openAddMenuModal() {
   const m = document.getElementById('modal-add-menu');
   if (m) m.classList.add('open');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function closeAddMenuModal() {
@@ -7283,6 +7306,7 @@ function openTractorSetupModal() {
 
   const m = document.getElementById('modal-tractor-setup');
   if (m) m.classList.add('open');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function closeTractorSetupModal() {
@@ -7485,10 +7509,13 @@ function init3DScene() {
 
   camera3D = new THREE.PerspectiveCamera(62, w / h, 0.1, 1000);
 
-  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x3d5c32, 0.75);
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x3d5c32, 1.1);
   scene3D.add(hemiLight);
 
-  const dirLight = new THREE.DirectionalLight(0xfff5e6, 0.95);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  scene3D.add(ambientLight);
+
+  const dirLight = new THREE.DirectionalLight(0xfff5e6, 1.2);
   dirLight.position.set(60, 120, 60);
   dirLight.castShadow = true;
   scene3D.add(dirLight);
@@ -7646,7 +7673,7 @@ function build3DTractorModel() {
   scene3D.add(tractor3DModel);
 }
 
-/** 3D Границы поля с высокими неоновыми маяками */
+/** 3D Границы поля с неоновыми стенами, светящимися маяками и гонами */
 function update3DFieldBounds(field) {
   if (!scene3D) return;
 
@@ -7672,31 +7699,67 @@ function update3DFieldBounds(field) {
   });
   points3D.push(points3D[0]);
 
-  // Неоновая линия границы поля
+  // Неоновый контур границы поля (земля + верх)
   const lineGeo = new THREE.BufferGeometry().setFromPoints(points3D);
-  const lineMat = new THREE.LineBasicMaterial({ color: 0x00e676, linewidth: 3 });
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x00e676 });
   const boundaryLine = new THREE.Line(lineGeo, lineMat);
   field3DOutline.add(boundaryLine);
 
-  // Светящиеся высотные маяки на каждом углу поля
-  const beaconGeo = new THREE.CylinderGeometry(0.4, 0.4, 15, 12);
-  const beaconMat = new THREE.MeshBasicMaterial({ color: 0x00e676, transparent: true, opacity: 0.7, wireframe: true });
-  points3D.forEach(p => {
+  // Полупрозрачная светящаяся стена/ограждение границы (высота 3.5м)
+  const wallHeight = 3.5;
+  const wallPositions = [];
+  for (let i = 0; i < points3D.length - 1; i++) {
+    const p1 = points3D[i];
+    const p2 = points3D[i + 1];
+
+    // Triangle 1
+    wallPositions.push(p1.x, 0.1, p1.z);
+    wallPositions.push(p2.x, 0.1, p2.z);
+    wallPositions.push(p1.x, wallHeight, p1.z);
+
+    // Triangle 2
+    wallPositions.push(p2.x, 0.1, p2.z);
+    wallPositions.push(p2.x, wallHeight, p2.z);
+    wallPositions.push(p1.x, wallHeight, p1.z);
+  }
+  const wallGeo = new THREE.BufferGeometry();
+  wallGeo.setAttribute('position', new THREE.Float32BufferAttribute(wallPositions, 3));
+  const wallMat = new THREE.MeshBasicMaterial({
+    color: 0x00e676,
+    transparent: true,
+    opacity: 0.32,
+    side: THREE.DoubleSide
+  });
+  const wallMesh = new THREE.Mesh(wallGeo, wallMat);
+  field3DOutline.add(wallMesh);
+
+  // Светящиеся высотные маяки на каждом углу поля со сферами на вершине
+  const beaconGeo = new THREE.CylinderGeometry(0.5, 0.5, 18, 12);
+  const beaconMat = new THREE.MeshBasicMaterial({ color: 0x00e676, transparent: true, opacity: 0.85 });
+  const orbGeo = new THREE.SphereGeometry(1.2, 16, 16);
+  const orbMat = new THREE.MeshBasicMaterial({ color: 0x69f0ae });
+
+  points3D.forEach((p, idx) => {
+    if (idx === points3D.length - 1) return; // avoid duplicate on closing point
     const beacon = new THREE.Mesh(beaconGeo, beaconMat);
-    beacon.position.set(p.x, 7.5, p.z);
+    beacon.position.set(p.x, 9, p.z);
     field3DOutline.add(beacon);
+
+    const orb = new THREE.Mesh(orbGeo, orbMat);
+    orb.position.set(p.x, 18, p.z);
+    field3DOutline.add(orb);
   });
 
-  // Лазерные полосы гонов
+  // Лазерные направляющие гонов (guidelines)
   const spacingMeters = tractorWidth || 12;
-  const numTracks = 20;
-  const trackMat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 5, gapSize: 4, opacity: 0.85, transparent: true });
+  const numTracks = 25;
+  const trackMat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 6, gapSize: 4, opacity: 0.7, transparent: true });
 
   for (let i = -numTracks; i <= numTracks; i++) {
     const xPos = i * spacingMeters;
     const trackGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(xPos, 0.2, -500),
-      new THREE.Vector3(xPos, 0.2, 500)
+      new THREE.Vector3(xPos, 0.2, -600),
+      new THREE.Vector3(xPos, 0.2, 600)
     ]);
     const trackLine = new THREE.Line(trackGeo, trackMat);
     trackLine.computeLineDistances();
@@ -7795,21 +7858,30 @@ function stop3DGas() { gas3DInput = 0; }
 function toggleTractor3DView(show) {
   tractor3DActive = show;
   const container = document.getElementById('tractor-3d-view');
+  const tabBar = document.getElementById('tab-bar');
   if (!container) return;
 
   if (show) {
     container.style.display = 'block';
+    if (tabBar) tabBar.style.display = 'none';
     if (init3DScene()) {
       if (tractorActiveField) update3DFieldBounds(tractorActiveField);
       start3DAnimationLoop();
     }
   } else {
     container.style.display = 'none';
+    const splash = document.getElementById('splash-screen');
+    const splashHidden = !splash || splash.classList.contains('hidden');
+    const mainApp = document.getElementById('main-app');
+    if (tabBar && mainApp && mainApp.classList.contains('visible') && splashHidden) {
+      tabBar.style.display = 'flex';
+    }
     if (tractor3DAnimId) {
       cancelAnimationFrame(tractor3DAnimId);
       tractor3DAnimId = null;
     }
   }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function start3DAnimationLoop() {
@@ -7855,20 +7927,20 @@ function start3DAnimationLoop() {
         const rad = tractor3DModel.rotation.y;
 
         if (camera3DMode === 'cockpit') {
-          // ВИД ИЗ КАБИНЫ (1-е лицо над капотом)
+          // ВИД ИЗ КАБИНЫ (1-е лицо: водитель в кабине за рулём, видит капот, приборы и поле)
           camera3D.position.set(
-            tPos.x + Math.sin(rad) * 0.15,
-            2.3, // Глаза водителя
-            tPos.z + Math.cos(rad) * 0.15
+            tPos.x - Math.sin(rad) * 0.4,
+            2.4, // Высота глаз водителя в кабине
+            tPos.z - Math.cos(rad) * 0.4
           );
           const lookTarget = new THREE.Vector3(
-            tPos.x + Math.sin(rad) * 30,
-            1.7,
-            tPos.z + Math.cos(rad) * 30
+            tPos.x + Math.sin(rad) * 25,
+            1.4,
+            tPos.z + Math.cos(rad) * 25
           );
           camera3D.lookAt(lookTarget);
         } else {
-          // ВИД СЗАДИ (3-е лицо)
+          // ВИД СЗАДИ (3-е лицо: полный обзор трактора и гонов)
           camera3D.position.set(
             tPos.x - Math.sin(rad) * 11,
             6.2,
@@ -8036,12 +8108,20 @@ window.addEventListener('keyup', (e) => {
 });
 
 // FIX: Auto-initialize Lucide SVG icons whenever DOM updates
-const lucideObserver = new MutationObserver((mutations) => {
+let _lucideDebounce = null;
+function refreshLucideIcons() {
   if (typeof lucide !== 'undefined') {
     lucide.createIcons();
   }
+}
+
+const lucideObserver = new MutationObserver((mutations) => {
+  if (typeof lucide !== 'undefined') {
+    if (_lucideDebounce) clearTimeout(_lucideDebounce);
+    _lucideDebounce = setTimeout(() => {
+      lucide.createIcons();
+    }, 50);
+  }
 });
 lucideObserver.observe(document.body, { childList: true, subtree: true });
-window.addEventListener('DOMContentLoaded', () => {
-  if (typeof lucide !== 'undefined') lucide.createIcons();
-});
+window.addEventListener('DOMContentLoaded', refreshLucideIcons);

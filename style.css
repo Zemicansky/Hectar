@@ -234,8 +234,15 @@
   ══════════════════════════════════════ */
   #splash-screen {
     position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
     inset: 0;
-    z-index: 999999;
+    z-index: 999999 !important;
     background: linear-gradient(160deg, #0a1520 0%, #0f1923 40%, #0d2a1a 100%);
     display: flex;
     flex-direction: column;
@@ -335,8 +342,11 @@
     isolation: isolate;
   }
 
-  /* Hide tab-bar when main app is not active */
-  #main-app:not(.visible) #tab-bar {
+  /* Hide tab-bar when main app is not active or during splash / 3D tractor view */
+  #main-app:not(.visible) #tab-bar,
+  #splash-screen:not(.hidden):not(.fade-out) ~ #main-app #tab-bar,
+  #splash-screen:not(.hidden):not(.fade-out) ~ * #tab-bar,
+  body:has(#splash-screen:not(.hidden):not(.fade-out)) #tab-bar {
     display: none !important;
   }
   .tab-btn {
@@ -4182,20 +4192,56 @@
 /* ══════════════════════════════════════
    v3.0 3D TRACTOR VIEWPORT STYLES
 ══════════════════════════════════════ */
+.tractor-3d-controls-wrap {
+  position: absolute;
+  bottom: calc(var(--safe-bottom) + 58px);
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  z-index: 860;
+  pointer-events: none;
+}
+.tractor-3d-steer-group,
+.tractor-3d-action-group {
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+.tractor-3d-cam-bar {
+  position: absolute;
+  bottom: calc(var(--safe-bottom) + 12px);
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  z-index: 860;
+  pointer-events: auto;
+  flex-wrap: wrap;
+}
 .btn-3d-cam {
   background: rgba(22, 34, 49, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 100px;
-  padding: 8px 16px;
+  padding: 7px 14px;
   color: var(--text2);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.18s;
   box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 .btn-3d-cam.active, .btn-3d-cam:active {
   background: var(--accent);
@@ -4203,20 +4249,31 @@
   border-color: var(--accent);
   transform: scale(1.03);
 }
+.btn-3d-cam.finish {
+  background: rgba(255, 107, 107, 0.2);
+  color: #ff6b6b;
+  border-color: rgba(255, 107, 107, 0.4);
+}
 .btn-3d-ctrl {
   background: rgba(22, 34, 49, 0.85);
   backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  padding: 12px 18px;
+  border-radius: 12px;
+  padding: 10px 14px;
   color: #fff;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 .btn-3d-ctrl:active {
   background: rgba(255, 255, 255, 0.2);
@@ -4230,14 +4287,20 @@
 .btn-3d-ctrl.gas:active {
   background: rgba(0, 230, 118, 0.45);
 }
-
-/* ══════════════════════════════════════
-   v3.0 TRACTOR RUN NOTES & 3D CONTROLS
-══════════════════════════════════════ */
 .btn-3d-ctrl.demo {
   background: rgba(33, 150, 243, 0.25);
   border-color: rgba(33, 150, 243, 0.5);
   color: #64b5f6;
+}
+@media (max-width: 380px) {
+  .btn-3d-ctrl {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .btn-3d-cam {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
 }
 .tractor-note-badge {
   display: inline-flex;
@@ -4377,11 +4440,18 @@ h1, h2, h3, .modal-title, .screen-title {
   vertical-align: -3px;
   stroke-width: 2.2px;
   display: inline-block;
+  flex-shrink: 0;
+}
+.menu-action-icon .icon-sm,
+.menu-action-icon svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2px;
 }
 .modal-btn .icon-sm, .btn-3d-cam .icon-sm, .btn-3d-ctrl .icon-sm {
-  width: 18px;
-  height: 18px;
-  vertical-align: -4px;
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
   margin-right: 4px;
 }
 
