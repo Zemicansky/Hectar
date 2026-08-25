@@ -393,8 +393,33 @@
         <div style="position:absolute; bottom:4px; font-size:10px; font-weight:700; color:#00e676; letter-spacing:0.5px; text-transform:uppercase;">РАДАР</div>
       </div>
 
+      <!-- Навигационный курсоуказатель (Lightbar Guidance HUD) -->
+      <div id="tractor-3d-guidance-bar" class="tractor-3d-guidance-bar">
+        <div class="guidance-hud-top">
+          <span class="guidance-tag track" id="tractor-guidance-track">ГОН #1</span>
+          <span class="guidance-tag hdg">КУРС <span id="tractor-guidance-hdg">0°</span></span>
+          <span class="guidance-tag width">ШИРИНА <span id="tractor-guidance-width">12м</span></span>
+        </div>
+        <div class="guidance-lightbar-wrap">
+          <div class="guidance-leds left" id="gleds-left">
+            <span class="gled" id="gled-l3"></span>
+            <span class="gled" id="gled-l2"></span>
+            <span class="gled" id="gled-l1"></span>
+          </div>
+          <div class="guidance-center-pill" id="guidance-center-pill">
+            <span id="tractor-guidance-offset">0.00 м</span>
+          </div>
+          <div class="guidance-leds right" id="gleds-right">
+            <span class="gled" id="gled-r1"></span>
+            <span class="gled" id="gled-r2"></span>
+            <span class="gled" id="gled-r3"></span>
+          </div>
+        </div>
+        <div class="guidance-status-label" id="tractor-guidance-status">В ПОЛОСЕ (ON TRACK)</div>
+      </div>
+
       <!-- Плашка текущего поля и статуса -->
-      <div style="position:absolute; top:calc(var(--safe-top) + 14px); left:14px; max-width:calc(100% - 160px); background:rgba(15,25,35,0.85); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:10px 14px; z-index:860;">
+      <div style="position:absolute; top:calc(var(--safe-top) + 96px); left:14px; max-width:calc(100% - 160px); background:rgba(15,25,35,0.85); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:10px 14px; z-index:860;">
         <div style="display:flex; align-items:center; gap:6px;">
           <span style="width:8px; height:8px; border-radius:50%; background:#00e676; display:inline-block; animation:pulse-green 1.5s infinite;"></span>
           <div style="font-size:14px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="tractor-3d-field-title">Поле</div>

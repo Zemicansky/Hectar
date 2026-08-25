@@ -7230,6 +7230,8 @@ let tractor3DModel = null, steeringWheelMesh = null, frontLeftWheelMesh = null, 
 let tractor3DActive = false;
 let camera3DMode = 'cockpit'; // 'cockpit' | 'chase'
 let field3DOutline = null, ground3D = null;
+let tractor3DTrailGroup = null;
+let lastSoilPaintPos = null;
 let steer3DInput = 0, gas3DInput = 0;
 let tractor3DAnimId = null;
 let tractor3DHeading = 0;
@@ -7351,6 +7353,13 @@ function startTractorTracking() {
   tractorCurrentSpeed = 0;
   tractor3DPos = { x: 0, z: 0 };
   tractor3DHeading = 0;
+  lastSoilPaintPos = null;
+
+  if (tractor3DTrailGroup) {
+    tractor3DTrailGroup.clear();
+    tractor3DTrailGroup.userData = {};
+  }
+  reset3DGroundCanvas();
 
   let initialPoint = (typeof DEFAULT_MAP_CENTER !== 'undefined') ? DEFAULT_MAP_CENTER : [55.75, 37.61];
   if (tractorActiveField) {
@@ -7375,6 +7384,9 @@ function startTractorTracking() {
   if (statDist) statDist.textContent = '0.0';
   const statSpeed = document.getElementById('tractor-3d-stat-speed');
   if (statSpeed) statSpeed.textContent = '0.0';
+
+  const widthEl = document.getElementById('tractor-guidance-width');
+  if (widthEl) widthEl.textContent = `${Math.round(tractorWidth || 12)}м`;
 
   // ЗАПУСК 3D РЕЖИМА
   toggleTractor3DView(true);
@@ -7449,6 +7461,7 @@ function updateTractorLocation(newPoint) {
     if (fieldCenter3D) {
       tractor3DPos.x = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
       tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
+      updateGuidanceLightbar(tractor3DHeading, tractor3DPos.x, tractor3DPos.z);
     }
     return;
   }
@@ -7461,12 +7474,14 @@ function updateTractorLocation(newPoint) {
   if (segKm > 0.3) {
     tractorMarker.setLatLng(newPoint);
     tractorPath = [newPoint];
+    lastSoilPaintPos = null;
+    if (tractor3DTrailGroup) tractor3DTrailGroup.userData = {};
     
     // Синхронизация с 3D миром при прыжке
     if (fieldCenter3D) {
       tractor3DPos.x = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
       tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
-      // Heading stays the same as we don't know the direction of the jump
+      updateGuidanceLightbar(tractor3DHeading, tractor3DPos.x, tractor3DPos.z);
     }
     return;
   }
@@ -7489,8 +7504,10 @@ function updateTractorLocation(newPoint) {
     const addedAreaHa = (segMeters * tractorWidth) / 10000;
     tractorAreaHa += addedAreaHa;
 
-    document.getElementById('tractor-3d-stat-dist').textContent = tractorDistKm.toFixed(2);
-    document.getElementById('tractor-3d-stat-area').textContent = tractorAreaHa.toFixed(2);
+    const distEl = document.getElementById('tractor-3d-stat-dist');
+    if (distEl) distEl.textContent = tractorDistKm.toFixed(2);
+    const areaEl = document.getElementById('tractor-3d-stat-area');
+    if (areaEl) areaEl.textContent = tractorAreaHa.toFixed(2);
 
     // Синхронизация с 3D миром по центру поля
     if (fieldCenter3D) {
@@ -7498,6 +7515,7 @@ function updateTractorLocation(newPoint) {
       tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
       tractor3DHeading = heading;
       paint3DSoilCoverage(tractor3DPos.x, tractor3DPos.z, tractorWidth || 12);
+      updateGuidanceLightbar(heading, tractor3DPos.x, tractor3DPos.z);
     }
 
     // Закрашивание на 2D Leaflet
@@ -7551,11 +7569,31 @@ function init3DScene() {
   create3DGround();
   build3DTractorModel();
 
+  tractor3DTrailGroup = new THREE.Group();
+  scene3D.add(tractor3DTrailGroup);
+
   radarCanvas = document.getElementById('tractor-radar-canvas');
   if (radarCanvas) radarCtx = radarCanvas.getContext('2d');
 
   window.addEventListener('resize', on3DWindowResize);
   return true;
+}
+
+function reset3DGroundCanvas() {
+  if (!coverage3DCtx) return;
+  // Свежая реалистичная текстура травы и борозд
+  coverage3DCtx.fillStyle = '#2d5a27';
+  coverage3DCtx.fillRect(0, 0, 1024, 1024);
+
+  coverage3DCtx.strokeStyle = 'rgba(30, 65, 25, 0.4)';
+  coverage3DCtx.lineWidth = 3;
+  for (let y = 0; y < 1024; y += 20) {
+    coverage3DCtx.beginPath();
+    coverage3DCtx.moveTo(0, y);
+    coverage3DCtx.lineTo(1024, y);
+    coverage3DCtx.stroke();
+  }
+  if (coverage3DTexture) coverage3DTexture.needsUpdate = true;
 }
 
 function create3DGround() {
@@ -7566,18 +7604,7 @@ function create3DGround() {
   coverage3DCanvas.height = 1024;
   coverage3DCtx = coverage3DCanvas.getContext('2d');
   
-  // Реалистичная текстура травы и борозд
-  coverage3DCtx.fillStyle = '#3a662e';
-  coverage3DCtx.fillRect(0, 0, 1024, 1024);
-
-  coverage3DCtx.strokeStyle = 'rgba(40, 75, 30, 0.45)';
-  coverage3DCtx.lineWidth = 3;
-  for (let y = 0; y < 1024; y += 20) {
-    coverage3DCtx.beginPath();
-    coverage3DCtx.moveTo(0, y);
-    coverage3DCtx.lineTo(1024, y);
-    coverage3DCtx.stroke();
-  }
+  reset3DGroundCanvas();
 
   coverage3DTexture = new THREE.CanvasTexture(coverage3DCanvas);
   const groundGeo = new THREE.PlaneGeometry(groundSize, groundSize);
@@ -7588,18 +7615,17 @@ function create3DGround() {
   scene3D.add(ground3D);
 
   const globalGroundGeo = new THREE.PlaneGeometry(100000, 100000);
-  const globalGroundMat = new THREE.MeshLambertMaterial({ color: 0x3a662e });
+  const globalGroundMat = new THREE.MeshLambertMaterial({ color: 0x2d5a27 });
   const globalGround = new THREE.Mesh(globalGroundGeo, globalGroundMat);
   globalGround.rotation.x = -Math.PI / 2;
-  globalGround.position.y = -0.1; // Слегка ниже основного поля
+  globalGround.position.y = -0.1;
   scene3D.add(globalGround);
 }
 
-/** Детализированная профессиональная 3D-модель современного агро-трактора */
+/** Детализированная 3D-модель агро-трактора с динамическим лазерным курсоуказателем */
 function build3DTractorModel() {
   tractor3DModel = new THREE.Group();
 
-  // Материалы высокого качества
   const greenBodyMat = new THREE.MeshStandardMaterial({
     color: 0x2e7d32,
     roughness: 0.25,
@@ -7636,21 +7662,20 @@ function build3DTractorModel() {
   const redBeaconMat = new THREE.MeshBasicMaterial({ color: 0xff3d00 });
   const gpsDomeMat = new THREE.MeshStandardMaterial({ color: 0x76ff03, roughness: 0.3 });
 
-  // 1. ШАССИ / РАМА ТРАКТОРА
+  // 1. ШАССИ / РАМА
   const chassisGeo = new THREE.BoxGeometry(1.3, 0.4, 3.8);
   const chassis = new THREE.Mesh(chassisGeo, chassisMat);
   chassis.position.set(0, 0.7, 0.5);
   chassis.castShadow = true;
   tractor3DModel.add(chassis);
 
-  // 2. КАПОТ С АЭРОДИНАМИЧЕСКИМ НАКЛОНОМ
+  // 2. КАПОТ
   const hoodMainGeo = new THREE.BoxGeometry(1.4, 0.9, 2.3);
   const hoodMain = new THREE.Mesh(hoodMainGeo, greenBodyMat);
   hoodMain.position.set(0, 1.35, 1.45);
   hoodMain.castShadow = true;
   tractor3DModel.add(hoodMain);
 
-  // Скос передней части капота
   const hoodFrontGeo = new THREE.BoxGeometry(1.36, 0.65, 0.7);
   const hoodFront = new THREE.Mesh(hoodFrontGeo, greenBodyMat);
   hoodFront.position.set(0, 1.15, 2.75);
@@ -7658,13 +7683,11 @@ function build3DTractorModel() {
   hoodFront.castShadow = true;
   tractor3DModel.add(hoodFront);
 
-  // Решетка радиатора (черная с окантовкой)
   const grilleGeo = new THREE.BoxGeometry(1.2, 0.7, 0.08);
   const grille = new THREE.Mesh(grilleGeo, chassisMat);
   grille.position.set(0, 1.15, 3.05);
   tractor3DModel.add(grille);
 
-  // Сдвоенные LED фары
   const headLightGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.08, 16);
   headLightGeo.rotateX(Math.PI / 2);
   const lightL = new THREE.Mesh(headLightGeo, ledLightMat);
@@ -7673,13 +7696,12 @@ function build3DTractorModel() {
   lightR.position.set(0.45, 1.35, 3.06);
   tractor3DModel.add(lightL, lightR);
 
-  // Передний балласт / противовес
   const bumperGeo = new THREE.BoxGeometry(1.2, 0.45, 0.45);
   const bumper = new THREE.Mesh(bumperGeo, chassisMat);
   bumper.position.set(0, 0.7, 3.1);
   tractor3DModel.add(bumper);
 
-  // 3. ВЫХЛОПНАЯ ТРУБА С ИСКРОГАСИТЕЛЕМ
+  // 3. ВЫХЛОПНАЯ ТРУБА
   const pipeBaseGeo = new THREE.CylinderGeometry(0.06, 0.07, 1.8, 16);
   const pipe = new THREE.Mesh(pipeBaseGeo, chromeMat);
   pipe.position.set(0.72, 2.3, 0.6);
@@ -7694,7 +7716,6 @@ function build3DTractorModel() {
   cabGlass.position.set(0, 2.35, -0.5);
   tractor3DModel.add(cabGlass);
 
-  // Стойки кабины (черные угловые балки)
   const pillarGeo = new THREE.CylinderGeometry(0.04, 0.04, 1.5, 8);
   const pFL = new THREE.Mesh(pillarGeo, chassisMat); pFL.position.set(-0.76, 2.35, 0.26);
   const pFR = new THREE.Mesh(pillarGeo, chassisMat); pFR.position.set(0.76, 2.35, 0.26);
@@ -7702,38 +7723,28 @@ function build3DTractorModel() {
   const pRR = new THREE.Mesh(pillarGeo, chassisMat); pRR.position.set(0.76, 2.35, -1.26);
   tractor3DModel.add(pFL, pFR, pRL, pRR);
 
-  // Крыша кабины
   const roofGeo = new THREE.BoxGeometry(1.85, 0.16, 1.85);
   const roof = new THREE.Mesh(roofGeo, new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.3 }));
   roof.position.set(0, 3.16, -0.5);
   tractor3DModel.add(roof);
 
-  // Антенна / GPS StarFire купол на крыше
   const gpsDomeGeo = new THREE.SphereGeometry(0.2, 16, 12);
   gpsDomeGeo.scale(1, 0.6, 1);
   const gpsDome = new THREE.Mesh(gpsDomeGeo, gpsDomeMat);
   gpsDome.position.set(0, 3.28, -0.5);
   tractor3DModel.add(gpsDome);
 
-  // Проблесковый оранжевый маячок на крыше
   const beaconGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.18, 12);
   const beaconL = new THREE.Mesh(beaconGeo, redBeaconMat);
   beaconL.position.set(-0.82, 3.32, -0.5);
   tractor3DModel.add(beaconL);
 
-  // Боковые зеркала
   const mirrorGeo = new THREE.BoxGeometry(0.08, 0.22, 0.14);
   const mirL = new THREE.Mesh(mirrorGeo, chassisMat); mirL.position.set(-0.95, 2.5, 0.25);
   const mirR = new THREE.Mesh(mirrorGeo, chassisMat); mirR.position.set(0.95, 2.5, 0.25);
   tractor3DModel.add(mirL, mirR);
 
-  // Сиденье водителя внутри
-  const seatBaseGeo = new THREE.BoxGeometry(0.6, 0.5, 0.55);
-  const seat = new THREE.Mesh(seatBaseGeo, chassisMat);
-  seat.position.set(0, 1.9, -0.65);
-  tractor3DModel.add(seat);
-
-  // 5. КОЛЕСА (Большие задние и поворотные передние)
+  // 5. КОЛЕСА
   const rearTireGeo = new THREE.CylinderGeometry(1.05, 1.05, 0.68, 24);
   rearTireGeo.rotateZ(Math.PI / 2);
   const frontTireGeo = new THREE.CylinderGeometry(0.68, 0.68, 0.48, 24);
@@ -7744,7 +7755,6 @@ function build3DTractorModel() {
   const frontRimGeo = new THREE.CylinderGeometry(0.40, 0.40, 0.50, 16);
   frontRimGeo.rotateZ(Math.PI / 2);
 
-  // Задние колеса
   const rearWheelL = new THREE.Mesh(rearTireGeo, tireMat);
   rearWheelL.add(new THREE.Mesh(rearRimGeo, rimMat));
   rearWheelL.position.set(-1.22, 1.05, -0.85);
@@ -7754,16 +7764,13 @@ function build3DTractorModel() {
   rearWheelR.add(new THREE.Mesh(rearRimGeo, rimMat));
   rearWheelR.position.set(1.22, 1.05, -0.85);
   rearWheelR.castShadow = true;
-
   tractor3DModel.add(rearWheelL, rearWheelR);
 
-  // Крылья над задними колесами
   const fenderGeo = new THREE.BoxGeometry(0.72, 0.12, 1.4);
   const fenderL = new THREE.Mesh(fenderGeo, greenBodyMat); fenderL.position.set(-1.22, 2.05, -0.85);
   const fenderR = new THREE.Mesh(fenderGeo, greenBodyMat); fenderR.position.set(1.22, 2.05, -0.85);
   tractor3DModel.add(fenderL, fenderR);
 
-  // Передние колеса
   frontLeftWheelMesh = new THREE.Group();
   const fTireL = new THREE.Mesh(frontTireGeo, tireMat);
   fTireL.add(new THREE.Mesh(frontRimGeo, rimMat));
@@ -7777,7 +7784,6 @@ function build3DTractorModel() {
   fTireR.castShadow = true;
   frontRightWheelMesh.add(fTireR);
   frontRightWheelMesh.position.set(1.08, 0.68, 1.75);
-
   tractor3DModel.add(frontLeftWheelMesh, frontRightWheelMesh);
 
   // 6. НАВЕСНОЙ ШИРОКОЗАХВАТНЫЙ АГРЕГАТ СЗАДИ
@@ -7794,7 +7800,6 @@ function build3DTractorModel() {
   boom.castShadow = true;
   tractor3DModel.add(boom);
 
-  // Дисковые сошники по ширине балки
   const discGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.05, 12);
   discGeo.rotateZ(Math.PI / 2);
   const numDiscs = Math.min(16, Math.round(boomWidth));
@@ -7805,6 +7810,58 @@ function build3DTractorModel() {
     tractor3DModel.add(disc);
   }
 
+  // 7. ДИНАМИЧЕСКИЙ ЛАЗЕРНЫЙ КУРСОУКАЗАТЕЛЬ (НАПРАВЛЯЮЩИЕ НА ПЕРЕДКЕ ТРАКТОРА)
+  const guidanceGroup = new THREE.Group();
+
+  // Центральный лазерный луч направления движения (вперед на 80 метров)
+  const centerLaserGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0.15, 3.2),
+    new THREE.Vector3(0, 0.15, 80.0)
+  ]);
+  const centerLaserMat = new THREE.LineDashedMaterial({
+    color: 0x00ff88,
+    dashSize: 3,
+    gapSize: 1.5
+  });
+  const centerLaser = new THREE.Line(centerLaserGeo, centerLaserMat);
+  centerLaser.computeLineDistances();
+  guidanceGroup.add(centerLaser);
+
+  // Боковые лазерные маркеры ширины захвата орудия
+  const halfW = boomWidth / 2;
+  const leftEdgeGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-halfW, 0.12, 0),
+    new THREE.Vector3(-halfW, 0.12, 45.0)
+  ]);
+  const rightEdgeGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(halfW, 0.12, 0),
+    new THREE.Vector3(halfW, 0.12, 45.0)
+  ]);
+  const edgeMat = new THREE.LineDashedMaterial({
+    color: 0x00e5ff,
+    dashSize: 2,
+    gapSize: 2
+  });
+  const leftEdgeLine = new THREE.Line(leftEdgeGeo, edgeMat);
+  leftEdgeLine.computeLineDistances();
+  const rightEdgeLine = new THREE.Line(rightEdgeGeo, edgeMat);
+  rightEdgeLine.computeLineDistances();
+  guidanceGroup.add(leftEdgeLine, rightEdgeLine);
+
+  // Светящийся полупрозрачный коридор хода орудия на земле
+  const corridorGeo = new THREE.PlaneGeometry(boomWidth, 45);
+  const corridorMat = new THREE.MeshBasicMaterial({
+    color: 0x00e676,
+    transparent: true,
+    opacity: 0.12,
+    side: THREE.DoubleSide
+  });
+  const corridorMesh = new THREE.Mesh(corridorGeo, corridorMat);
+  corridorMesh.rotation.x = -Math.PI / 2;
+  corridorMesh.position.set(0, 0.08, 22.5);
+  guidanceGroup.add(corridorMesh);
+
+  tractor3DModel.add(guidanceGroup);
   scene3D.add(tractor3DModel);
 }
 
@@ -7817,127 +7874,190 @@ function update3DFieldBounds(field) {
     field3DOutline = null;
   }
 
-  const coords = field ? (field.coordinates || field.coords) : null;
-  if (!coords || coords.length < 3) return;
-
-  const centerLat = field.center ? field.center[0] : coords[0][0];
-  const centerLng = field.center ? field.center[1] : coords[0][1];
-  fieldCenter3D = { lat: centerLat, lng: centerLng };
-
   field3DOutline = new THREE.Group();
+  const spacingMeters = Math.max(6, tractorWidth || 12);
+  const trackLength = 1600;
 
-  const points3D = [];
-  coords.forEach(pt => {
-    const dLat = (pt[0] - centerLat) * 111320;
-    const dLng = (pt[1] - centerLng) * (111320 * Math.cos(centerLat * Math.PI / 180));
-    points3D.push(new THREE.Vector3(dLng, 0.5, -dLat));
-  });
-  points3D.push(points3D[0]);
-
-  // Сетка на поле (Grid)
-  const gridHelper = new THREE.GridHelper(2000, 200, 0x00e676, 0x00e676);
-  gridHelper.position.y = 0.1;
-  gridHelper.material.opacity = 0.15;
+  // 1. Полноразмерная координатная сетка поля
+  const gridHelper = new THREE.GridHelper(2400, 200, 0x00e676, 0x1b4332);
+  gridHelper.position.y = 0.04;
+  gridHelper.material.opacity = 0.22;
   gridHelper.material.transparent = true;
   field3DOutline.add(gridHelper);
 
-  // 1. Неоновый контур границы поля (на земле и по верху стены)
-  const lineGeo = new THREE.BufferGeometry().setFromPoints(points3D);
-  const lineMat = new THREE.LineBasicMaterial({ color: 0x00ff88 });
-  const boundaryLineGround = new THREE.Line(lineGeo, lineMat);
-  field3DOutline.add(boundaryLineGround);
+  const coords = field ? (field.coordinates || field.coords) : null;
 
-  const wallHeight = 10.0;
-  const pointsTop = points3D.map(p => new THREE.Vector3(p.x, wallHeight, p.z));
-  const lineTopGeo = new THREE.BufferGeometry().setFromPoints(pointsTop);
-  const lineTopMat = new THREE.LineBasicMaterial({ color: 0x00ff88 });
-  const boundaryLineTop = new THREE.Line(lineTopGeo, lineTopMat);
-  field3DOutline.add(boundaryLineTop);
+  if (coords && coords.length >= 3) {
+    const centerLat = field.center ? field.center[0] : coords[0][0];
+    const centerLng = field.center ? field.center[1] : coords[0][1];
+    fieldCenter3D = { lat: centerLat, lng: centerLng };
 
-  // 2. Полупрозрачная светящаяся стена границы поля
-  const wallPositions = [];
-  for (let i = 0; i < points3D.length - 1; i++) {
-    const p1 = points3D[i];
-    const p2 = points3D[i + 1];
+    const points3D = [];
+    coords.forEach(pt => {
+      const dLat = (pt[0] - centerLat) * 111320;
+      const dLng = (pt[1] - centerLng) * (111320 * Math.cos(centerLat * Math.PI / 180));
+      points3D.push(new THREE.Vector3(dLng, 0.5, -dLat));
+    });
+    points3D.push(points3D[0]);
 
-    // Triangle 1
-    wallPositions.push(p1.x, 0.2, p1.z);
-    wallPositions.push(p2.x, 0.2, p2.z);
-    wallPositions.push(p1.x, wallHeight, p1.z);
+    // Неоновый контур границы поля (на земле и по верху стены)
+    const lineGeo = new THREE.BufferGeometry().setFromPoints(points3D);
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x00ff88, linewidth: 2 });
+    const boundaryLineGround = new THREE.Line(lineGeo, lineMat);
+    field3DOutline.add(boundaryLineGround);
 
-    // Triangle 2
-    wallPositions.push(p2.x, 0.2, p2.z);
-    wallPositions.push(p2.x, wallHeight, p2.z);
-    wallPositions.push(p1.x, wallHeight, p1.z);
+    const wallHeight = 8.0;
+    const pointsTop = points3D.map(p => new THREE.Vector3(p.x, wallHeight, p.z));
+    const lineTopGeo = new THREE.BufferGeometry().setFromPoints(pointsTop);
+    const lineTopMat = new THREE.LineBasicMaterial({ color: 0x00ff88 });
+    const boundaryLineTop = new THREE.Line(lineTopGeo, lineTopMat);
+    field3DOutline.add(boundaryLineTop);
+
+    // Полупрозрачная светящаяся стена границы поля
+    const wallPositions = [];
+    for (let i = 0; i < points3D.length - 1; i++) {
+      const p1 = points3D[i];
+      const p2 = points3D[i + 1];
+
+      // Triangle 1
+      wallPositions.push(p1.x, 0.1, p1.z);
+      wallPositions.push(p2.x, 0.1, p2.z);
+      wallPositions.push(p1.x, wallHeight, p1.z);
+
+      // Triangle 2
+      wallPositions.push(p2.x, 0.1, p2.z);
+      wallPositions.push(p2.x, wallHeight, p2.z);
+      wallPositions.push(p1.x, wallHeight, p1.z);
+    }
+    const wallGeo = new THREE.BufferGeometry();
+    wallGeo.setAttribute('position', new THREE.Float32BufferAttribute(wallPositions, 3));
+    const wallMat = new THREE.MeshBasicMaterial({
+      color: 0x00e676,
+      transparent: true,
+      opacity: 0.55,
+      side: THREE.DoubleSide
+    });
+    const wallMesh = new THREE.Mesh(wallGeo, wallMat);
+    field3DOutline.add(wallMesh);
+
+    // Высотные маяки на каждом углу поля со сферами
+    const beaconGeo = new THREE.CylinderGeometry(0.5, 0.5, 20, 12);
+    const beaconMat = new THREE.MeshBasicMaterial({ color: 0x00e676, transparent: true, opacity: 0.9 });
+    const orbGeo = new THREE.SphereGeometry(1.5, 16, 16);
+    const orbMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+
+    points3D.forEach((p, idx) => {
+      if (idx === points3D.length - 1) return;
+      const beacon = new THREE.Mesh(beaconGeo, beaconMat);
+      beacon.position.set(p.x, 10, p.z);
+      field3DOutline.add(beacon);
+
+      const orb = new THREE.Mesh(orbGeo, orbMat);
+      orb.position.set(p.x, 20, p.z);
+      field3DOutline.add(orb);
+    });
   }
-  const wallGeo = new THREE.BufferGeometry();
-  wallGeo.setAttribute('position', new THREE.Float32BufferAttribute(wallPositions, 3));
-  const wallMat = new THREE.MeshBasicMaterial({
-    color: 0x00e676,
-    transparent: true,
-    opacity: 0.65,
-    side: THREE.DoubleSide
-  });
-  const wallMesh = new THREE.Mesh(wallGeo, wallMat);
-  field3DOutline.add(wallMesh);
 
-  // 3. Светящиеся высотные маяки на каждом углу поля со сферами
-  const beaconGeo = new THREE.CylinderGeometry(0.6, 0.6, 22, 12);
-  const beaconMat = new THREE.MeshBasicMaterial({ color: 0x00e676, transparent: true, opacity: 0.9 });
-  const orbGeo = new THREE.SphereGeometry(1.6, 16, 16);
-  const orbMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
-
-  points3D.forEach((p, idx) => {
-    if (idx === points3D.length - 1) return;
-    const beacon = new THREE.Mesh(beaconGeo, beaconMat);
-    beacon.position.set(p.x, 11, p.z);
-    field3DOutline.add(beacon);
-
-    const orb = new THREE.Mesh(orbGeo, orbMat);
-    orb.position.set(p.x, 22, p.z);
-    field3DOutline.add(orb);
-  });
-
-  // 4. ЯРКИЕ ЛАЗЕРНЫЕ ГОНЫ (НАПРАВЛЯЮЩИЕ ПОЛОСЫ ПАРАЛЛЕЛЬНОГО ВОЖДЕНИЯ)
-  const spacingMeters = tractorWidth || 12;
-  const numTracks = 30;
-  const trackLength = 1200;
-
+  // 2. ПАРАЛЛЕЛЬНЫЕ ГОНЫ (НАПРАВЛЯЮЩИЕ ЛИНИИ КУРСА AB)
+  const numTracks = 40;
   for (let i = -numTracks; i <= numTracks; i++) {
     const xPos = i * spacingMeters;
     const isCenterTrack = (i === 0);
 
-    // Основная яркая лазерная линия гона
     const trackGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(xPos, 0.3, -trackLength / 2),
-      new THREE.Vector3(xPos, 0.3, trackLength / 2)
+      new THREE.Vector3(xPos, 0.12, -trackLength / 2),
+      new THREE.Vector3(xPos, 0.12, trackLength / 2)
     ]);
     const trackMat = new THREE.LineDashedMaterial({
-      color: isCenterTrack ? 0x00e676 : 0x00e5ff,
-      dashSize: isCenterTrack ? 10 : 7,
-      gapSize: isCenterTrack ? 3 : 4,
-      opacity: isCenterTrack ? 1.0 : 0.85,
+      color: isCenterTrack ? 0x00ff88 : 0x00e5ff,
+      dashSize: isCenterTrack ? 8 : 5,
+      gapSize: isCenterTrack ? 2 : 3,
+      opacity: isCenterTrack ? 1.0 : 0.75,
       transparent: true
     });
     const trackLine = new THREE.Line(trackGeo, trackMat);
     trackLine.computeLineDistances();
     field3DOutline.add(trackLine);
 
-    // Светящаяся полоса-лента на земле для максимальной четкости и видимости
-    const ribbonGeo = new THREE.PlaneGeometry(0.75, trackLength);
+    // Светящаяся полоса-лента на земле
+    const ribbonGeo = new THREE.PlaneGeometry(0.8, trackLength);
     const ribbonMat = new THREE.MeshBasicMaterial({
-      color: isCenterTrack ? 0x00e676 : 0x00b0ff,
+      color: isCenterTrack ? 0x00ff88 : 0x00b0ff,
       transparent: true,
-      opacity: isCenterTrack ? 0.45 : 0.28,
+      opacity: isCenterTrack ? 0.35 : 0.18,
       side: THREE.DoubleSide
     });
     const ribbonMesh = new THREE.Mesh(ribbonGeo, ribbonMat);
     ribbonMesh.rotation.x = -Math.PI / 2;
-    ribbonMesh.position.set(xPos, 0.22, 0);
+    ribbonMesh.position.set(xPos, 0.08, 0);
     field3DOutline.add(ribbonMesh);
   }
 
   scene3D.add(field3DOutline);
+}
+
+/** Расчет и обновление HUD светодиодного курсоуказателя (Ag Lightbar) */
+function updateGuidanceLightbar(heading, x, z) {
+  const spacing = Math.max(6, tractorWidth || 12);
+  const trackIndex = Math.round(x / spacing);
+  const targetX = trackIndex * spacing;
+  const deviation = x - targetX; // отклонение от центра гона в метрах
+
+  const trackEl = document.getElementById('tractor-guidance-track');
+  const hdgEl = document.getElementById('tractor-guidance-hdg');
+  const offsetEl = document.getElementById('tractor-guidance-offset');
+  const pillEl = document.getElementById('guidance-center-pill');
+  const statusEl = document.getElementById('tractor-guidance-status');
+  const widthEl = document.getElementById('tractor-guidance-width');
+
+  if (widthEl) widthEl.textContent = `${Math.round(spacing)}м`;
+  if (trackEl) trackEl.textContent = `ГОН #${Math.abs(trackIndex) + 1}`;
+  if (hdgEl) hdgEl.textContent = `${Math.round(heading)}°`;
+
+  const leds = ['gled-l3', 'gled-l2', 'gled-l1', 'gled-r1', 'gled-r2', 'gled-r3'];
+  leds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.className = 'gled';
+  });
+
+  const absDev = Math.abs(deviation);
+
+  if (absDev < 0.15) {
+    if (offsetEl) offsetEl.textContent = '0.00 м';
+    if (pillEl) pillEl.className = 'guidance-center-pill';
+    if (statusEl) {
+      statusEl.textContent = 'В ПОЛОСЕ (ON TRACK)';
+      statusEl.style.color = '#00e676';
+    }
+  } else if (deviation > 0) {
+    // Трактор смещен вправо -> рули ВЛЕВО
+    if (offsetEl) offsetEl.textContent = `← ${absDev.toFixed(2)} м`;
+    if (pillEl) pillEl.className = absDev > 0.6 ? 'guidance-center-pill deviate-hard' : 'guidance-center-pill deviate-left';
+    if (statusEl) {
+      statusEl.textContent = absDev > 0.6 ? 'СИЛЬНО ВПРАВО! РУЛИ ВЛЕВО ←' : 'РУЛИ ВЛЕВО ←';
+      statusEl.style.color = absDev > 0.6 ? '#ff5252' : '#ffd600';
+    }
+    const l1 = document.getElementById('gled-l1');
+    const l2 = document.getElementById('gled-l2');
+    const l3 = document.getElementById('gled-l3');
+    if (l1) l1.classList.add(absDev > 0.6 ? 'active-red' : (absDev > 0.3 ? 'active-yellow' : 'active-green'));
+    if (absDev > 0.3 && l2) l2.classList.add(absDev > 0.6 ? 'active-red' : 'active-yellow');
+    if (absDev > 0.6 && l3) l3.classList.add('active-red');
+  } else {
+    // Трактор смещен влево -> рули ВПРАВО
+    if (offsetEl) offsetEl.textContent = `${absDev.toFixed(2)} м →`;
+    if (pillEl) pillEl.className = absDev > 0.6 ? 'guidance-center-pill deviate-hard' : 'guidance-center-pill deviate-left';
+    if (statusEl) {
+      statusEl.textContent = absDev > 0.6 ? 'СИЛЬНО ВЛЕВО! РУЛИ ВПРАВО →' : 'РУЛИ ВПРАВО →';
+      statusEl.style.color = absDev > 0.6 ? '#ff5252' : '#ffd600';
+    }
+    const r1 = document.getElementById('gled-r1');
+    const r2 = document.getElementById('gled-r2');
+    const r3 = document.getElementById('gled-r3');
+    if (r1) r1.classList.add(absDev > 0.6 ? 'active-red' : (absDev > 0.3 ? 'active-yellow' : 'active-green'));
+    if (absDev > 0.3 && r2) r2.classList.add(absDev > 0.6 ? 'active-red' : 'active-yellow');
+    if (absDev > 0.6 && r3) r3.classList.add('active-red');
+  }
 }
 
 /** Отрисовка круглого радара миникарты */
@@ -7992,9 +8112,9 @@ function draw3DRadar() {
     radarCtx.stroke();
   }
 
-  // Трактор в центре радара со стрелкой курса
+  // Трактор со стрелкой курса на радаре
   const tX = cx + (tractor3DPos.x * 0.12);
-  const tY = cy - (tractor3DPos.z * 0.12);
+  const tY = cy + (tractor3DPos.z * 0.12);
 
   radarCtx.save();
   radarCtx.translate(tX, tY);
@@ -8010,19 +8130,82 @@ function draw3DRadar() {
   radarCtx.restore();
 }
 
+/** Закрашивание обработанной почвы: на текстуре земли и в 3D динамическом шлейфе */
 function paint3DSoilCoverage(x, z, widthMeters) {
-  if (!coverage3DCtx || !coverage3DTexture) return;
+  const w = widthMeters || 12;
 
-  const cx = Math.max(0, Math.min(1023, 512 + (x * 0.85)));
-  const cz = Math.max(0, Math.min(1023, 512 + (z * 0.85)));
-  const r = Math.max(4, (widthMeters * 0.85) / 2);
+  // 1. Отрисовка на 2D Canvas текстуре грунта
+  if (coverage3DCtx && coverage3DTexture) {
+    const cx = Math.max(0, Math.min(1023, 512 + (x * 0.8533)));
+    const cz = Math.max(0, Math.min(1023, 512 + (z * 0.8533)));
+    const r = Math.max(6, (w * 0.8533) / 2);
 
-  coverage3DCtx.fillStyle = '#422814'; // Тёмная вспаханная земля
-  coverage3DCtx.beginPath();
-  coverage3DCtx.arc(cx, cz, r, 0, Math.PI * 2);
-  coverage3DCtx.fill();
+    coverage3DCtx.fillStyle = '#00e676';
+    coverage3DCtx.strokeStyle = '#00c853';
+    coverage3DCtx.lineWidth = r * 2;
+    coverage3DCtx.lineCap = 'round';
+    coverage3DCtx.lineJoin = 'round';
 
-  coverage3DTexture.needsUpdate = true;
+    if (lastSoilPaintPos) {
+      coverage3DCtx.beginPath();
+      coverage3DCtx.moveTo(lastSoilPaintPos.cx, lastSoilPaintPos.cz);
+      coverage3DCtx.lineTo(cx, cz);
+      coverage3DCtx.stroke();
+    }
+
+    coverage3DCtx.beginPath();
+    coverage3DCtx.arc(cx, cz, r, 0, Math.PI * 2);
+    coverage3DCtx.fill();
+
+    lastSoilPaintPos = { cx, cz, x, z };
+    coverage3DTexture.needsUpdate = true;
+  }
+
+  // 2. 3D динамический шлейф (Realtime 3D Ribbon Trail за орудием)
+  if (tractor3DTrailGroup) {
+    const rad = tractor3DHeading * (Math.PI / 180);
+    const halfW = w / 2;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const hitchDist = 2.3;
+    const bx = x - sin * hitchDist;
+    const bz = z - cos * hitchDist;
+
+    const pL = new THREE.Vector3(bx - cos * halfW, 0.06, bz + sin * halfW);
+    const pR = new THREE.Vector3(bx + cos * halfW, 0.06, bz - sin * halfW);
+
+    if (tractor3DTrailGroup.userData.lastL && tractor3DTrailGroup.userData.lastR) {
+      const prevL = tractor3DTrailGroup.userData.lastL;
+      const prevR = tractor3DTrailGroup.userData.lastR;
+
+      const segGeo = new THREE.BufferGeometry();
+      const vertices = new Float32Array([
+        prevL.x, prevL.y, prevL.z,
+        prevR.x, prevR.y, prevR.z,
+        pL.x, pL.y, pL.z,
+
+        prevR.x, prevR.y, prevR.z,
+        pR.x, pR.y, pR.z,
+        pL.x, pL.y, pL.z
+      ]);
+      segGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+      const segMat = new THREE.MeshBasicMaterial({
+        color: 0x00e676,
+        transparent: true,
+        opacity: 0.72,
+        side: THREE.DoubleSide
+      });
+      const segMesh = new THREE.Mesh(segGeo, segMat);
+      tractor3DTrailGroup.add(segMesh);
+
+      if (tractor3DTrailGroup.children.length > 600) {
+        tractor3DTrailGroup.remove(tractor3DTrailGroup.children[0]);
+      }
+    }
+
+    tractor3DTrailGroup.userData.lastL = pL;
+    tractor3DTrailGroup.userData.lastR = pR;
+  }
 }
 
 function toggleTractor3DView(show) {
@@ -8035,7 +8218,7 @@ function toggleTractor3DView(show) {
     container.style.display = 'block';
     if (tabBar) tabBar.style.display = 'none';
     if (init3DScene()) {
-      if (tractorActiveField) update3DFieldBounds(tractorActiveField);
+      update3DFieldBounds(tractorActiveField);
       start3DAnimationLoop();
     }
   } else {
