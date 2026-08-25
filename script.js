@@ -7522,11 +7522,12 @@ function init3DScene() {
 
   if (renderer3D) return true;
 
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  const container = document.getElementById('tractor-3d-view');
+  const w = container ? container.clientWidth : window.innerWidth;
+  const h = container ? container.clientHeight : window.innerHeight;
 
   renderer3D = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
-  renderer3D.setSize(w, h);
+  renderer3D.setSize(w, h, false);
   renderer3D.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer3D.shadowMap.enabled = true;
 
@@ -7585,6 +7586,13 @@ function create3DGround() {
   ground3D.rotation.x = -Math.PI / 2;
   ground3D.receiveShadow = true;
   scene3D.add(ground3D);
+
+  const globalGroundGeo = new THREE.PlaneGeometry(100000, 100000);
+  const globalGroundMat = new THREE.MeshLambertMaterial({ color: 0x3a662e });
+  const globalGround = new THREE.Mesh(globalGroundGeo, globalGroundMat);
+  globalGround.rotation.x = -Math.PI / 2;
+  globalGround.position.y = -0.1; // Слегка ниже основного поля
+  scene3D.add(globalGround);
 }
 
 /** Детализированная профессиональная 3D-модель современного агро-трактора */
@@ -8087,11 +8095,12 @@ function start3DAnimationLoop() {
 
 function on3DWindowResize() {
   if (!camera3D || !renderer3D) return;
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  const container = document.getElementById('tractor-3d-view');
+  const w = container ? container.clientWidth : window.innerWidth;
+  const h = container ? container.clientHeight : window.innerHeight;
   camera3D.aspect = w / h;
   camera3D.updateProjectionMatrix();
-  renderer3D.setSize(w, h);
+  renderer3D.setSize(w, h, false);
 }
 
 function toggleTractorSimulation() {
@@ -8105,6 +8114,13 @@ function toggleTractorSimulation() {
 
   showToast(lang === 'ru' ? '<i data-lucide="arrow-right" class="icon-sm"></i> Демо заезд запущен' : '<i data-lucide="arrow-right" class="icon-sm"></i> Demo running');
   
+  // Телепорт на начало поля для демо-режима, если GPS увел нас далеко
+  if (tractorActiveField && fieldCenter3D) {
+    tractorPath = [];
+    updateTractorLocation([fieldCenter3D.lat, fieldCenter3D.lng]);
+    tractor3DHeading = 0; // Направляем на север
+  }
+
   tractorSimInterval = setInterval(() => {
     if (!tractorActive) {
       clearInterval(tractorSimInterval);
