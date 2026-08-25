@@ -7313,7 +7313,7 @@ function startTractorTracking() {
   const allFields = (typeof loadFields === 'function') ? loadFields() : [];
   const fieldSel = document.getElementById('tractor-field-select');
   const fieldId = fieldSel ? fieldSel.value : '';
-  tractorActiveField = allFields.find(f => f.id === fieldId) || null;
+  tractorActiveField = allFields.find(f => String(f.id) === String(fieldId)) || null;
 
   const opSel = document.getElementById('tractor-op-select');
   tractorOpType = opSel ? opSel.value : 'sowing';
@@ -7352,7 +7352,6 @@ function startTractorTracking() {
   tractor3DPos = { x: 0, z: 0 };
   tractor3DHeading = 0;
 
-  // Определение начальной точки / центра поля
   let initialPoint = (typeof DEFAULT_MAP_CENTER !== 'undefined') ? DEFAULT_MAP_CENTER : [55.75, 37.61];
   if (tractorActiveField) {
     const coords = tractorActiveField.coordinates || tractorActiveField.coords;
@@ -7360,6 +7359,9 @@ function startTractorTracking() {
       initialPoint = tractorActiveField.center || coords[0];
     }
   }
+
+  // Обязательно инициализируем центр для 3D, даже в свободном заезде
+  fieldCenter3D = { lat: initialPoint[0], lng: initialPoint[1] };
 
   // Обновление заголовка в 3D
   const fieldTitleEl = document.getElementById('tractor-3d-field-title');
@@ -7422,6 +7424,8 @@ function startTractorTracking() {
 
 function onTractorPosition(pos) {
   if (!tractorActive || !pos || !pos.coords) return;
+  if (tractorSimInterval !== null) return; // Ignore GPS if demo mode is active
+  
   const lat = pos.coords.latitude;
   const lng = pos.coords.longitude;
   const speedMs = pos.coords.speed || 0;
@@ -7442,6 +7446,10 @@ function updateTractorLocation(newPoint) {
   if (tractorPath.length === 0) {
     tractorMarker.setLatLng(newPoint);
     tractorPath.push(newPoint);
+    if (fieldCenter3D) {
+      tractor3DPos.x = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
+      tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
+    }
     return;
   }
 
@@ -7453,6 +7461,13 @@ function updateTractorLocation(newPoint) {
   if (segKm > 0.3) {
     tractorMarker.setLatLng(newPoint);
     tractorPath = [newPoint];
+    
+    // Синхронизация с 3D миром при прыжке
+    if (fieldCenter3D) {
+      tractor3DPos.x = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
+      tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
+      // Heading stays the same as we don't know the direction of the jump
+    }
     return;
   }
 
@@ -7476,14 +7491,6 @@ function updateTractorLocation(newPoint) {
 
     document.getElementById('tractor-3d-stat-dist').textContent = tractorDistKm.toFixed(2);
     document.getElementById('tractor-3d-stat-area').textContent = tractorAreaHa.toFixed(2);
-
-    // Синхронизация с 3D миром по центру поля
-    if (fieldCenter3D) {
-      tractor3DPos.x = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
-      tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
-      tractor3DHeading = heading;
-      paint3DSoilCoverage(tractor3DPos.x, tractor3DPos.z, tractorWidth || 12);
-    }
 
     // Синхронизация с 3D миром по центру поля
     if (fieldCenter3D) {
@@ -7819,20 +7826,27 @@ function update3DFieldBounds(field) {
   });
   points3D.push(points3D[0]);
 
+  // Сетка на поле (Grid)
+  const gridHelper = new THREE.GridHelper(2000, 200, 0x00e676, 0x00e676);
+  gridHelper.position.y = 0.1;
+  gridHelper.material.opacity = 0.15;
+  gridHelper.material.transparent = true;
+  field3DOutline.add(gridHelper);
+
   // 1. Неоновый контур границы поля (на земле и по верху стены)
   const lineGeo = new THREE.BufferGeometry().setFromPoints(points3D);
-  const lineMat = new THREE.LineBasicMaterial({ color: 0x00e676 });
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x00ff88 });
   const boundaryLineGround = new THREE.Line(lineGeo, lineMat);
   field3DOutline.add(boundaryLineGround);
 
-  const pointsTop = points3D.map(p => new THREE.Vector3(p.x, 5.0, p.z));
+  const wallHeight = 10.0;
+  const pointsTop = points3D.map(p => new THREE.Vector3(p.x, wallHeight, p.z));
   const lineTopGeo = new THREE.BufferGeometry().setFromPoints(pointsTop);
-  const lineTopMat = new THREE.LineBasicMaterial({ color: 0x69f0ae });
+  const lineTopMat = new THREE.LineBasicMaterial({ color: 0x00ff88 });
   const boundaryLineTop = new THREE.Line(lineTopGeo, lineTopMat);
   field3DOutline.add(boundaryLineTop);
 
-  // 2. Полупрозрачная светящаяся стена границы поля (высота 5.0м)
-  const wallHeight = 5.0;
+  // 2. Полупрозрачная светящаяся стена границы поля
   const wallPositions = [];
   for (let i = 0; i < points3D.length - 1; i++) {
     const p1 = points3D[i];
@@ -7853,7 +7867,7 @@ function update3DFieldBounds(field) {
   const wallMat = new THREE.MeshBasicMaterial({
     color: 0x00e676,
     transparent: true,
-    opacity: 0.45,
+    opacity: 0.65,
     side: THREE.DoubleSide
   });
   const wallMesh = new THREE.Mesh(wallGeo, wallMat);
@@ -7930,11 +7944,22 @@ function draw3DRadar() {
   radarCtx.strokeStyle = 'rgba(0, 230, 118, 0.25)';
   radarCtx.lineWidth = 1;
   radarCtx.beginPath();
-  radarCtx.arc(cx, cy, 48, 0, Math.PI * 2);
-  radarCtx.arc(cx, cy, 26, 0, Math.PI * 2);
+  radarCtx.arc(cx, cy, 60, 0, Math.PI * 2);
+  radarCtx.arc(cx, cy, 30, 0, Math.PI * 2);
   radarCtx.moveTo(cx, 0); radarCtx.lineTo(cx, H);
   radarCtx.moveTo(0, cy); radarCtx.lineTo(W, cy);
   radarCtx.stroke();
+
+  // Обновление времени
+  if (tractorStartTime) {
+    const timeEl = document.getElementById('tractor-3d-stat-time');
+    if (timeEl) {
+      const ms = new Date() - tractorStartTime;
+      const s = Math.floor(ms / 1000) % 60;
+      const m = Math.floor(ms / 60000);
+      timeEl.textContent = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+    }
+  }
 
   // Отрисовка контура поля на радаре
   if (tractorActiveField && tractorActiveField.coordinates) {
@@ -8025,22 +8050,6 @@ function start3DAnimationLoop() {
     if (!tractor3DActive) return;
     tractor3DAnimId = requestAnimationFrame(animate);
 
-    // Демо-режим / симуляция движения
-    if (tractorSimInterval !== null) {
-      const speed = 0.28; // ~15 км/ч
-      const rad = tractor3DHeading * (Math.PI / 180);
-      tractor3DPos.x += Math.sin(rad) * speed;
-      tractor3DPos.z += Math.cos(rad) * speed;
-
-      paint3DSoilCoverage(tractor3DPos.x, tractor3DPos.z, tractorWidth || 12);
-
-      if (fieldCenter3D) {
-        const lat = fieldCenter3D.lat - (tractor3DPos.z / 111320);
-        const lng = fieldCenter3D.lng + (tractor3DPos.x / (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180)));
-        updateTractorLocation([lat, lng]);
-      }
-    }
-
     if (tractor3DModel) {
       tractor3DModel.position.set(tractor3DPos.x, 0, tractor3DPos.z);
       tractor3DModel.rotation.y = tractor3DHeading * (Math.PI / 180);
@@ -8095,13 +8104,31 @@ function toggleTractorSimulation() {
   }
 
   showToast(lang === 'ru' ? '<i data-lucide="arrow-right" class="icon-sm"></i> Демо заезд запущен' : '<i data-lucide="arrow-right" class="icon-sm"></i> Demo running');
+  
   tractorSimInterval = setInterval(() => {
     if (!tractorActive) {
       clearInterval(tractorSimInterval);
       tractorSimInterval = null;
       return;
     }
-    document.getElementById('tractor-3d-stat-speed').textContent = '14.2';
+    
+    // Simulate 15 km/h = 4.16 m/s -> ~2.08 meters per 500ms
+    const distKm = 2.08 / 1000;
+    
+    let currentPoint = tractorPath.length > 0 ? tractorPath[tractorPath.length - 1] : null;
+    if (!currentPoint && fieldCenter3D) {
+      currentPoint = [fieldCenter3D.lat, fieldCenter3D.lng];
+    }
+    
+    if (currentPoint) {
+      const point = turf.point([currentPoint[1], currentPoint[0]]);
+      const dest = turf.destination(point, distKm, tractor3DHeading, {units: 'kilometers'});
+      const newLng = dest.geometry.coordinates[0];
+      const newLat = dest.geometry.coordinates[1];
+      
+      document.getElementById('tractor-3d-stat-speed').textContent = '15.0';
+      updateTractorLocation([newLat, newLng]);
+    }
   }, 500);
 }
 

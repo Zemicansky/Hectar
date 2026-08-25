@@ -388,21 +388,22 @@
       <canvas id="tractor-3d-canvas" style="width:100%; height:100%; display:block;"></canvas>
       
       <!-- GPS Радар / Миникарта поля в верхнем углу -->
-      <div id="tractor-3d-minimap" style="position:absolute; top:calc(var(--safe-top) + 14px); right:14px; width:110px; height:110px; border-radius:50%; background:rgba(15,25,35,0.85); backdrop-filter:blur(16px); border:2px solid #00e676; box-shadow:0 8px 24px rgba(0,0,0,0.6); overflow:hidden; z-index:860; pointer-events:none; display:flex; align-items:center; justify-content:center;">
-        <canvas id="tractor-radar-canvas" width="110" height="110" style="width:100%; height:100%;"></canvas>
-        <div style="position:absolute; bottom:4px; font-size:9px; font-weight:700; color:#00e676; letter-spacing:0.5px; text-transform:uppercase;">РАДАР ПОЛЯ</div>
+      <div id="tractor-3d-minimap" style="position:absolute; top:calc(var(--safe-top) + 14px); right:14px; width:140px; height:140px; border-radius:50%; background:rgba(15,25,35,0.85); backdrop-filter:blur(16px); border:2px solid #00e676; box-shadow:0 8px 24px rgba(0,0,0,0.6); overflow:hidden; z-index:860; pointer-events:none; display:flex; align-items:center; justify-content:center;">
+        <canvas id="tractor-radar-canvas" width="140" height="140" style="width:100%; height:100%;"></canvas>
+        <div style="position:absolute; bottom:4px; font-size:10px; font-weight:700; color:#00e676; letter-spacing:0.5px; text-transform:uppercase;">РАДАР</div>
       </div>
 
       <!-- Плашка текущего поля и статуса -->
-      <div style="position:absolute; top:calc(var(--safe-top) + 14px); left:14px; max-width:calc(100% - 140px); background:rgba(15,25,35,0.85); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:10px 14px; z-index:860;">
+      <div style="position:absolute; top:calc(var(--safe-top) + 14px); left:14px; max-width:calc(100% - 160px); background:rgba(15,25,35,0.85); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:10px 14px; z-index:860;">
         <div style="display:flex; align-items:center; gap:6px;">
           <span style="width:8px; height:8px; border-radius:50%; background:#00e676; display:inline-block; animation:pulse-green 1.5s infinite;"></span>
           <div style="font-size:14px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="tractor-3d-field-title">Поле</div>
         </div>
-        <div style="display:flex; gap:10px; margin-top:6px; font-size:12px; color:var(--text2);">
-          <div><i data-lucide="wheat" class="icon-sm"></i> <span id="tractor-3d-stat-area" style="font-weight:700; color:#00e676;">0.0</span> га</div>
-          <div><i data-lucide="ruler" class="icon-sm"></i> <span id="tractor-3d-stat-dist" style="font-weight:700; color:#fff;">0.0</span> км</div>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:6px; font-size:12px; color:var(--text2);">
+          <div><i data-lucide="wheat" class="icon-sm"></i> <span id="tractor-3d-stat-area" style="font-weight:700; color:#00e676;">0.00</span> га</div>
+          <div><i data-lucide="ruler" class="icon-sm"></i> <span id="tractor-3d-stat-dist" style="font-weight:700; color:#fff;">0.00</span> км</div>
           <div><i data-lucide="zap" class="icon-sm"></i> <span id="tractor-3d-stat-speed" style="font-weight:700; color:#64b5f6;">0.0</span> км/ч</div>
+          <div><i data-lucide="clock" class="icon-sm"></i> <span id="tractor-3d-stat-time" style="font-weight:700; color:#ffb74d;">00:00</span></div>
         </div>
       </div>
 
