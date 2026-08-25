@@ -186,6 +186,41 @@
     </div>
   </div>
 
+  
+  <!-- Модалка Итогов Заезда -->
+  <div class="modal-overlay" id="modal-tractor-summary" onclick="if(event.target===this)closeTractorSummaryModal(true)">
+    <div class="modal-sheet" style="max-width:400px;margin:0 auto;">
+      <div class="modal-handle"></div>
+      <div class="modal-header-row">
+        <div class="modal-title">🎉 Заезд завершён</div>
+        <button type="button" class="icon-btn" onclick="closeTractorSummaryModal(true)">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-sheet-body">
+        <div style="background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.3);border-radius:var(--radius);padding:16px;margin-bottom:16px;text-align:center;">
+          <div style="font-size:12px;color:var(--text2);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Обработанная площадь</div>
+          <div style="font-size:32px;font-weight:800;color:#00e676;"><span id="sum-stat-area">0.0</span> <span style="font-size:16px;">га</span></div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;" id="sum-stat-field">Поле: —</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+          <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;border:1px solid var(--border);">
+            <div style="font-size:11px;color:var(--text3);font-weight:600;">Дистанция</div>
+            <div style="font-size:18px;font-weight:700;color:var(--text);margin-top:4px;"><span id="sum-stat-dist">0.0</span> км</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;border:1px solid var(--border);">
+            <div style="font-size:11px;color:var(--text3);font-weight:600;">Время работы</div>
+            <div style="font-size:18px;font-weight:700;color:var(--text);margin-top:4px;"><span id="sum-stat-time">0</span> мин</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button class="modal-btn primary" onclick="closeTractorSummaryModal(true)" style="background:var(--accent);">Очистить карту и закрыть</button>
+          <button class="modal-btn secondary" onclick="closeTractorSummaryModal(false)">Оставить след на карте</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Firebase Auth Modal -->
   <div id="fb-auth-modal" style="display:none;" class="fb-auth-modal" onclick="if(event.target===this)closeFbAuthModal()">
     <div class="fb-auth-sheet">
@@ -347,7 +382,34 @@
     </div>
 
     
-            <!-- Панель активного заезда -->
+            
+    <!-- 3D Режим от первого лица (Кабина / Трактор) -->
+    <div id="tractor-3d-view" style="display:none; position:fixed; inset:0; z-index:850; background:#0f1923; overflow:hidden;">
+      <canvas id="tractor-3d-canvas" style="width:100%; height:100%; display:block;"></canvas>
+      
+      <!-- Элементы управления камерой и движением в 3D -->
+      <div style="position:absolute; bottom:calc(var(--safe-bottom) + 20px); left:0; right:0; display:flex; justify-content:center; gap:12px; z-index:860; pointer-events:auto;">
+        <button type="button" class="btn-3d-cam active" id="btn-cam-cockpit" onclick="setTractor3DCamera('cockpit')">🚜 Из кабины</button>
+        <button type="button" class="btn-3d-cam" id="btn-cam-chase" onclick="setTractor3DCamera('chase')">👁 Сзади</button>
+        <button type="button" class="btn-3d-cam" id="btn-cam-map" onclick="toggleTractor3DView(false)">🗺 2D Карта</button>
+      </div>
+
+      <!-- Виртуальный руль/кнопки управления для тестирования заезда -->
+      <div style="position:absolute; bottom:calc(var(--safe-bottom) + 80px); left:20px; display:flex; gap:8px; z-index:860;">
+        <button type="button" class="btn-3d-ctrl" onmousedown="start3DSteer(-1)" onmouseup="stop3DSteer()" ontouchstart="start3DSteer(-1)" ontouchend="stop3DSteer()">◀ Влево</button>
+        <button type="button" class="btn-3d-ctrl" onmousedown="start3DSteer(1)" onmouseup="stop3DSteer()" ontouchstart="start3DSteer(1)" ontouchend="stop3DSteer()">Вправо ▶</button>
+      </div>
+      <div style="position:absolute; bottom:calc(var(--safe-bottom) + 80px); right:20px; display:flex; gap:8px; z-index:860;">
+        <button type="button" class="btn-3d-ctrl gas" onmousedown="start3DGas(1)" onmouseup="stop3DGas()" ontouchstart="start3DGas(1)" ontouchend="stop3DGas()">⚡ Газ</button>
+      </div>
+
+      <!-- Подсказка по границам поля в 3D -->
+      <div id="tractor-3d-field-beacon" style="position:absolute; top:calc(var(--safe-top) + 80px); left:50%; transform:translateX(-50%); background:rgba(15,25,35,0.75); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.1); border-radius:100px; padding:6px 14px; font-size:12px; color:#00e676; font-weight:600; pointer-events:none; z-index:860;">
+        🟢 Границы поля активны · Следуйте лазерным полосам
+      </div>
+    </div>
+
+    <!-- Панель активного заезда -->
     <div id="tractor-active-ui" style="display:none; position:fixed; top:0; left:0; width:100%; z-index:900; pointer-events:none;">
       <div style="padding:calc(var(--safe-top) + 12px) 14px 0; max-width:430px; margin:0 auto;">
         <div style="background:rgba(15, 25, 35, 0.88);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.12);border-radius:var(--radius-lg);padding:14px 16px;pointer-events:auto;box-shadow:0 12px 36px rgba(0,0,0,0.5);">
@@ -360,6 +422,7 @@
               </div>
             </div>
             <div style="display:flex;gap:6px;">
+              <button class="modal-btn secondary" onclick="toggleTractor3DView(true)" style="width:auto;padding:7px 10px;font-size:12px;font-weight:600;background:rgba(0,230,118,0.18);color:#00e676;border:1px solid rgba(0,230,118,0.4);border-radius:100px;">🎮 3D Вид</button>
               <button class="modal-btn secondary" onclick="toggleTractorSimulation()" title="Включить тест/симуляцию" style="width:auto;padding:7px 10px;font-size:12px;font-weight:600;background:rgba(33,150,243,0.18);color:#64b5f6;border:1px solid rgba(33,150,243,0.4);border-radius:100px;">▶ Демо</button>
               <button class="modal-btn secondary" onclick="stopTractorTracking()" style="width:auto;padding:7px 14px;font-size:13px;font-weight:700;background:rgba(255,107,107,0.18);color:#ff6b6b;border:1px solid rgba(255,107,107,0.4);border-radius:100px;">Завершить</button>
             </div>
@@ -934,6 +997,7 @@
      Мы резолвим promise сразу после импорта — это быстрее 200мс polling. -->
 <script type="module" src="firebase-init.js"></script>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="script.js"></script>
 
 
