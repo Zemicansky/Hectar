@@ -7343,6 +7343,16 @@ let steer3DInput = 0, gas3DInput = 0;
 let tractor3DAnimId = null;
 let tractor3DHeading = 0;
 let tractor3DPos = { x: 0, z: 0 };
+// FIX (дёрганье при движении): раньше tractor3DPos менялся только в момент
+// прихода GPS-события (watchPosition, ~раз в секунду), а сама 3D-модель
+// трактора рисовалась строго в этой точке — между кадрами рендера трактор
+// "телепортировался" скачками и было незаметно, что он вообще едет.
+// Теперь tractor3DPos/Heading — это ЦЕЛЬ движения (последняя точка GPS), а
+// фактически отображаемая позиция (tractor3DRenderPos/Heading) плавно
+// доезжает до цели в каждом кадре requestAnimationFrame, независимо от
+// того, как редко приходят GPS-фиксы.
+let tractor3DRenderPos = { x: 0, z: 0 };
+let tractor3DRenderHeading = 0;
 let fieldCenter3D = null;
 let coverage3DTexture = null, coverage3DCanvas = null, coverage3DCtx = null;
 let radarCanvas = null, radarCtx = null;
@@ -7468,6 +7478,8 @@ function startTractorTracking() {
   tractorCurrentSpeed = 0;
   tractor3DPos = { x: 0, z: 0 };
   tractor3DHeading = 0;
+  tractor3DRenderPos = { x: 0, z: 0 };
+  tractor3DRenderHeading = 0;
   lastSoilPaintPos = null;
   tractorGpsFarWarningShown = false;
 
@@ -7477,16 +7489,35 @@ function startTractorTracking() {
   }
   reset3DGroundCanvas();
 
+  // FIX (спавн трактора): раньше initialPoint сразу ставился в ЦЕНТР поля
+  // (tractorActiveField.center || coords[0]) без какой-либо попытки узнать
+  // реальную GPS-позицию — трактор всегда появлялся посреди поля, даже
+  // если GPS был доступен и водитель стоял у края. Логика ниже правильная:
+  // 1) если поле выбрано — по умолчанию считаем стартовой точкой КРАЙ поля
+  //    (первую вершину контура), а не центр;
+  // 2) если поле не выбрано (свободный заезд) — по умолчанию центр карты;
+  // 3) сразу после этого пытаемся получить текущую GPS-позицию; если она
+  //    придёт вовремя и попадёт в пределы 3D-мира (<2км от поля) — именно
+  //    она станет точкой спавна вместо края/центра.
   let initialPoint = (typeof DEFAULT_MAP_CENTER !== 'undefined') ? DEFAULT_MAP_CENTER : [55.75, 37.61];
   if (tractorActiveField) {
     const coords = tractorActiveField.coordinates || tractorActiveField.coords;
     if (coords && coords.length > 0) {
-      initialPoint = tractorActiveField.center || coords[0];
+      initialPoint = coords[0]; // край поля, не центр
     }
   }
 
-  // Обязательно инициализируем центр для 3D, даже в свободном заезде
-  fieldCenter3D = { lat: initialPoint[0], lng: initialPoint[1] };
+  // Опорная точка (0,0) 3D-мира: для поля — его геометрический центр (так
+  // строится сетка/земля/границы), для свободного заезда — предполагаемая
+  // стартовая точка. GPS-обработчик ниже может её скорректировать, если
+  // поле не выбрано и реальная позиция известна.
+  if (tractorActiveField) {
+    const coords = tractorActiveField.coordinates || tractorActiveField.coords;
+    const centerPoint = tractorActiveField.center || (coords && coords[0]) || initialPoint;
+    fieldCenter3D = { lat: centerPoint[0], lng: centerPoint[1] };
+  } else {
+    fieldCenter3D = { lat: initialPoint[0], lng: initialPoint[1] };
+  }
 
   // Обновление заголовка в 3D
   const fieldTitleEl = document.getElementById('tractor-3d-field-title');
@@ -7507,8 +7538,8 @@ function startTractorTracking() {
   // ЗАПУСК 3D РЕЖИМА
   toggleTractor3DView(true);
 
-  // Инициализация маркера на 2D карте (если карта доступна)
-  if (typeof map !== 'undefined' && map && typeof L !== 'undefined') {
+  function spawnTractorMarkerAt(point) {
+    if (!(typeof map !== 'undefined' && map && typeof L !== 'undefined')) return;
     const tractorSvg = `
       <div class="tractor-marker-wrap" style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
         <div id="tractor-cone" style="position:absolute;top:-10px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:12px solid #00e676;opacity:0.9;"></div>
@@ -7518,7 +7549,7 @@ function startTractorTracking() {
       </div>
     `;
     try {
-      tractorMarker = L.marker(initialPoint, {
+      tractorMarker = L.marker(point, {
         icon: L.divIcon({
           html: tractorSvg,
           className: 'tractor-marker-icon',
@@ -7532,12 +7563,45 @@ function startTractorTracking() {
     }
   }
 
-  // Запуск GPS
+  // FIX (спавн трактора по GPS): раньше маркер сразу ставился в
+  // initialPoint (который раньше был центром поля), а GPS обрабатывался
+  // полностью асинхронно уже ПОСЛЕ появления трактора на экране — визуально
+  // это выглядело так, будто трактор всегда стартует из центра поля и GPS
+  // ни на что не влияет. Теперь мы явно пытаемся получить текущую позицию
+  // (с таймаутом, чтобы не блокировать пользователя надолго) и только по
+  // её результату решаем, где именно заспавнить трактор:
+  //  - GPS определился и он в пределах поля/3D-мира -> спавн в реальной точке;
+  //  - GPS не определился или он далеко от поля -> спавн на краю поля
+  //    (initialPoint), как и должно быть по умолчанию без GPS.
+  let spawnResolved = false;
+  const finalizeSpawn = (point) => {
+    if (spawnResolved) return;
+    spawnResolved = true;
+    spawnTractorMarkerAt(point);
+  };
+
   if (navigator.geolocation) {
+    const gpsTimeout = setTimeout(() => finalizeSpawn(initialPoint), 4000);
+
     navigator.geolocation.getCurrentPosition(
-      (pos) => { onTractorPosition(pos); },
-      () => {},
-      { enableHighAccuracy: true, timeout: 5000 }
+      (pos) => {
+        clearTimeout(gpsTimeout);
+        const gpsPoint = [pos.coords.latitude, pos.coords.longitude];
+        const distFromCenter = fieldCenter3D ? Math.hypot(
+          (gpsPoint[1] - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180)),
+          (gpsPoint[0] - fieldCenter3D.lat) * 111320
+        ) : Infinity;
+        // GPS реально определился и попадает в пределы отрендеренного
+        // 3D-мира (<2км от центра поля) — спавним трактор именно там.
+        const usableGps = distFromCenter <= 2000;
+        finalizeSpawn(usableGps ? gpsPoint : initialPoint);
+        onTractorPosition(pos);
+      },
+      () => {
+        clearTimeout(gpsTimeout);
+        finalizeSpawn(initialPoint);
+      },
+      { enableHighAccuracy: true, timeout: 4000 }
     );
 
     tractorWatchId = navigator.geolocation.watchPosition(
@@ -7545,6 +7609,9 @@ function startTractorTracking() {
       (err) => { console.warn('GPS watch warning:', err); },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
     );
+  } else {
+    // Геолокация недоступна в браузере — сразу на край поля.
+    finalizeSpawn(initialPoint);
   }
 
   showToast(lang === 'ru' ? '<i data-lucide="tractor" class="icon-sm"></i> 3D Заезд запущен!' : '<i data-lucide="tractor" class="icon-sm"></i> 3D Drive started!');
@@ -7608,6 +7675,10 @@ function updateTractorLocation(newPoint) {
     if (fieldCenter3D) {
       tractor3DPos.x = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
       tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
+      // Первая точка заезда — ставим рендер-позицию сразу на месте, без
+      // плавного "доезда" от (0,0), иначе трактор въезжал бы в кадр издалека.
+      tractor3DRenderPos.x = tractor3DPos.x;
+      tractor3DRenderPos.z = tractor3DPos.z;
       updateGuidanceLightbar(tractor3DHeading, tractor3DPos.x, tractor3DPos.z);
     }
     return;
@@ -7647,11 +7718,19 @@ function updateTractorLocation(newPoint) {
         }
         tractor3DPos.x = 0;
         tractor3DPos.z = 0;
+        // Телепорт — синхронизируем рендер-позицию мгновенно, без доезда.
+        tractor3DRenderPos.x = 0;
+        tractor3DRenderPos.z = 0;
         updateGuidanceLightbar(tractor3DHeading, 0, 0);
         return;
       }
       tractor3DPos.x = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
       tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
+      // GPS-прыжок (>0.3км за один фикс) — переносим трактор мгновенно,
+      // а не плавно "доезжаем", иначе на резком скачке модель будет ехать
+      // через всю сцену вместо честного телепорта.
+      tractor3DRenderPos.x = tractor3DPos.x;
+      tractor3DRenderPos.z = tractor3DPos.z;
       updateGuidanceLightbar(tractor3DHeading, tractor3DPos.x, tractor3DPos.z);
     }
     return;
@@ -8207,6 +8286,46 @@ function build3DImplement(opType, width, chassisMat) {
   return group;
 }
 
+// FIX (слабо видны линии/границы): THREE.LineBasicMaterial.linewidth
+// физически игнорируется всеми браузерами на WebGL (кроме Firefox+ANGLE) —
+// линия всегда рисуется в 1px независимо от заданного значения, поэтому
+// контур поля и направляющие полосы выглядели тонкими и терялись на фоне
+// земли. Эта функция строит "толстую линию" настоящей геометрией (лентой
+// из треугольников, всегда повёрнутой к камере по горизонтали), которая
+// действительно масштабируется заданной толщиной в метрах.
+function makeThickGroundLine(points, color, widthMeters, opacity) {
+  const positions = [];
+  const halfW = widthMeters / 2;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const dx = p2.x - p1.x;
+    const dz = p2.z - p1.z;
+    const len = Math.hypot(dx, dz) || 1;
+    // Нормаль к отрезку в горизонтальной плоскости — куда "раздуваем" ленту
+    const nx = (-dz / len) * halfW;
+    const nz = (dx / len) * halfW;
+
+    const a = { x: p1.x + nx, y: p1.y, z: p1.z + nz };
+    const b = { x: p1.x - nx, y: p1.y, z: p1.z - nz };
+    const c = { x: p2.x + nx, y: p2.y, z: p2.z + nz };
+    const d = { x: p2.x - nx, y: p2.y, z: p2.z - nz };
+
+    positions.push(a.x, a.y, a.z,  b.x, b.y, b.z,  c.x, c.y, c.z);
+    positions.push(b.x, b.y, b.z,  d.x, d.y, d.z,  c.x, c.y, c.z);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  const mat = new THREE.MeshBasicMaterial({
+    color: color,
+    transparent: opacity < 1,
+    opacity: opacity,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  return new THREE.Mesh(geo, mat);
+}
+
 /** 3D Границы поля с яркими неоновыми стенами, маяками и лазерными гонами параллельного вождения */
 function update3DFieldBounds(field) {
   if (!scene3D) return;
@@ -8242,17 +8361,17 @@ function update3DFieldBounds(field) {
     });
     points3D.push(points3D[0]);
 
-    // Неоновый контур границы поля (на земле и по верху стены)
-    const lineGeo = new THREE.BufferGeometry().setFromPoints(points3D);
-    const lineMat = new THREE.LineBasicMaterial({ color: 0x00ff88, linewidth: 2 });
-    const boundaryLineGround = new THREE.Line(lineGeo, lineMat);
+    // Неоновый контур границы поля (на земле и по верху стены).
+    // FIX: раньше это были THREE.Line с linewidth — толщина игнорировалась
+    // WebGL, линия тонула в текстуре земли. Теперь это настоящая геометрия
+    // толщиной ~0.6м на земле и ~0.35м по верху стены — заметно с любого
+    // расстояния и ракурса камеры.
+    const boundaryLineGround = makeThickGroundLine(points3D, 0x00ff88, 0.6, 1.0);
     field3DOutline.add(boundaryLineGround);
 
     const wallHeight = 8.0;
     const pointsTop = points3D.map(p => new THREE.Vector3(p.x, wallHeight, p.z));
-    const lineTopGeo = new THREE.BufferGeometry().setFromPoints(pointsTop);
-    const lineTopMat = new THREE.LineBasicMaterial({ color: 0x00ff88 });
-    const boundaryLineTop = new THREE.Line(lineTopGeo, lineTopMat);
+    const boundaryLineTop = makeThickGroundLine(pointsTop, 0x00ff88, 0.35, 1.0);
     field3DOutline.add(boundaryLineTop);
 
     // Полупрозрачная светящаяся стена границы поля
@@ -8306,32 +8425,36 @@ function update3DFieldBounds(field) {
     const xPos = i * spacingMeters;
     const isCenterTrack = (i === 0);
 
-    const trackGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(xPos, 0.12, -trackLength / 2),
-      new THREE.Vector3(xPos, 0.12, trackLength / 2)
-    ]);
-    const trackMat = new THREE.LineDashedMaterial({
-      color: isCenterTrack ? 0x00ff88 : 0x00e5ff,
-      dashSize: isCenterTrack ? 8 : 5,
-      gapSize: isCenterTrack ? 2 : 3,
-      opacity: isCenterTrack ? 1.0 : 0.75,
-      transparent: true
-    });
-    const trackLine = new THREE.Line(trackGeo, trackMat);
-    trackLine.computeLineDistances();
+    // FIX: тонкая THREE.Line поверх ленты почти не добавляла видимости
+    // (linewidth игнорируется WebGL) — заменена толстой линией-мешем,
+    // которая реально видна как непрерывная яркая полоса поверх ribbon.
+    const trackPoints = [
+      new THREE.Vector3(xPos, 0.14, -trackLength / 2),
+      new THREE.Vector3(xPos, 0.14, trackLength / 2)
+    ];
+    const trackLine = makeThickGroundLine(
+      trackPoints,
+      isCenterTrack ? 0x00ff88 : 0x00e5ff,
+      isCenterTrack ? 0.35 : 0.2,
+      isCenterTrack ? 1.0 : 0.85
+    );
     field3DOutline.add(trackLine);
 
-    // Светящаяся полоса-лента на земле
-    const ribbonGeo = new THREE.PlaneGeometry(0.8, trackLength);
+    // Светящаяся полоса-лента на земле. FIX: непрозрачность была слишком
+    // низкой (0.18–0.35) и гоны почти не читались на фоне зелёной текстуры
+    // земли — увеличена, плюс лента стала шире, чтобы курс было видно
+    // издалека, а не только вблизи.
+    const ribbonGeo = new THREE.PlaneGeometry(isCenterTrack ? 1.4 : 1.0, trackLength);
     const ribbonMat = new THREE.MeshBasicMaterial({
       color: isCenterTrack ? 0x00ff88 : 0x00b0ff,
       transparent: true,
-      opacity: isCenterTrack ? 0.35 : 0.18,
-      side: THREE.DoubleSide
+      opacity: isCenterTrack ? 0.6 : 0.4,
+      side: THREE.DoubleSide,
+      depthWrite: false
     });
     const ribbonMesh = new THREE.Mesh(ribbonGeo, ribbonMat);
     ribbonMesh.rotation.x = -Math.PI / 2;
-    ribbonMesh.position.set(xPos, 0.08, 0);
+    ribbonMesh.position.set(xPos, 0.09, 0);
     field3DOutline.add(ribbonMesh);
   }
 
@@ -8615,13 +8738,31 @@ function start3DAnimationLoop() {
   const desiredPos = new THREE.Vector3();
   const desiredLookAt = new THREE.Vector3();
 
+  // FIX (дёрганье): скорость "доезда" рендер-позиции до GPS-цели за кадр.
+  // Не завязана на CAM_LERP специально — камера и трактор должны сглаживаться
+  // независимо, иначе на резких GPS-скачках дёргается либо камера, либо модель.
+  const MOVE_LERP = 0.15;
+
   function animate() {
     if (!tractor3DActive) return;
     tractor3DAnimId = requestAnimationFrame(animate);
 
     if (tractor3DModel) {
-      tractor3DModel.position.set(tractor3DPos.x, 0, tractor3DPos.z);
-      tractor3DModel.rotation.y = tractor3DHeading * (Math.PI / 180);
+      // Плавно подтягиваем отображаемую позицию/курс к последней GPS-цели
+      // на каждом кадре рендера (60 раз/сек), а не только когда придёт новое
+      // GPS-событие (1 раз/сек) — именно это убирает дёрганье/скачки картинки.
+      tractor3DRenderPos.x += (tractor3DPos.x - tractor3DRenderPos.x) * MOVE_LERP;
+      tractor3DRenderPos.z += (tractor3DPos.z - tractor3DRenderPos.z) * MOVE_LERP;
+
+      // Курс — угол, интерполируем по кратчайшей дуге, чтобы трактор не
+      // "закручивался" через 360° при переходе, например, с 350° на 10°.
+      let headingDiff = tractor3DHeading - tractor3DRenderHeading;
+      while (headingDiff > 180) headingDiff -= 360;
+      while (headingDiff < -180) headingDiff += 360;
+      tractor3DRenderHeading += headingDiff * MOVE_LERP;
+
+      tractor3DModel.position.set(tractor3DRenderPos.x, 0, tractor3DRenderPos.z);
+      tractor3DModel.rotation.y = tractor3DRenderHeading * (Math.PI / 180);
 
       if (camera3D) {
         const tPos = tractor3DModel.position;
