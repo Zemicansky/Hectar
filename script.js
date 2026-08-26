@@ -7274,6 +7274,7 @@ function openTractorSetupModal() {
     sel.innerHTML = '';
     const defOpt = document.createElement('option');
     defOpt.value = '';
+    defOpt.disabled = true;
     defOpt.textContent = lang === 'ru' ? '— Выберите поле (для направляющих полос) —' : '— Select field (for guideline tracks) —';
     sel.appendChild(defOpt);
     
@@ -7287,7 +7288,7 @@ function openTractorSetupModal() {
 
     const freeOpt = document.createElement('option');
     freeOpt.value = 'free';
-    freeOpt.textContent = lang === 'ru' ? '<i data-lucide="tractor" class="icon-sm"></i> Свободный заезд (без контура поля)' : '<i data-lucide="tractor" class="icon-sm"></i> Free drive (no field bounds)';
+    freeOpt.textContent = lang === 'ru' ? '🚜 Свободный заезд (без контура поля)' : '🚜 Free drive (no field bounds)';
     sel.appendChild(freeOpt);
 
     if (typeof currentFieldId !== 'undefined' && currentFieldId && allFields.some(f => f.id === currentFieldId)) {
@@ -7446,6 +7447,27 @@ function onTractorPosition(pos) {
   const speedEl = document.getElementById('tractor-3d-stat-speed');
   if (speedEl) speedEl.textContent = tractorCurrentSpeed.toFixed(1);
 
+  // FIX: если реальный GPS находится далеко (>2км) от центра 3D-мира,
+  // трактор улетает за пределы отрендеренной земли/границ поля — видно
+  // только небо. Телепортируем трактор на центр поля (или GPS-точку,
+  // если это свободный заезд), как это уже делает демо-режим.
+  if (fieldCenter3D && tractorPath.length === 0) {
+    const distFromCenter = Math.hypot(
+      (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180)),
+      (lat - fieldCenter3D.lat) * 111320
+    );
+    if (distFromCenter > 2000) {
+      if (!tractorActiveField) {
+        // Свободный заезд: центр 3D-мира не привязан к полю — переносим его на GPS.
+        fieldCenter3D = { lat: lat, lng: lng };
+      }
+      // Стартуем визуально из центра 3D-мира (поля), а не из реальной
+      // (далёкой) GPS-точки, иначе камера не увидит землю.
+      updateTractorLocation([fieldCenter3D.lat, fieldCenter3D.lng]);
+      return;
+    }
+  }
+
   updateTractorLocation([lat, lng]);
 }
 
@@ -7479,6 +7501,21 @@ function updateTractorLocation(newPoint) {
     
     // Синхронизация с 3D миром при прыжке
     if (fieldCenter3D) {
+      // FIX: если прыжок унёс нас далеко (>2км) от текущего центра 3D-мира,
+      // трактор окажется за пределами отрендеренной земли/границ и будет
+      // видно только небо. В таком случае остаёмся визуально в центре
+      // 3D-мира вместо того чтобы улетать вслед за реальным GPS.
+      const distFromCenter = Math.hypot(
+        (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180)),
+        (lat - fieldCenter3D.lat) * 111320
+      );
+      if (distFromCenter > 2000) {
+        if (!tractorActiveField) fieldCenter3D = { lat: lat, lng: lng };
+        tractor3DPos.x = 0;
+        tractor3DPos.z = 0;
+        updateGuidanceLightbar(tractor3DHeading, 0, 0);
+        return;
+      }
       tractor3DPos.x = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
       tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
       updateGuidanceLightbar(tractor3DHeading, tractor3DPos.x, tractor3DPos.z);
