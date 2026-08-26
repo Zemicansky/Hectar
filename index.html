@@ -188,34 +188,38 @@
 
   
   <!-- Модалка Итогов Заезда -->
-  <div class="modal-overlay" id="modal-tractor-summary" onclick="if(event.target===this)closeTractorSummaryModal(true)">
+  <div class="modal-overlay" id="modal-tractor-summary" onclick="if(event.target===this)closeTractorSummaryModal()">
     <div class="modal-sheet" style="max-width:400px;margin:0 auto;">
       <div class="modal-handle"></div>
       <div class="modal-header-row">
-        <div class="modal-title"><i data-lucide="check-circle" class="icon-sm"></i> Заезд завершён</div>
-        <button type="button" class="icon-btn" onclick="closeTractorSummaryModal(true)">
+        <div class="modal-title"><i data-lucide="check-circle" class="icon-sm"></i> <span data-i18n-summary-title>Заезд завершён</span></div>
+        <button type="button" class="icon-btn" onclick="closeTractorSummaryModal()">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
       <div class="modal-sheet-body">
         <div style="background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.3);border-radius:var(--radius);padding:16px;margin-bottom:16px;text-align:center;">
-          <div style="font-size:12px;color:var(--text2);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Обработанная площадь</div>
+          <div style="font-size:12px;color:var(--text2);text-transform:uppercase;font-weight:600;margin-bottom:4px;" data-i18n-summary-area-label>Обработанная площадь</div>
           <div style="font-size:32px;font-weight:800;color:#00e676;"><span id="sum-stat-area">0.0</span> <span style="font-size:16px;">га</span></div>
           <div style="font-size:12px;color:var(--text3);margin-top:2px;" id="sum-stat-field">Поле: —</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
           <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;border:1px solid var(--border);">
-            <div style="font-size:11px;color:var(--text3);font-weight:600;">Дистанция</div>
+            <div style="font-size:11px;color:var(--text3);font-weight:600;" data-i18n-summary-dist-label>Дистанция</div>
             <div style="font-size:18px;font-weight:700;color:var(--text);margin-top:4px;"><span id="sum-stat-dist">0.0</span> км</div>
           </div>
           <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;border:1px solid var(--border);">
-            <div style="font-size:11px;color:var(--text3);font-weight:600;">Время работы</div>
+            <div style="font-size:11px;color:var(--text3);font-weight:600;" data-i18n-summary-time-label>Время работы</div>
             <div style="font-size:18px;font-weight:700;color:var(--text);margin-top:4px;"><span id="sum-stat-time">0</span> мин</div>
           </div>
         </div>
+        <div id="sum-field-picker" style="display:none;margin-bottom:16px;">
+          <div style="font-size:11px;color:var(--text3);font-weight:600;margin-bottom:6px;" data-i18n-summary-pick-field>Свободный заезд — выберите поле для сохранения:</div>
+          <select id="sum-field-select" class="modal-select"></select>
+        </div>
         <div style="display:flex;flex-direction:column;gap:8px;">
-          <button class="modal-btn primary" onclick="closeTractorSummaryModal(true)" style="background:var(--accent);">Очистить карту и закрыть</button>
-          <button class="modal-btn secondary" onclick="closeTractorSummaryModal(false)">Оставить след на карте</button>
+          <button class="modal-btn primary" onclick="saveTractorSummary()" style="background:var(--accent);" data-i18n-summary-save>Сохранить в историю поля</button>
+          <button class="modal-btn secondary" onclick="discardTractorSummary()" data-i18n-summary-discard>Удалить без сохранения</button>
         </div>
       </div>
     </div>
@@ -393,7 +397,13 @@
         <div style="position:absolute; bottom:4px; font-size:10px; font-weight:700; color:#00e676; letter-spacing:0.5px; text-transform:uppercase;">РАДАР</div>
       </div>
 
-      <!-- Навигационный курсоуказатель (Lightbar Guidance HUD) -->
+      <!-- Единая HUD-карточка навигации: курсоуказатель (гон/курс/ширина + LED-полоса
+           отклонения) и статус активного поля объединены в одну карточку с понятной
+           внутренней иерархией (заголовок гона -> LED-полоса -> разделитель -> поле/статистика).
+           Это гарантированно исключает наложение панелей при любом реальном контенте
+           (длинное название поля, любой язык, маленький экран) — раньше вторая панель
+           была захардкожена на top: calc(var(--safe-top) + 96px) и наезжала на первую,
+           если первая панель по факту была выше или ниже 96px. -->
       <div id="tractor-3d-guidance-bar" class="tractor-3d-guidance-bar">
         <div class="guidance-hud-top">
           <span class="guidance-tag track" id="tractor-guidance-track">ГОН #1</span>
@@ -416,15 +426,14 @@
           </div>
         </div>
         <div class="guidance-status-label" id="tractor-guidance-status">В ПОЛОСЕ (ON TRACK)</div>
-      </div>
 
-      <!-- Плашка текущего поля и статуса -->
-      <div style="position:absolute; top:calc(var(--safe-top) + 96px); left:14px; max-width:calc(100% - 160px); background:rgba(15,25,35,0.85); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:10px 14px; z-index:860;">
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span style="width:8px; height:8px; border-radius:50%; background:#00e676; display:inline-block; animation:pulse-green 1.5s infinite;"></span>
-          <div style="font-size:14px; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="tractor-3d-field-title">Поле</div>
+        <div class="guidance-field-divider"></div>
+
+        <div class="guidance-field-row">
+          <span class="guidance-field-dot"></span>
+          <div class="guidance-field-title" id="tractor-3d-field-title">Поле</div>
         </div>
-        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:6px; font-size:12px; color:var(--text2);">
+        <div class="guidance-field-stats">
           <div><i data-lucide="wheat" class="icon-sm"></i> <span id="tractor-3d-stat-area" style="font-weight:700; color:#00e676;">0.00</span> га</div>
           <div><i data-lucide="ruler" class="icon-sm"></i> <span id="tractor-3d-stat-dist" style="font-weight:700; color:#fff;">0.00</span> км</div>
           <div><i data-lucide="zap" class="icon-sm"></i> <span id="tractor-3d-stat-speed" style="font-weight:700; color:#64b5f6;">0.0</span> км/ч</div>
@@ -519,9 +528,15 @@
       <div id="fields-subview-ndvi" style="display:none;flex:1;flex-direction:column;overflow-y:auto;overflow-x:hidden;padding:0 16px 16px;">
         <!-- NDVI header (no manual refresh button — auto-refreshes on tab open) -->
         <div class="ndvi-panel-header">
-          <div>
+          <div style="flex:1;min-width:0;">
             <div style="font-size:15px;font-weight:700;" data-i18n-ndvi-title>NDVI — Вегетационный индекс</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:2px;">NASA GIBS MODIS Terra · 500 м/пкс</div>
+            <!-- Задача 3: строка с бейджем источника данных.
+                 JS обновляет #ndvi-active-source-badge после сэмплирования каждого поля.
+                 Бейдж меняет класс ndvi-src-sentinel / ndvi-src-modis / ndvi-src-model. -->
+            <div id="ndvi-active-source-badge" class="ndvi-src-badge ndvi-src-modis" style="margin-top:5px;">
+              <span class="ndvi-src-icon">🛰</span>
+              <span class="ndvi-src-text" data-i18n-ndvi-src-modis>MODIS 500м · 16 дн. · не реальное время</span>
+            </div>
           </div>
         </div>
 
@@ -541,10 +556,14 @@
           </div>
         </div>
 
-        <!-- Data source note -->
-        <div style="margin-top:12px;padding:12px;background:var(--bg2);border-radius:var(--radius-sm);border:1px solid var(--border);">
-          <div style="font-size:11px;color:var(--text3);line-height:1.6;">
-            📡 <strong style="color:var(--text2);">NASA GIBS MODIS Terra NDVI</strong> — <span data-i18n-ndvi-desc>16-дневный композит, разрешение 500 м/пкс. Данные обновляются каждые ~8 дней. Значение NDVI: <span style="color:#ef5350;">0–0.2</span> нет/мало растительности, <span style="color:#FFA500;">0.2–0.5</span> умеренная, <span style="color:#4CAF50;">0.5–1.0</span> густая.</span>
+        <!-- Data source note — подробное объяснение точности (Задача 3) -->
+        <div class="ndvi-accuracy-note">
+          <div class="ndvi-accuracy-note-text">
+            📡 <strong data-i18n-ndvi-src-title>NASA GIBS MODIS Terra NDVI</strong> — <span data-i18n-ndvi-desc>16-дневный композит, разрешение 500 м/пкс. Данные обновляются каждые ~8 дней. Значение NDVI: <span style="color:#ef5350;">0–0.2</span> нет/мало растительности, <span style="color:#FFA500;">0.2–0.5</span> умеренная, <span style="color:#4CAF50;">0.5–1.0</span> густая.</span>
+          </div>
+          <!-- Задача 3: строка улучшенной точности — Sentinel Hub -->
+          <div class="ndvi-accuracy-upgrade" id="ndvi-sentinel-tip">
+            <span data-i18n-ndvi-sentinel-tip>💡 Для точности ~10м подключите Sentinel Hub API в настройках (бесплатно до 30 000 пикселей/мес)</span>
           </div>
         </div>
       </div>
@@ -579,44 +598,55 @@
           </button>
         </div>
 
-        <!-- Weather mode toggle: Field vs City -->
-        <!-- FIX v2.6 пункт 2: тексты меток инициализируются через JS при открытии switchTab('weather') -->
-        <div style="display:flex;gap:0;background:var(--bg3);border-radius:var(--radius-sm);padding:3px;margin-bottom:10px;">
-          <button id="weather-mode-field-btn" onclick="setWeatherMode('field')"
-            style="flex:1;padding:8px 10px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.18s;">
-            <i data-lucide="wheat" class="icon-sm"></i> <span id="weather-mode-field-label">By Field</span>
-          </button>
-          <button id="weather-mode-city-btn" onclick="setWeatherMode('city')"
-            style="flex:1;padding:8px 10px;border:none;border-radius:8px;background:transparent;color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.18s;">
-            🏙 <span id="weather-mode-city-label">By City</span>
-          </button>
+        <!-- Задача 4 (Вариант C): Weather mode controls redesign —
+             вместо 2 строк (toggle + select/input) теперь 1 компактная строка:
+             два чипа-сегмента, активный расширяется inline с дропдауном/инпутом.
+             Все ID сохранены, setWeatherMode() работает без изменений.
+        -->
+        <div class="weather-header-controls">
+          <!-- Сегмент "По полю": при активации показывает inline-select -->
+          <div class="weather-mode-chip weather-mode-chip--active" id="weather-chip-field">
+            <button id="weather-mode-field-btn" onclick="setWeatherMode('field')" class="weather-chip-btn">
+              <i data-lucide="wheat" class="icon-sm"></i>
+              <span id="weather-mode-field-label">By Field</span>
+            </button>
+            <!-- Inline field select — виден только когда активен этот чип -->
+            <div id="weather-mode-field" class="weather-chip-content">
+              <div class="weather-chip-sep"></div>
+              <div class="weather-field-selector" id="weather-field-selector">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                <select id="weather-field-select" onchange="onWeatherFieldChange(this.value)">
+                  <option value="" id="weather-field-placeholder">— Выберите поле —</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Сегмент "По городу": при активации показывает inline-search -->
+          <div class="weather-mode-chip" id="weather-chip-city">
+            <button id="weather-mode-city-btn" onclick="setWeatherMode('city')" class="weather-chip-btn">
+              🏙 <span id="weather-mode-city-label">By City</span>
+            </button>
+            <!-- Inline city search — виден только когда активен этот чип -->
+            <div id="weather-mode-city" class="weather-chip-content" style="display:none;">
+              <div class="weather-chip-sep"></div>
+              <div class="weather-city-inline">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input id="weather-city-input" type="text" placeholder="Search city or location..."
+                  oninput="onWeatherCityInput(this.value)"
+                  onkeydown="if(event.key==='Enter'){searchWeatherCity(this.value);}"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Field selector (shown in field mode) -->
-        <div id="weather-mode-field" style="display:block;">
-          <div class="weather-field-selector" id="weather-field-selector">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-            <select id="weather-field-select" onchange="onWeatherFieldChange(this.value)">
-              <option value="">— Выберите поле —</option>
-            </select>
-          </div>
-          <!-- FIX v1.9→v1.9.1: Removed duplicate field name+area pill (was shown under selector AND inside weather card) -->
-        </div>
-
-        <!-- City search (shown in city mode) -->
-        <div id="weather-mode-city" style="display:none;">
-          <div class="search-input-wrap" style="margin-bottom:6px;">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input id="weather-city-input" type="text" placeholder="Search city or location..."
-              style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:15px;padding:12px 14px 12px 44px;outline:none;font-family:inherit;"
-              oninput="onWeatherCityInput(this.value)"
-              onkeydown="if(event.key==='Enter'){searchWeatherCity(this.value);}"
-            />
-          </div>
-          <!-- City search results dropdown -->
-          <div id="weather-city-results" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;overflow:hidden;max-height:180px;overflow-y:auto;"></div>
+        <!-- City results и избранное — вне строки чипов, полная ширина -->
+        <div id="weather-city-extras" style="display:none;">
           <!-- Currently showing city name -->
-          <div id="weather-city-current" style="display:none;font-size:13px;color:var(--text2);padding:4px 2px 6px;"></div>
+          <div id="weather-city-current" style="display:none;font-size:13px;color:var(--text2);padding:4px 2px 2px;"></div>
+          <!-- City search results dropdown -->
+          <div id="weather-city-results" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-top:4px;margin-bottom:4px;overflow:hidden;max-height:180px;overflow-y:auto;-webkit-overflow-scrolling:touch;"></div>
           <!-- FIX v1.9: Favorite cities section -->
           <div class="weather-fav-section" id="weather-fav-section">
             <div class="weather-fav-label">

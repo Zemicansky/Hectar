@@ -1,4 +1,4 @@
-  /* ══════════════════════════════════════
+﻿  /* ══════════════════════════════════════
      CSS ПЕРЕМЕННЫЕ И СБРОС СТИЛЕЙ
   ══════════════════════════════════════ */
   :root {
@@ -2407,31 +2407,180 @@
   }
   .ndvi-map-link:active { background: rgba(76,175,80,0.22); }
 
-  /* ══════════════════════════════════════
-     WEATHER SCREEN — new design
-  ══════════════════════════════════════ */
+  /* ==============================================
+     NDVI ACCURACY BADGE (Zadacha 3)
+     Kompaktnaya stroka pod zagolovkom NDVI-paneli:
+     sentinel (zelenyy) / modis (zhyoltyy) / model (seryy).
+  ============================================== */
+  .ndvi-src-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px 3px 7px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    border: 1px solid transparent;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  /* Sentinel Hub -- best accuracy (~10m), green */
+  .ndvi-src-sentinel {
+    background: rgba(76,175,80,0.15);
+    border-color: rgba(76,175,80,0.4);
+    color: #4CAF50;
+  }
+  /* MODIS 500m -- satellite data but low resolution, yellow */
+  .ndvi-src-modis {
+    background: rgba(255,179,0,0.13);
+    border-color: rgba(255,179,0,0.4);
+    color: #FFB300;
+  }
+  /* Model fallback -- no real satellite data, grey */
+  .ndvi-src-model {
+    background: rgba(158,158,158,0.13);
+    border-color: rgba(158,158,158,0.35);
+    color: var(--text3);
+  }
+  .ndvi-src-icon { font-size: 12px; }
+  .ndvi-src-text { letter-spacing: -0.01em; }
+
+  /* Bottom accuracy note in NDVI panel (Zadacha 3) */
+  .ndvi-accuracy-note {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--bg2);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+  .ndvi-accuracy-note-text {
+    font-size: 11px;
+    color: var(--text3);
+    line-height: 1.6;
+  }
+  .ndvi-accuracy-upgrade {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text3);
+    line-height: 1.5;
+  }
+
+  /* ==============================================
+     WEATHER SCREEN -- Zadacha 4 new design
+     Single-row chip layout instead of 2 rows.
+     .weather-header-controls -- flex container.
+     .weather-mode-chip -- each segment (field/city).
+     Active chip (.weather-mode-chip--active) expands
+     to show inline select/input next to the label.
+  ============================================== */
+  .weather-header-controls {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+    align-items: stretch;
+  }
+  .weather-mode-chip {
+    display: flex;
+    align-items: center;
+    background: var(--bg3);
+    border-radius: var(--radius-sm);
+    padding: 2px;
+    transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+    flex-shrink: 0;
+    min-width: 0;
+  }
+  /* Active chip expands to fill available space */
+  .weather-mode-chip--active {
+    flex: 1;
+    background: rgba(76,175,80,0.12);
+    border: 1px solid rgba(76,175,80,0.3);
+  }
+  .weather-chip-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text2);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+    white-space: nowrap;
+    transition: all 0.18s;
+    font-family: inherit;
+    flex-shrink: 0;
+  }
+  .weather-mode-chip--active .weather-chip-btn { color: var(--accent); }
+  .weather-chip-btn:active { opacity: 0.7; }
+
+  /* Divider between button and inline content */
+  .weather-chip-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    flex-shrink: 0;
+    margin: 0 2px;
+  }
+
+  /* Inline content of the chip (visible only for active chip) */
+  .weather-chip-content {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* Field selector adapted for chip style */
   .weather-field-selector {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 0 14px;
-    margin-bottom: 8px;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+    padding: 0 8px 0 4px;
   }
   .weather-field-selector select {
     flex: 1;
+    min-width: 0;
     background: transparent;
     border: none;
     color: var(--text);
-    font-size: 14px;
+    font-size: 13px;
     font-family: inherit;
-    padding: 12px 0;
+    padding: 8px 0;
     outline: none;
     cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .weather-field-selector select option { background: var(--bg2); }
+
+  /* Inline city input inside city chip */
+  .weather-city-inline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+    padding: 0 8px 0 4px;
+  }
+  .weather-city-inline input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    padding: 8px 0;
+    outline: none;
+  }
+  .weather-city-inline input::placeholder { color: var(--text3); }
   .weather-field-info {
     display: flex;
     gap: 8px;
@@ -4496,6 +4645,54 @@
   letter-spacing: 0.5px;
   color: #00e676;
   text-align: center;
+}
+
+/* Задача 1.1: объединённая карточка HUD — раздел с полем/статистикой под
+   курсоуказателем гона, в том же контейнере, без абсолютного позиционирования
+   и без хардкода отступов. Высота карточки теперь просто растёт вместе с
+   контентом (длинное название поля и т.д.), а не выходит за пределы,
+   заданные соседним блоком. */
+.guidance-field-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 2px 0;
+}
+.guidance-field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0; /* обязательно для text-overflow: ellipsis внутри flex */
+}
+.guidance-field-dot {
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  border-radius: 50%;
+  background: #00e676;
+  display: inline-block;
+  animation: pulse-green 1.5s infinite;
+}
+.guidance-field-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.guidance-field-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  font-size: 11px;
+  color: var(--text2);
+}
+.guidance-field-stats > div {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
 }
 
 /* ══════════════════════════════════════

@@ -605,6 +605,36 @@ function applyTranslations() {
     : '16-day composite, 500m/px resolution. Data updated every ~8 days. NDVI value: <span style="color:#ef5350;">0–0.2</span> bare/sparse, <span style="color:#FFA500;">0.2–0.5</span> moderate, <span style="color:#4CAF50;">0.5–1.0</span> dense.';
   const ndviNfEl = document.querySelector('[data-i18n-ndvi-nf]');
   if (ndviNfEl) ndviNfEl.innerHTML = lang === 'ru' ? 'Нет полей для анализа.<br>Нарисуйте поле на карте.' : 'No fields to analyze.<br>Draw a field on the map.';
+
+  // Задача 3: i18n для строк бейджа источника NDVI
+  const ndviSrcTitleEl = document.querySelector('[data-i18n-ndvi-src-title]');
+  if (ndviSrcTitleEl) ndviSrcTitleEl.textContent = lang === 'ru' ? 'NASA GIBS MODIS Terra NDVI' : 'NASA GIBS MODIS Terra NDVI';
+  const ndviSrcModisEl = document.querySelector('[data-i18n-ndvi-src-modis]');
+  if (ndviSrcModisEl) ndviSrcModisEl.textContent = lang === 'ru' ? 'MODIS 500м · 16 дн. · не реальное время' : 'MODIS 500m · 16-day · not real-time';
+  const ndviSentinelTipEl = document.querySelector('[data-i18n-ndvi-sentinel-tip]');
+  if (ndviSentinelTipEl) ndviSentinelTipEl.textContent = lang === 'ru'
+    ? '💡 Для точности ~10м подключите Sentinel Hub API в настройках (бесплатно до 30 000 пикселей/мес)'
+    : '💡 For ~10m accuracy, connect Sentinel Hub API in settings (free up to 30,000 pixels/month)';
+
+  // Задача 4: placeholder поля в Погоде
+  const weatherFieldPlaceholder = document.getElementById('weather-field-placeholder');
+  if (weatherFieldPlaceholder) weatherFieldPlaceholder.textContent = lang === 'ru' ? '— Выберите поле —' : '— Select a field —';
+
+  // Модалка итогов заезда трактора (Задача 2: разделение сохранения/удаления)
+  const sumTitleEl = document.querySelector('[data-i18n-summary-title]');
+  if (sumTitleEl) sumTitleEl.textContent = lang === 'ru' ? 'Заезд завершён' : 'Run complete';
+  const sumAreaLabelEl = document.querySelector('[data-i18n-summary-area-label]');
+  if (sumAreaLabelEl) sumAreaLabelEl.textContent = lang === 'ru' ? 'Обработанная площадь' : 'Area covered';
+  const sumDistLabelEl = document.querySelector('[data-i18n-summary-dist-label]');
+  if (sumDistLabelEl) sumDistLabelEl.textContent = lang === 'ru' ? 'Дистанция' : 'Distance';
+  const sumTimeLabelEl = document.querySelector('[data-i18n-summary-time-label]');
+  if (sumTimeLabelEl) sumTimeLabelEl.textContent = lang === 'ru' ? 'Время работы' : 'Work time';
+  const sumPickFieldEl = document.querySelector('[data-i18n-summary-pick-field]');
+  if (sumPickFieldEl) sumPickFieldEl.textContent = lang === 'ru' ? 'Свободный заезд — выберите поле для сохранения:' : 'Free drive — choose a field to save to:';
+  const sumSaveEl = document.querySelector('[data-i18n-summary-save]');
+  if (sumSaveEl) sumSaveEl.textContent = lang === 'ru' ? 'Сохранить в историю поля' : 'Save to field history';
+  const sumDiscardEl = document.querySelector('[data-i18n-summary-discard]');
+  if (sumDiscardEl) sumDiscardEl.textContent = lang === 'ru' ? 'Удалить без сохранения' : 'Discard without saving';
   // Update weather no-field text dynamically
   const wnoFieldText = document.getElementById('weather-no-field-text');
   if (wnoFieldText) wnoFieldText.innerHTML = lang === 'ru'
@@ -1428,14 +1458,14 @@ function addNdviLayer() {
 
   ndviCurrentDate = getNdviDate();
 
-  // NASA GIBS WMTS — MODIS Terra NDVI 16-day 500m product
+  // NASA GIBS WMTS — MODIS Terra NDVI 16-day 250m product (Level9)
   // Endpoint: https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/...
   // Product: MODIS_Terra_NDVI — genuine vegetation index tiles
-  const ndviUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI/default/${ndviCurrentDate}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png`;
+  const ndviUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI/default/${ndviCurrentDate}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`;
 
   ndviLayer = L.tileLayer(ndviUrl, {
-    maxZoom: 7,
-    maxNativeZoom: 7,
+    maxZoom: 9,
+    maxNativeZoom: 9,
     minZoom: 2,
     opacity: 0.82,
     attribution: '<a href="https://earthdata.nasa.gov/eosdis/science-system-description/eosdis-components/gibs" target="_blank">NASA GIBS</a> MODIS Terra NDVI',
@@ -1477,6 +1507,11 @@ function addNdviLayer() {
 }
 
 /**
+ * NDVI ACCURACY SUMMARY:
+ * 1. Sentinel Hub (API): Высокая точность (~10м/пкс), актуальность высокая. Использует Sentinel-2, отдаёт сразу числовое среднее.
+ * 2. NASA MODIS (WMTS): Средняя точность (~250м/пкс, Level 9), актуальность 16-дней. Сэмплируется по пикселям на холсте.
+ * 3. Расчётная модель (Fallback): Эмуляция данных на основе культуры, сезона и координат, если нет интернета/ключей.
+ *
  * Определяет NDVI для поля.
  * Возвращает {value, estimated, source}:
  *  - estimated: true, если значение — расчётная модель (estimateFieldNdvi),
@@ -1518,14 +1553,15 @@ async function sampleNdviForField(field) {
       : turf.center(fieldPolygon).geometry.coordinates.reverse();
     const centerLatLng = Array.isArray(center) ? L.latLng(center[0], center[1]) : center;
 
-    // Compute which tile contains the field center at zoom 7
-    const zoom = Math.min(7, map.getZoom());
+    // Задача 3.2: Повышаем zoom при сэмплировании до 9. 
+    // GIBS поддерживает MODIS NDVI на Level9 (250м/пкс), что даёт больше пикселей на то же поле.
+    const zoom = Math.min(9, map.getZoom());
     const tileSize = 256;
     const latRad = centerLatLng.lat * Math.PI / 180;
     const n = Math.pow(2, zoom);
     const xTile = Math.floor((centerLatLng.lng + 180) / 360 * n);
     const yTile = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
-    const tileUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI/default/${ndviCurrentDate}/GoogleMapsCompatible_Level7/${zoom}/${yTile}/${xTile}.png`;
+    const tileUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_NDVI/default/${ndviCurrentDate}/GoogleMapsCompatible_Level9/${zoom}/${yTile}/${xTile}.png`;
 
     // Compute pixel within the tile for the field center
     const xFrac = ((centerLatLng.lng + 180) / 360 * n - xTile) * tileSize;
@@ -1692,8 +1728,13 @@ async function renderNdviFieldsPanel() {
   loadingEl.innerHTML = `<span class="ndvi-loading-spinner"></span> ${lang === 'ru' ? 'Анализ полей...' : 'Analysing fields...'}`;
   container.appendChild(loadingEl);
 
+  // Задача 3: трекинг источников для обновления глобального source badge
+  const sourceCounts = { 'sentinel-hub-stats': 0, 'gibs-wmts-color': 0, 'model': 0 };
+
   for (const field of fields) {
     const result = await sampleNdviForField(field);
+    sourceCounts[result.source] = (sourceCounts[result.source] || 0) + 1;
+
     const ndvi = result.value;
     const color = getNdviColor(ndvi);
     const health = getHealthStatus(ndvi);
@@ -1707,6 +1748,30 @@ async function renderNdviFieldsPanel() {
 
     const card = document.createElement('div');
     card.className = 'ndvi-field-card';
+
+    // Задача 3: формируем rich badge источника данных для карточки поля
+    let srcBadgeClass, srcIcon, srcLabel;
+    if (result.source === 'sentinel-hub-stats') {
+      srcBadgeClass = 'ndvi-src-sentinel';
+      srcIcon = '🛰';
+      srcLabel = lang === 'ru' ? 'Sentinel-2 ~10м' : 'Sentinel-2 ~10m';
+    } else if (result.source === 'gibs-wmts-color') {
+      srcBadgeClass = 'ndvi-src-modis';
+      srcIcon = '🛰';
+      srcLabel = lang === 'ru' ? 'MODIS 500м' : 'MODIS 500m';
+    } else {
+      srcBadgeClass = 'ndvi-src-model';
+      srcIcon = '⚠️';
+      srcLabel = lang === 'ru' ? 'смоделировано' : 'modeled';
+    }
+    const sourceBadgeHtml = `<span class="ndvi-src-badge ${srcBadgeClass}" style="margin-left:4px;font-size:10px;" title="${
+      result.source === 'sentinel-hub-stats'
+        ? (lang === 'ru' ? 'Реальные спутниковые данные Sentinel-2 (~10м/пкс)' : 'Real Sentinel-2 satellite data (~10m/px)')
+        : result.source === 'gibs-wmts-color'
+          ? (lang === 'ru' ? 'NASA MODIS WMTS — 500м/пкс, 16-дневный композит' : 'NASA MODIS WMTS — 500m/px, 16-day composite')
+          : (lang === 'ru' ? 'Расчётная модель — реальных спутниковых данных нет' : 'Modeled estimate — no real satellite data')
+    }">${srcIcon} ${srcLabel}</span>`;
+
     card.innerHTML = `
       <div class="ndvi-field-card-top">
         <div class="ndvi-field-dot" style="background:${field.color};"></div>
@@ -1714,17 +1779,20 @@ async function renderNdviFieldsPanel() {
           <div class="ndvi-field-card-name">${escapeHtml(field.name)}</div>
           <div class="ndvi-field-card-coords">${lat}°N, ${lng}°E · ${formatArea(field.area)}</div>
         </div>
-        <div class="ndvi-value-badge" style="background:${color};">NDVI ${ndvi}${estimatedTag}</div>
+        <div class="ndvi-value-badge" style="background:${color};">NDVI ${ndvi}</div>
       </div>
-      <div class="ndvi-mini-bar">
-        <span class="ndvi-mini-label" style="font-size:10px;">${health.label}</span>
-        <div class="ndvi-mini-track">
-          <div class="ndvi-mini-fill" style="width:${Math.round(ndvi*100)}%;background:${color};"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+        <div class="ndvi-mini-bar" style="flex:1;margin-right:8px;">
+          <span class="ndvi-mini-label" style="font-size:10px;">${health.label}</span>
+          <div class="ndvi-mini-track">
+            <div class="ndvi-mini-fill" style="width:${Math.round(ndvi*100)}%;background:${color};"></div>
+          </div>
         </div>
+        ${sourceBadgeHtml}
       </div>
       <button class="ndvi-map-link" onclick="goToFieldOnMap('${escapeHtml(field.id)}')">
         <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-        Показать на карте
+        ${lang === 'ru' ? 'Показать на карте' : 'Show on map'}
       </button>
     `;
     card.addEventListener('click', (e) => {
@@ -1734,6 +1802,27 @@ async function renderNdviFieldsPanel() {
     container.insertBefore(card, loadingEl);
   }
   loadingEl.remove();
+
+  // Задача 3: Обновление глобального бейджа источника в шапке панели
+  const globalBadge = document.getElementById('ndvi-active-source-badge');
+  if (globalBadge) {
+    let domSource = 'model';
+    if (sourceCounts['sentinel-hub-stats'] > 0) domSource = 'sentinel-hub-stats';
+    else if (sourceCounts['gibs-wmts-color'] > 0) domSource = 'gibs-wmts-color';
+
+    globalBadge.className = 'ndvi-src-badge'; // reset
+    let srcIcon = '⚠️', srcLabel = lang === 'ru' ? 'Смоделировано' : 'Modeled';
+    if (domSource === 'sentinel-hub-stats') {
+      globalBadge.classList.add('ndvi-src-sentinel');
+      srcIcon = '🛰'; srcLabel = lang === 'ru' ? 'Sentinel-2 ~10м' : 'Sentinel-2 ~10m';
+    } else if (domSource === 'gibs-wmts-color') {
+      globalBadge.classList.add('ndvi-src-modis');
+      srcIcon = '🛰'; srcLabel = lang === 'ru' ? 'MODIS 250м · не реальное время' : 'MODIS 250m · not real-time';
+    } else {
+      globalBadge.classList.add('ndvi-src-model');
+    }
+    globalBadge.innerHTML = `<span class="ndvi-src-icon">${srcIcon}</span> <span class="ndvi-src-text">${srcLabel}</span>`;
+  }
 }
 
 function goToFieldOnMap(fieldId) {
@@ -4135,20 +4224,38 @@ let weatherCityDebounceTimer = null;
 
 function setWeatherMode(mode) {
   weatherMode = mode;
-  const fieldSection = document.getElementById('weather-mode-field');
-  const citySection = document.getElementById('weather-mode-city');
+  // Задача 4: новая разметка — управляем классами чипов-контейнеров
+  const fieldChip = document.getElementById('weather-chip-field');
+  const cityChip = document.getElementById('weather-chip-city');
+  const fieldContent = document.getElementById('weather-mode-field');  // inline select
+  const cityContent = document.getElementById('weather-mode-city');    // inline search
+  const cityExtras = document.getElementById('weather-city-extras');   // results + favourites
+
+  // Переключаем active-чип
+  if (fieldChip) fieldChip.classList.toggle('weather-mode-chip--active', mode === 'field');
+  if (cityChip) cityChip.classList.toggle('weather-mode-chip--active', mode === 'city');
+
+  // Показываем inline-контент только активного чипа
+  if (fieldContent) fieldContent.style.display = mode === 'field' ? 'flex' : 'none';
+  if (cityContent) cityContent.style.display = mode === 'city' ? 'flex' : 'none';
+
+  // City extras (results dropdown + favourites) — только в city-режиме
+  if (cityExtras) cityExtras.style.display = mode === 'city' ? 'block' : 'none';
+
+  // Обновляем стили кнопок для обратной совместимости с JS, который напрямую обращается к fieldBtn/cityBtn
   const fieldBtn = document.getElementById('weather-mode-field-btn');
   const cityBtn = document.getElementById('weather-mode-city-btn');
+  if (fieldBtn) { fieldBtn.style.background = ''; fieldBtn.style.color = ''; } // сброс — CSS управляет через .active класс
+  if (cityBtn) { fieldBtn && (fieldBtn.style.background = ''); cityBtn.style.background = ''; cityBtn.style.color = ''; }
+
+  // i18n меток
   const fieldLabel = document.getElementById('weather-mode-field-label');
   const cityLabel = document.getElementById('weather-mode-city-label');
   const cityInput = document.getElementById('weather-city-input');
-  if (fieldSection) fieldSection.style.display = mode === 'field' ? 'block' : 'none';
-  if (citySection) citySection.style.display = mode === 'city' ? 'block' : 'none';
-  if (fieldBtn) { fieldBtn.style.background = mode === 'field' ? 'var(--accent)' : 'transparent'; fieldBtn.style.color = mode === 'field' ? '#fff' : 'var(--text2)'; }
-  if (cityBtn) { cityBtn.style.background = mode === 'city' ? 'var(--accent)' : 'transparent'; cityBtn.style.color = mode === 'city' ? '#fff' : 'var(--text2)'; }
   if (fieldLabel) fieldLabel.textContent = lang === 'ru' ? 'По полю' : 'By Field';
   if (cityLabel) cityLabel.textContent = lang === 'ru' ? 'По городу' : 'By City';
   if (cityInput) cityInput.placeholder = lang === 'ru' ? 'Поиск города или места...' : 'Search city or location...';
+
   // Hide field-info bar when switching to city mode
   const fieldInfoBar = document.getElementById('weather-field-info');
   if (fieldInfoBar && mode === 'city') fieldInfoBar.style.display = 'none';
@@ -7254,6 +7361,13 @@ let tractorGuidelineGroup = null;
 let tractorActiveField = null;
 let tractorOpType = 'sowing';
 let tractorSimInterval = null;
+// Данные завершённого заезда, ожидающие решения пользователя в модалке итогов:
+// "Сохранить в историю поля" (saveTractorSummary) или "Удалить без сохранения"
+// (discardTractorSummary). null, когда модалка итогов закрыта/неактивна.
+let pendingTractorSummary = null;
+// Задача 1.2: чтобы не спамить пользователя предупреждением "GPS далеко от
+// поля" на каждое обновление геолокации, показываем его один раз за заезд.
+let tractorGpsFarWarningShown = false;
 
 function openAddMenuModal() {
   const m = document.getElementById('modal-add-menu');
@@ -7355,6 +7469,7 @@ function startTractorTracking() {
   tractor3DPos = { x: 0, z: 0 };
   tractor3DHeading = 0;
   lastSoilPaintPos = null;
+  tractorGpsFarWarningShown = false;
 
   if (tractor3DTrailGroup) {
     tractor3DTrailGroup.clear();
@@ -7460,6 +7575,16 @@ function onTractorPosition(pos) {
       if (!tractorActiveField) {
         // Свободный заезд: центр 3D-мира не привязан к полю — переносим его на GPS.
         fieldCenter3D = { lat: lat, lng: lng };
+      } else if (!tractorGpsFarWarningShown) {
+        // Поле выбрано, но реальный GPS далеко от него — честно предупреждаем
+        // пользователя, что показываем демо-траекторию вокруг поля, а не его
+        // реальное перемещение (иначе он не поймёт, почему трактор "не едет").
+        tractorGpsFarWarningShown = true;
+        if (typeof showToast === 'function') {
+          showToast(lang === 'ru'
+            ? '<i data-lucide="alert-triangle" class="icon-sm"></i> GPS далеко от поля — показываю демо-траекторию'
+            : '<i data-lucide="alert-triangle" class="icon-sm"></i> GPS is far from the field — showing demo trajectory');
+        }
       }
       // Стартуем визуально из центра 3D-мира (поля), а не из реальной
       // (далёкой) GPS-точки, иначе камера не увидит землю.
@@ -7510,7 +7635,16 @@ function updateTractorLocation(newPoint) {
         (lat - fieldCenter3D.lat) * 111320
       );
       if (distFromCenter > 2000) {
-        if (!tractorActiveField) fieldCenter3D = { lat: lat, lng: lng };
+        if (!tractorActiveField) {
+          fieldCenter3D = { lat: lat, lng: lng };
+        } else if (!tractorGpsFarWarningShown) {
+          tractorGpsFarWarningShown = true;
+          if (typeof showToast === 'function') {
+            showToast(lang === 'ru'
+              ? '<i data-lucide="alert-triangle" class="icon-sm"></i> GPS далеко от поля — показываю демо-траекторию'
+              : '<i data-lucide="alert-triangle" class="icon-sm"></i> GPS is far from the field — showing demo trajectory');
+          }
+        }
         tractor3DPos.x = 0;
         tractor3DPos.z = 0;
         updateGuidanceLightbar(tractor3DHeading, 0, 0);
@@ -7748,6 +7882,13 @@ function build3DTractorModel() {
   pipeCap.rotation.z = Math.PI / 12;
   tractor3DModel.add(pipe, pipeCap);
 
+  // Воздушный фильтр рядом с выхлопной трубой — типичная деталь агротехники,
+  // добавляет узнаваемый силуэт без лишней геометрии.
+  const airFilterGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.65, 12);
+  const airFilter = new THREE.Mesh(airFilterGeo, new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.4, metalness: 0.2 }));
+  airFilter.position.set(0.5, 2.15, 0.6);
+  tractor3DModel.add(airFilter);
+
   // 4. ПАНОРАМНАЯ КАБИНА
   const cabGlass = new THREE.Mesh(new THREE.BoxGeometry(1.58, 1.45, 1.58), glassMat);
   cabGlass.position.set(0, 2.35, -0.5);
@@ -7759,6 +7900,14 @@ function build3DTractorModel() {
   const pRL = new THREE.Mesh(pillarGeo, chassisMat); pRL.position.set(-0.76, 2.35, -1.26);
   const pRR = new THREE.Mesh(pillarGeo, chassisMat); pRR.position.set(0.76, 2.35, -1.26);
   tractor3DModel.add(pFL, pFR, pRL, pRR);
+
+  // Тонкие горизонтальные перемычки (mullions) панорамного остекления —
+  // без них стеклянный куб выглядит как единая пластина, а не кабина.
+  const mullionGeo = new THREE.BoxGeometry(1.62, 0.035, 1.62);
+  const mullionMat = chassisMat;
+  const mullionMid = new THREE.Mesh(mullionGeo, mullionMat);
+  mullionMid.position.set(0, 2.35, -0.5);
+  tractor3DModel.add(mullionMid);
 
   const roofGeo = new THREE.BoxGeometry(1.85, 0.16, 1.85);
   const roof = new THREE.Mesh(roofGeo, new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.3 }));
@@ -7775,11 +7924,26 @@ function build3DTractorModel() {
   const beaconL = new THREE.Mesh(beaconGeo, redBeaconMat);
   beaconL.position.set(-0.82, 3.32, -0.5);
   tractor3DModel.add(beaconL);
+  // Второй проблесковый маяк (был только левый) — на реальных тракторах маячки
+  // ставятся парой на обоих задних углах кабины.
+  const beaconR = new THREE.Mesh(beaconGeo, redBeaconMat);
+  beaconR.position.set(0.82, 3.32, -0.5);
+  tractor3DModel.add(beaconR);
 
   const mirrorGeo = new THREE.BoxGeometry(0.08, 0.22, 0.14);
   const mirL = new THREE.Mesh(mirrorGeo, chassisMat); mirL.position.set(-0.95, 2.5, 0.25);
   const mirR = new THREE.Mesh(mirrorGeo, chassisMat); mirR.position.set(0.95, 2.5, 0.25);
   tractor3DModel.add(mirL, mirR);
+  // Кронштейны зеркал — тонкие стойки от кабины до самого зеркала, иначе
+  // зеркала выглядят "приклеенными" в воздухе рядом с кабиной.
+  const mirrorArmGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.22, 6);
+  const mirrorArmL = new THREE.Mesh(mirrorArmGeo, chassisMat);
+  mirrorArmL.rotation.z = Math.PI / 2.3;
+  mirrorArmL.position.set(-0.87, 2.5, 0.25);
+  const mirrorArmR = new THREE.Mesh(mirrorArmGeo, chassisMat);
+  mirrorArmR.rotation.z = -Math.PI / 2.3;
+  mirrorArmR.position.set(0.87, 2.5, 0.25);
+  tractor3DModel.add(mirrorArmL, mirrorArmR);
 
   // 5. КОЛЕСА
   const rearTireGeo = new THREE.CylinderGeometry(1.05, 1.05, 0.68, 24);
@@ -7792,13 +7956,29 @@ function build3DTractorModel() {
   const frontRimGeo = new THREE.CylinderGeometry(0.40, 0.40, 0.50, 16);
   frontRimGeo.rotateZ(Math.PI / 2);
 
+  // Протектор шин: тонкие радиальные "рёбра" по окружности каждой шины —
+  // самая заметная деталь, которой не хватало гладким цилиндрам-колёсам.
+  function addTireTread(wheelMesh, radius, width, count) {
+    const treadGeo = new THREE.BoxGeometry(width * 1.02, 0.06, 0.1);
+    const treadMat = new THREE.MeshStandardMaterial({ color: 0x0a0d10, roughness: 1.0 });
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      const tread = new THREE.Mesh(treadGeo, treadMat);
+      tread.position.set(0, Math.sin(a) * radius, Math.cos(a) * radius);
+      tread.rotation.x = a;
+      wheelMesh.add(tread);
+    }
+  }
+
   const rearWheelL = new THREE.Mesh(rearTireGeo, tireMat);
   rearWheelL.add(new THREE.Mesh(rearRimGeo, rimMat));
+  addTireTread(rearWheelL, 1.06, 0.68, 20);
   rearWheelL.position.set(-1.22, 1.05, -0.85);
   rearWheelL.castShadow = true;
 
   const rearWheelR = new THREE.Mesh(rearTireGeo, tireMat);
   rearWheelR.add(new THREE.Mesh(rearRimGeo, rimMat));
+  addTireTread(rearWheelR, 1.06, 0.68, 20);
   rearWheelR.position.set(1.22, 1.05, -0.85);
   rearWheelR.castShadow = true;
   tractor3DModel.add(rearWheelL, rearWheelR);
@@ -7812,6 +7992,7 @@ function build3DTractorModel() {
   const fTireL = new THREE.Mesh(frontTireGeo, tireMat);
   fTireL.add(new THREE.Mesh(frontRimGeo, rimMat));
   fTireL.castShadow = true;
+  addTireTread(fTireL, 0.69, 0.48, 16);
   frontLeftWheelMesh.add(fTireL);
   frontLeftWheelMesh.position.set(-1.08, 0.68, 1.75);
 
@@ -7819,33 +8000,22 @@ function build3DTractorModel() {
   const fTireR = new THREE.Mesh(frontTireGeo, tireMat);
   fTireR.add(new THREE.Mesh(frontRimGeo, rimMat));
   fTireR.castShadow = true;
+  addTireTread(fTireR, 0.69, 0.48, 16);
   frontRightWheelMesh.add(fTireR);
   frontRightWheelMesh.position.set(1.08, 0.68, 1.75);
   tractor3DModel.add(frontLeftWheelMesh, frontRightWheelMesh);
 
-  // 6. НАВЕСНОЙ ШИРОКОЗАХВАТНЫЙ АГРЕГАТ СЗАДИ
+  // 6. НАВЕСНОЕ ОБОРУДОВАНИЕ СЗАДИ — зависит от tractorOpType, вместо
+  // одного абстрактного boom+disc для всех операций (Задача 1.3).
   const hitchGeo = new THREE.BoxGeometry(0.8, 0.3, 0.6);
   const hitch = new THREE.Mesh(hitchGeo, chassisMat);
   hitch.position.set(0, 0.7, -1.8);
   tractor3DModel.add(hitch);
 
-  const boomWidth = Math.max(6, tractorWidth || 12);
-  const boomCenterGeo = new THREE.BoxGeometry(boomWidth, 0.35, 0.35);
-  const boomMat = new THREE.MeshStandardMaterial({ color: 0xd32f2f, roughness: 0.35, metalness: 0.2 });
-  const boom = new THREE.Mesh(boomCenterGeo, boomMat);
-  boom.position.set(0, 0.75, -2.3);
-  boom.castShadow = true;
-  tractor3DModel.add(boom);
-
-  const discGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.05, 12);
-  discGeo.rotateZ(Math.PI / 2);
-  const numDiscs = Math.min(16, Math.round(boomWidth));
-  const discSpacing = boomWidth / (numDiscs + 1);
-  for (let i = 1; i <= numDiscs; i++) {
-    const disc = new THREE.Mesh(discGeo, chassisMat);
-    disc.position.set(-boomWidth / 2 + i * discSpacing, 0.3, -2.3);
-    tractor3DModel.add(disc);
-  }
+  const implementWidth = Math.max(6, tractorWidth || 12);
+  const implement = build3DImplement(tractorOpType, implementWidth, chassisMat);
+  implement.name = 'tractorImplement'; // чтобы можно было найти и заменить при смене операции/ширины
+  tractor3DModel.add(implement);
 
   // 7. ДИНАМИЧЕСКИЙ ЛАЗЕРНЫЙ КУРСОУКАЗАТЕЛЬ (НАПРАВЛЯЮЩИЕ НА ПЕРЕДКЕ ТРАКТОРА)
   const guidanceGroup = new THREE.Group();
@@ -7865,7 +8035,7 @@ function build3DTractorModel() {
   guidanceGroup.add(centerLaser);
 
   // Боковые лазерные маркеры ширины захвата орудия
-  const halfW = boomWidth / 2;
+  const halfW = implementWidth / 2;
   const leftEdgeGeo = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(-halfW, 0.12, 0),
     new THREE.Vector3(-halfW, 0.12, 45.0)
@@ -7886,7 +8056,7 @@ function build3DTractorModel() {
   guidanceGroup.add(leftEdgeLine, rightEdgeLine);
 
   // Светящийся полупрозрачный коридор хода орудия на земле
-  const corridorGeo = new THREE.PlaneGeometry(boomWidth, 45);
+  const corridorGeo = new THREE.PlaneGeometry(implementWidth, 45);
   const corridorMat = new THREE.MeshBasicMaterial({
     color: 0x00e676,
     transparent: true,
@@ -7900,6 +8070,141 @@ function build3DTractorModel() {
 
   tractor3DModel.add(guidanceGroup);
   scene3D.add(tractor3DModel);
+}
+
+/**
+ * Строит навесное оборудование в зависимости от типа операции, вместо
+ * одного абстрактного "boom + диски" на все случаи (Задача 1.3):
+ * - sowing/fertilizing -> сеялка с высевающим бункером и сошниками
+ * - spraying -> штанговый опрыскиватель с баком и форсунками
+ * - tillage/other -> дисковая борона (близко к прежнему виду, но детальнее)
+ * - harvest -> жатка с мотовилом
+ */
+function build3DImplement(opType, width, chassisMat) {
+  const group = new THREE.Group();
+  const halfW = width / 2;
+
+  if (opType === 'sowing' || opType === 'fertilizing') {
+    // Сеялка: горизонтальная рама + бункер сверху + ряд сошников снизу.
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0xd32f2f, roughness: 0.35, metalness: 0.25 });
+    const frameGeo = new THREE.BoxGeometry(width, 0.22, 0.3);
+    const frame = new THREE.Mesh(frameGeo, frameMat);
+    frame.position.set(0, 0.75, -2.2);
+    frame.castShadow = true;
+    group.add(frame);
+
+    // Бункеры для семян/удобрений — несколько куполов вдоль рамы.
+    const hopperMat = new THREE.MeshStandardMaterial({ color: opType === 'fertilizing' ? 0x455a64 : 0xffb300, roughness: 0.5, metalness: 0.15 });
+    const numHoppers = Math.max(2, Math.min(5, Math.round(width / 4)));
+    for (let i = 0; i < numHoppers; i++) {
+      const hopperGeo = new THREE.CylinderGeometry(0.35, 0.22, 0.55, 8);
+      const hopper = new THREE.Mesh(hopperGeo, hopperMat);
+      const x = -halfW + (i + 0.5) * (width / numHoppers);
+      hopper.position.set(x, 1.15, -2.2);
+      group.add(hopper);
+    }
+
+    // Ряд сошников (заглубителей) под рамой, на расстоянии друг от друга.
+    const coulterMat = new THREE.MeshStandardMaterial({ color: 0x212121, roughness: 0.6, metalness: 0.4 });
+    const numCoulters = Math.min(24, Math.round(width));
+    const coulterSpacing = width / (numCoulters + 1);
+    for (let i = 1; i <= numCoulters; i++) {
+      const coulterGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.04, 12);
+      coulterGeo.rotateX(Math.PI / 2);
+      const coulter = new THREE.Mesh(coulterGeo, coulterMat);
+      coulter.position.set(-halfW + i * coulterSpacing, 0.32, -2.35);
+      group.add(coulter);
+    }
+    return group;
+  }
+
+  if (opType === 'spraying') {
+    // Опрыскиватель: штанга на всю ширину захвата + бак сзади трактора + форсунки.
+    const boomMat = new THREE.MeshStandardMaterial({ color: 0xeceff1, roughness: 0.4, metalness: 0.3 });
+    const boomGeo = new THREE.BoxGeometry(width, 0.12, 0.12);
+    const boom = new THREE.Mesh(boomGeo, boomMat);
+    boom.position.set(0, 1.1, -2.2);
+    boom.castShadow = true;
+    group.add(boom);
+
+    // Тонкие вертикальные стойки-подвесы штанги (парение штанги над землёй).
+    const strutMat = new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.5, metalness: 0.4 });
+    const numStruts = Math.max(3, Math.min(9, Math.round(width / 3)));
+    for (let i = 0; i < numStruts; i++) {
+      const strutGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.5, 6);
+      const strut = new THREE.Mesh(strutGeo, strutMat);
+      const x = -halfW + (i + 0.5) * (width / numStruts);
+      strut.position.set(x, 0.85, -2.2);
+      group.add(strut);
+
+      // Форсунка на конце каждой стойки
+      const nozzleGeo = new THREE.ConeGeometry(0.04, 0.08, 8);
+      const nozzle = new THREE.Mesh(nozzleGeo, strutMat);
+      nozzle.position.set(x, 0.58, -2.2);
+      nozzle.rotation.x = Math.PI;
+      group.add(nozzle);
+    }
+
+    // Бак с рабочим раствором за кабиной
+    const tankMat = new THREE.MeshPhysicalMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.55, roughness: 0.2, metalness: 0.1 });
+    const tankGeo = new THREE.CylinderGeometry(0.55, 0.55, 1.1, 16);
+    tankGeo.rotateZ(Math.PI / 2);
+    const tank = new THREE.Mesh(tankGeo, tankMat);
+    tank.position.set(0, 1.3, -1.5);
+    tank.castShadow = true;
+    group.add(tank);
+    return group;
+  }
+
+  if (opType === 'harvest') {
+    // Жатка: широкий низкий корпус спереди-снизу + мотовило (вращающиеся спицы).
+    const headerMat = new THREE.MeshStandardMaterial({ color: 0xffa000, roughness: 0.4, metalness: 0.3 });
+    const headerGeo = new THREE.BoxGeometry(width, 0.5, 0.9);
+    const header = new THREE.Mesh(headerGeo, headerMat);
+    header.position.set(0, 0.55, -2.3);
+    header.castShadow = true;
+    group.add(header);
+
+    const reelMat = new THREE.MeshStandardMaterial({ color: 0x616161, roughness: 0.5, metalness: 0.4 });
+    const reelAxleGeo = new THREE.CylinderGeometry(0.06, 0.06, width * 0.96, 8);
+    reelAxleGeo.rotateZ(Math.PI / 2);
+    const reelAxle = new THREE.Mesh(reelAxleGeo, reelMat);
+    reelAxle.position.set(0, 1.15, -2.55);
+    group.add(reelAxle);
+
+    // Спицы мотовила — статичные (анимация вращения не требуется для превью),
+    // но дают узнаваемый силуэт жатки на комбайне/фронтальной косилке.
+    const spokeGeo = new THREE.BoxGeometry(width * 0.96, 0.06, 0.5);
+    for (let i = 0; i < 4; i++) {
+      const spoke = new THREE.Mesh(spokeGeo, reelMat);
+      spoke.position.set(0, 1.15, -2.55);
+      spoke.rotation.x = (Math.PI / 2) * i;
+      group.add(spoke);
+    }
+    return group;
+  }
+
+  // tillage / other / фолбэк: дисковая борона (прежний вид, но с добавленной
+  // рамой-брусом сверху дисков, ближе к настоящей конструкции бороны).
+  const boomMat = new THREE.MeshStandardMaterial({ color: 0xd32f2f, roughness: 0.35, metalness: 0.2 });
+  const boomGeo = new THREE.BoxGeometry(width, 0.35, 0.35);
+  const boom = new THREE.Mesh(boomGeo, boomMat);
+  boom.position.set(0, 0.75, -2.3);
+  boom.castShadow = true;
+  group.add(boom);
+
+  const discMat = new THREE.MeshStandardMaterial({ color: 0x9e9e9e, roughness: 0.3, metalness: 0.6 });
+  const discGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.05, 16);
+  discGeo.rotateZ(Math.PI / 2);
+  const numDiscs = Math.min(16, Math.round(width));
+  const discSpacing = width / (numDiscs + 1);
+  for (let i = 1; i <= numDiscs; i++) {
+    const disc = new THREE.Mesh(discGeo, discMat);
+    disc.position.set(-halfW + i * discSpacing, 0.3, -2.3);
+    disc.rotation.y = Math.PI / 10; // лёгкий угол атаки диска, как у настоящих борон
+    group.add(disc);
+  }
+  return group;
 }
 
 /** 3D Границы поля с яркими неоновыми стенами, маяками и лазерными гонами параллельного вождения */
@@ -8245,6 +8550,27 @@ function paint3DSoilCoverage(x, z, widthMeters) {
   }
 }
 
+/**
+ * Пересобирает только навесное оборудование на уже существующей модели
+ * трактора, когда меняется тип операции или ширина захвата между заездами.
+ * build3DTractorModel() вызывается один раз за сессию (внутри init3DScene(),
+ * который сам себя защищает от повторного вызова через renderer3D), поэтому
+ * без этой функции модель трактора "застревала" бы на инвентаре первого
+ * выбранного при открытии 3D-режима типа операции.
+ */
+function refresh3DImplement() {
+  if (!tractor3DModel) return;
+  const old = tractor3DModel.getObjectByName('tractorImplement');
+  if (old) {
+    tractor3DModel.remove(old);
+  }
+  const chassisMat = new THREE.MeshStandardMaterial({ color: 0x182026, roughness: 0.8, metalness: 0.5 });
+  const implementWidth = Math.max(6, tractorWidth || 12);
+  const implement = build3DImplement(tractorOpType, implementWidth, chassisMat);
+  implement.name = 'tractorImplement';
+  tractor3DModel.add(implement);
+}
+
 function toggleTractor3DView(show) {
   tractor3DActive = show;
   const container = document.getElementById('tractor-3d-view');
@@ -8255,6 +8581,7 @@ function toggleTractor3DView(show) {
     container.style.display = 'block';
     if (tabBar) tabBar.style.display = 'none';
     if (init3DScene()) {
+      refresh3DImplement();
       update3DFieldBounds(tractorActiveField);
       start3DAnimationLoop();
     }
@@ -8274,6 +8601,20 @@ function toggleTractor3DView(show) {
 function start3DAnimationLoop() {
   if (tractor3DAnimId) cancelAnimationFrame(tractor3DAnimId);
 
+  // Задача 1.4: камера отодвинута дальше назад и выше, чтобы в кадре было
+  // видно больше земли впереди/по бокам (трактор, орудие, сразу несколько
+  // параллельных гонов), но трактор всё ещё узнаваем и не теряется точкой.
+  // Подобрано эмпирически в середине предложенного диапазона (28-35м / 12-15м).
+  const CAM_DISTANCE = 30;
+  const CAM_HEIGHT = 13;
+  const CAM_LOOKAHEAD = 8; // чуть дальше вперёд по курсу, т.к. камера теперь выше и дальше
+  const CAM_LOOK_HEIGHT = 2.2;
+  const CAM_LERP = 0.08; // скорость плавной интерполяции камеры между кадрами
+
+  let camPosInitialized = false;
+  const desiredPos = new THREE.Vector3();
+  const desiredLookAt = new THREE.Vector3();
+
   function animate() {
     if (!tractor3DActive) return;
     tractor3DAnimId = requestAnimationFrame(animate);
@@ -8287,19 +8628,28 @@ function start3DAnimationLoop() {
         const rad = tractor3DModel.rotation.y;
 
         // ПАНОРАМНЫЙ ВИД СЗАДИ (3-е лицо: обзор трактора, орудия и параллельных гонов)
-        // ПАНОРАМНЫЙ ОБЗОР СЗАДИ (3-е лицо)
-        // Камера отодвинута назад (18м) и приподнята (8.5м) для полного обзора трактора,
-        // широкозахватного орудия (12-24м) и лазерных направляющих гонов впереди
-        camera3D.position.set(
-          tPos.x - Math.sin(rad) * 18,
-          8.5,
-          tPos.z - Math.cos(rad) * 18
+        desiredPos.set(
+          tPos.x - Math.sin(rad) * CAM_DISTANCE,
+          CAM_HEIGHT,
+          tPos.z - Math.cos(rad) * CAM_DISTANCE
         );
-        camera3D.lookAt(
-          tPos.x + Math.sin(rad) * 6,
-          1.8,
-          tPos.z + Math.cos(rad) * 6
+        desiredLookAt.set(
+          tPos.x + Math.sin(rad) * CAM_LOOKAHEAD,
+          CAM_LOOK_HEIGHT,
+          tPos.z + Math.cos(rad) * CAM_LOOKAHEAD
         );
+
+        if (!camPosInitialized) {
+          // Первый кадр: ставим камеру сразу на нужное место без интерполяции,
+          // иначе она "подъезжает" издалека при каждом входе в 3D-режим.
+          camera3D.position.copy(desiredPos);
+          camPosInitialized = true;
+        } else {
+          // Плавная интерполяция (lerp) между кадрами — движение камеры при
+          // поворотах трактора перестаёт быть резким/дёрганым.
+          camera3D.position.lerp(desiredPos, CAM_LERP);
+        }
+        camera3D.lookAt(desiredLookAt);
       }
     }
 
@@ -8423,34 +8773,23 @@ function stopTractorTracking() {
     ? `Обработано: ${tractorAreaHa.toFixed(2)} га за ${durationFormatted} (Дистанция: ${tractorDistKm.toFixed(2)} км, Захват: ${tractorWidth}м)`
     : `Completed: ${tractorAreaHa.toFixed(2)} ha in ${durationFormatted} (Distance: ${tractorDistKm.toFixed(2)} km, Width: ${tractorWidth}m)`;
 
-  // Сохранение подробного отчета в Заметки (историю поля)
-  if (typeof loadFields === 'function' && typeof saveFields === 'function') {
-    const allFields = loadFields();
-    let targetField = tractorActiveField ? allFields.find(f => f.id === tractorActiveField.id) : null;
-    
-    // Если поле не выбрано, сохраняем в первое доступное поле или создаем привязку
-    if (!targetField && allFields.length > 0) {
-      targetField = allFields[0];
-    }
-
-    if (targetField) {
-      if (!targetField.season) targetField.season = [];
-      targetField.season.unshift({
-        id: 'ev_' + Date.now(),
-        type: tractorOpType,
-        date: new Date().toISOString().split('T')[0],
-        title: `🚜 ${opTitle}: ${tractorAreaHa.toFixed(2)} га за ${durationFormatted}`,
-        note: driveNoteText,
-        areaHa: parseFloat(tractorAreaHa.toFixed(2)),
-        distKm: parseFloat(tractorDistKm.toFixed(2)),
-        durationMin: durationMin,
-        durationFormatted: durationFormatted,
-        widthMeters: tractorWidth,
-        isTractorRun: true
-      });
-      saveFields(allFields);
-    }
-  }
+  // NOTE: сохранение в историю поля больше НЕ происходит автоматически здесь.
+  // Пользователь явно решает через модалку итогов: "Сохранить в историю поля"
+  // или "Удалить без сохранения" (см. saveTractorSummary()/discardTractorSummary()).
+  // Все данные заезда, нужные для сохранения, складываем в pendingTractorSummary.
+  pendingTractorSummary = {
+    fieldId: tractorActiveField ? tractorActiveField.id : null,
+    fieldName: fieldName,
+    opType: tractorOpType,
+    opTitle: opTitle,
+    areaHa: parseFloat(tractorAreaHa.toFixed(2)),
+    distKm: parseFloat(tractorDistKm.toFixed(2)),
+    durationMin: durationMin,
+    durationFormatted: durationFormatted,
+    widthMeters: tractorWidth,
+    driveNoteText: driveNoteText,
+    saved: false
+  };
 
   // Обновление модалки итогов
   const sumArea = document.getElementById('sum-stat-area');
@@ -8462,23 +8801,128 @@ function stopTractorTracking() {
   const sumField = document.getElementById('sum-stat-field');
   if (sumField) sumField.textContent = `${isRu ? 'Поле' : 'Field'}: ${fieldName} (${opTitle})`;
 
+  // Если это был свободный заезд (поле не выбрано), показываем выбор поля
+  // для сохранения — без этого мы не знаем, куда писать запись.
+  const sumFieldPicker = document.getElementById('sum-field-picker');
+  const sumFieldSelect = document.getElementById('sum-field-select');
+  if (sumFieldPicker && sumFieldSelect) {
+    if (!tractorActiveField && typeof loadFields === 'function') {
+      const allFields = loadFields();
+      sumFieldSelect.innerHTML = '';
+      if (allFields.length > 0) {
+        allFields.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.id;
+          opt.textContent = f.name;
+          sumFieldSelect.appendChild(opt);
+        });
+        sumFieldPicker.style.display = '';
+      } else {
+        // Нет ни одного поля в базе — сохранить некуда, прячем пикер,
+        // кнопка "Сохранить" объяснит пользователю проблему при нажатии.
+        sumFieldPicker.style.display = 'none';
+      }
+    } else {
+      sumFieldPicker.style.display = 'none';
+    }
+  }
+
   const sumModal = document.getElementById('modal-tractor-summary');
   if (sumModal) {
     sumModal.classList.add('open');
     if (typeof lucide !== 'undefined') lucide.createIcons();
   }
-
-  // Обновляем список заметок
-  if (typeof renderNotesList === 'function') renderNotesList();
 }
 
-function closeTractorSummaryModal(clearTrail) {
-  const sumModal = document.getElementById('modal-tractor-summary');
-  if (sumModal) sumModal.classList.remove('open');
-  
-  if (clearTrail && tractorTrailGroup) {
+// Общая очистка временных данных/следов заезда (2D + 3D), не трогает базу.
+function clearTractorRunTraces() {
+  if (tractorTrailGroup) {
     tractorTrailGroup.clearLayers();
   }
+  if (tractor3DTrailGroup) {
+    tractor3DTrailGroup.clear();
+    tractor3DTrailGroup.userData = {};
+  }
+  tractorPath = [];
+}
+
+// Действие "Сохранить в историю поля": пишет запись в season[] выбранного
+// поля (явно выбранного при заезде, либо выбранного пользователем сейчас
+// для свободного заезда), затем закрывает модалку. След на карте/3D всегда
+// очищается — заезд завершён в любом случае, сохранение отвечает только за
+// запись в историю, а не за то, остаётся ли трек нарисованным на карте.
+function saveTractorSummary() {
+  const isRu = lang === 'ru';
+  if (!pendingTractorSummary) {
+    const sumModal = document.getElementById('modal-tractor-summary');
+    if (sumModal) sumModal.classList.remove('open');
+    return;
+  }
+
+  let targetFieldId = pendingTractorSummary.fieldId;
+  if (!targetFieldId) {
+    const sumFieldSelect = document.getElementById('sum-field-select');
+    if (sumFieldSelect && sumFieldSelect.value) {
+      targetFieldId = sumFieldSelect.value;
+    }
+  }
+
+  if (!targetFieldId) {
+    if (typeof showToast === 'function') {
+      showToast(isRu ? 'Выберите поле, чтобы сохранить заезд' : 'Select a field to save this run');
+    }
+    return; // не закрываем модалку — пользователь должен выбрать поле
+  }
+
+  if (typeof loadFields === 'function' && typeof saveFields === 'function') {
+    const allFields = loadFields();
+    const targetField = allFields.find(f => String(f.id) === String(targetFieldId));
+    if (targetField) {
+      if (!targetField.season) targetField.season = [];
+      targetField.season.unshift({
+        id: 'ev_' + Date.now(),
+        type: pendingTractorSummary.opType,
+        date: new Date().toISOString().split('T')[0],
+        title: `🚜 ${pendingTractorSummary.opTitle}: ${pendingTractorSummary.areaHa.toFixed(2)} га за ${pendingTractorSummary.durationFormatted}`,
+        note: pendingTractorSummary.driveNoteText,
+        areaHa: pendingTractorSummary.areaHa,
+        distKm: pendingTractorSummary.distKm,
+        durationMin: pendingTractorSummary.durationMin,
+        durationFormatted: pendingTractorSummary.durationFormatted,
+        widthMeters: pendingTractorSummary.widthMeters,
+        isTractorRun: true
+      });
+      saveFields(allFields);
+      pendingTractorSummary.saved = true;
+      if (typeof renderNotesList === 'function') renderNotesList();
+      if (typeof showToast === 'function') {
+        showToast(isRu ? 'Заезд сохранён в историю поля' : 'Run saved to field history');
+      }
+    } else if (typeof showToast === 'function') {
+      showToast(isRu ? 'Не удалось найти поле для сохранения' : 'Could not find the field to save to');
+      return;
+    }
+  }
+
+  clearTractorRunTraces();
+  pendingTractorSummary = null;
+  const sumModal = document.getElementById('modal-tractor-summary');
+  if (sumModal) sumModal.classList.remove('open');
+}
+
+// Действие "Удалить без сохранения": закрывает модалку, чистит 2D/3D-след и
+// временные данные заезда, ничего не пишет в базу.
+function discardTractorSummary() {
+  clearTractorRunTraces();
+  pendingTractorSummary = null;
+  const sumModal = document.getElementById('modal-tractor-summary');
+  if (sumModal) sumModal.classList.remove('open');
+}
+
+// Закрытие модалки крестиком/тапом по фону — трактуем как отмену без
+// сохранения (как и раньше, крестик не открывает сюрприз с автосохранением).
+function closeTractorSummaryModal() {
+  discardTractorSummary();
 }
 
 // Глобальные слушатели
