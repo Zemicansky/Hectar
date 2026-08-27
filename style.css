@@ -4767,6 +4767,50 @@
   border-color: rgba(255, 107, 107, 0.45);
   color: #ff6b6b;
 }
+/* FIX v3.0 п.3: D-pad ручного тестового управления трактором.
+   Компактный крест из 4 кнопок над нижней панелью действий, справа —
+   не мешает основным кнопкам "Демо заезд"/"Завершить" по центру и не
+   перекрывает GPS-радар/HUD сверху. */
+.tractor-3d-dpad {
+  position: absolute;
+  bottom: calc(var(--safe-bottom) + 92px);
+  right: 16px;
+  width: 132px;
+  height: 132px;
+  z-index: 860;
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: 44px 44px 44px;
+  grid-template-rows: 44px 44px 44px;
+  gap: 4px;
+}
+.btn-3d-dpad {
+  background: rgba(15, 25, 35, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm, 10px);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.1s ease, background 0.15s ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+.btn-3d-dpad:active {
+  transform: scale(0.92);
+  background: rgba(0, 230, 118, 0.25);
+  border-color: rgba(0, 230, 118, 0.5);
+}
+.btn-3d-dpad.up    { grid-column: 2; grid-row: 1; }
+.btn-3d-dpad.left  { grid-column: 1; grid-row: 2; }
+.btn-3d-dpad.down  { grid-column: 2; grid-row: 3; }
+.btn-3d-dpad.right { grid-column: 3; grid-row: 2; }
+
 .tractor-note-badge {
   display: inline-flex;
   align-items: center;

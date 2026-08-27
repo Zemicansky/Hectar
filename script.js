@@ -19,6 +19,17 @@ const BRAND = {
   accentDark: '#1b5e20'
 };
 
+// FIX v3.0 п.4 ("на карте не показывается спутниковый снимок / фон карты
+// серый"): crossOrigin:'anonymous' раньше стоял в общих TILE_OPTS и попадал
+// во ВСЕ базовые слои карты (спутник ArcGIS, OSM, EOX). Он нужен только там,
+// где реально нужно читать пиксели тайла через canvas (у нас — отдельный
+// ndviLayer ниже, там crossOrigin оставлен). Для обычных базовых тайлов
+// (обычные <img>-тайлы Leaflet) это лишний и вредный флаг: если тайл-сервер
+// вернёт хоть один запрос без идеальных CORS-заголовков (сбой сети, edge/CDN
+// нода без заголовка и т.п.), браузер тихо блокирует ЭТУ картинку — вместо
+// одного "битого" тайла получается полностью пустой/серый фон карты, потому
+// что crossOrigin переводит подгрузку тайла в "разрешено или ничего" режим.
+// Без crossOrigin тайлы грузятся как обычные картинки и всегда отрисуются.
 const TILE_OPTS = {
   maxZoom: 18,
   maxNativeZoom: 17,
@@ -26,7 +37,6 @@ const TILE_OPTS = {
   updateWhenIdle: false,
   updateWhenZooming: false,
   keepBuffer: 4,
-  crossOrigin: 'anonymous',
   errorTileUrl: '',
   tileSize: 256
 };
@@ -780,6 +790,44 @@ const FIELD_COLORS = [BRAND.accent,'#FF9800','#2196F3','#E91E63','#9C27B0','#00B
 let selectedNewFieldColor = FIELD_COLORS[0];
 
 // Инициализация карты
+// FIX v3.0 п.1: автоматический переход на поля пользователя при загрузке.
+// Если полей нет (или у них нет валидных координат) — карта остаётся на
+// DEFAULT_MAP_CENTER (Астана), как и раньше, для нового пользователя.
+function autoFitMapToUserFields() {
+  if (!map) return;
+  const fields = loadFields();
+  if (!fields || fields.length === 0) return; // полей нет — остаёмся в Астане
+
+  const boundsPoints = [];
+  fields.forEach(f => {
+    const coords = f.coordinates || f.coords;
+    if (coords && coords.length > 0) {
+      coords.forEach(p => {
+        if (Array.isArray(p) && p.length >= 2 && isFinite(p[0]) && isFinite(p[1])) {
+          boundsPoints.push([p[0], p[1]]);
+        }
+      });
+    } else if (f.center && isFinite(f.center[0]) && isFinite(f.center[1])) {
+      boundsPoints.push([f.center[0], f.center[1]]);
+    }
+  });
+
+  if (boundsPoints.length === 0) return; // ни у одного поля нет валидных координат
+
+  try {
+    if (boundsPoints.length === 1) {
+      // Одна точка (одно поле без контура, только center) — fitBounds не
+      // сработает на единственной точке, поэтому просто центрируем с
+      // разумным зумом уровня отдельного поля.
+      map.setView(boundsPoints[0], 15);
+    } else {
+      map.fitBounds(L.latLngBounds(boundsPoints), { padding: [60, 60], maxZoom: 16 });
+    }
+  } catch (e) {
+    console.warn('autoFitMapToUserFields failed, staying on default center', e);
+  }
+}
+
 function initMap() {
   map = L.map('map', {
     center: DEFAULT_MAP_CENTER,
@@ -853,6 +901,14 @@ function initMap() {
   loadMapGeoLayers();
 
   loadFields().forEach(field => addFieldToMap(field));
+
+  // FIX v3.0 п.1: раньше карта при КАЖДОЙ загрузке жёстко стартовала с
+  // DEFAULT_MAP_CENTER (Астана), даже если у пользователя уже есть свои
+  // поля где-то ещё — приходилось вручную искать и перелетать к ним.
+  // Теперь: если поля есть — сразу подгоняем вид карты под ВСЕ поля
+  // пользователя (fitBounds по их контурам, с отступом); Астана остаётся
+  // только запасным вариантом для нового пользователя без единого поля.
+  autoFitMapToUserFields();
 
   map.on('click', onMapClick);
   // FIX 1.8: регистрируем mousemove для резиновой линии
@@ -7499,9 +7555,17 @@ function closeTractorSetupModal() {
 function startTractorTracking() {
   const widthInput = document.getElementById('tractor-width-input');
   if (widthInput && widthInput.value) {
-    // Ширина захвата ограничена диапазоном 1-100 метров (максимум для
-    // ввода пользователем — самое широкое реальное с/х оборудование).
-    tractorWidth = Math.min(100, Math.max(1, parseFloat(widthInput.value) || 12));
+    // FIX v3.0 п.1+п.2: ширина захвата жёстко ограничена диапазоном 1-100 м
+    // (это по-прежнему ограничитель ВВОДА, а не характеристика какого-то
+    // конкретного оборудования — верхняя граница разумного диапазона для
+    // с/х техники). parseFloat + округление до 0.1м страхует от "точности
+    // оборудования" — рваных значений вроде 11.999999999998, которые могли
+    // накапливаться из-за плавающей запятой при повторных пересчётах ниже
+    // по коду (addedAreaHa, buffer и т.д.).
+    const raw = parseFloat(widthInput.value);
+    const clamped = Math.min(100, Math.max(1, isNaN(raw) ? 12 : raw));
+    tractorWidth = Math.round(clamped * 10) / 10;
+    widthInput.value = tractorWidth; // отражаем фактически применённое значение обратно в поле
   }
 
   const allFields = (typeof loadFields === 'function') ? loadFields() : [];
@@ -8064,6 +8128,32 @@ function build3DTractorModel() {
   bumper.position.set(0, 0.7, 3.1);
   tractor3DModel.add(bumper);
 
+  // FIX v3.0 п.2 (дизайн): декоративная акцентная полоса и боковые жалюзи
+  // на капоте — раньше капот был гладким однотонным блоком без деталей,
+  // из-за чего трактор выглядел "заготовкой", а не готовой техникой.
+  const accentStripeMat = new THREE.MeshStandardMaterial({ color: 0xfdd835, roughness: 0.3, metalness: 0.4 });
+  const stripeGeo = new THREE.BoxGeometry(1.42, 0.09, 2.32);
+  const stripe = new THREE.Mesh(stripeGeo, accentStripeMat);
+  stripe.position.set(0, 1.0, 1.45);
+  tractor3DModel.add(stripe);
+
+  const louverMat = new THREE.MeshStandardMaterial({ color: 0x1b1f22, roughness: 0.6, metalness: 0.5 });
+  for (let i = 0; i < 5; i++) {
+    const louverGeo = new THREE.BoxGeometry(0.02, 0.5, 0.55);
+    const louverL = new THREE.Mesh(louverGeo, louverMat);
+    louverL.position.set(-0.71, 1.4, 1.0 + i * 0.32);
+    const louverR = new THREE.Mesh(louverGeo, louverMat);
+    louverR.position.set(0.71, 1.4, 1.0 + i * 0.32);
+    tractor3DModel.add(louverL, louverR);
+  }
+
+  // Эмблема-логотип на решётке — небольшой узнаваемый акцент спереди.
+  const badgeGeo = new THREE.CircleGeometry(0.11, 20);
+  const badgeMat = new THREE.MeshStandardMaterial({ color: 0xfdd835, roughness: 0.25, metalness: 0.6, side: THREE.DoubleSide });
+  const badge = new THREE.Mesh(badgeGeo, badgeMat);
+  badge.position.set(0, 1.15, 3.1);
+  tractor3DModel.add(badge);
+
   // 3. ВЫХЛОПНАЯ ТРУБА
   const pipeBaseGeo = new THREE.CylinderGeometry(0.06, 0.07, 1.8, 16);
   const pipe = new THREE.Mesh(pipeBaseGeo, chromeMat);
@@ -8080,6 +8170,22 @@ function build3DTractorModel() {
   const airFilter = new THREE.Mesh(airFilterGeo, new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.4, metalness: 0.2 }));
   airFilter.position.set(0.5, 2.15, 0.6);
   tractor3DModel.add(airFilter);
+
+  // FIX v3.0 п.2 (дизайн): лестница-подножка сбоку от кабины — важная и
+  // узнаваемая деталь силуэта реального трактора, раньше отсутствовала
+  // полностью (кабина будто "висела в воздухе" без способа в неё попасть).
+  const stepMat = new THREE.MeshStandardMaterial({ color: 0x9e9e9e, roughness: 0.4, metalness: 0.6 });
+  for (let i = 0; i < 3; i++) {
+    const stepGeo = new THREE.BoxGeometry(0.35, 0.03, 0.16);
+    const step = new THREE.Mesh(stepGeo, stepMat);
+    step.position.set(-0.85, 0.55 + i * 0.4, 0.7 - i * 0.1);
+    tractor3DModel.add(step);
+  }
+  const handRailGeo = new THREE.CylinderGeometry(0.015, 0.015, 1.3, 6);
+  const handRail = new THREE.Mesh(handRailGeo, stepMat);
+  handRail.rotation.z = Math.PI / 2.6;
+  handRail.position.set(-0.92, 1.35, 0.55);
+  tractor3DModel.add(handRail);
 
   // 4. ПАНОРАМНАЯ КАБИНА
   const cabGlass = new THREE.Mesh(new THREE.BoxGeometry(1.58, 1.45, 1.58), glassMat);
@@ -8204,7 +8310,15 @@ function build3DTractorModel() {
   hitch.position.set(0, 0.7, -1.8);
   tractor3DModel.add(hitch);
 
-  const implementWidth = Math.max(6, tractorWidth || 12);
+  // FIX v3.0 п.3 (масштаб 1:1): раньше здесь стоял Math.max(6, ...) —
+  // физическая ширина 3D-модели оборудования никогда не могла быть меньше
+  // 6м, даже если пользователь ввёл, например, 2м или 3м реальной ширины.
+  // Из-за этого модель орудия не совпадала по масштабу с тем, что реально
+  // будет закрашено на карте (закраска/площадь считаются по настоящему
+  // tractorWidth, см. updateTractorLocation) — на глаз казалось, что орудие
+  // шире, чем указано. Модель теперь строится ровно по tractorWidth
+  // (1-100м, как и ограничено в UI), без искусственного минимума.
+  const implementWidth = tractorWidth || 12;
   const implement = build3DImplement(tractorOpType, implementWidth, chassisMat);
   implement.name = 'tractorImplement'; // чтобы можно было найти и заменить при смене операции/ширины
   tractor3DModel.add(implement);
@@ -8285,8 +8399,23 @@ function build3DImplement(opType, width, chassisMat) {
     frame.castShadow = true;
     group.add(frame);
 
-    // Бункеры для семян/удобрений — несколько куполов вдоль рамы.
+    // FIX v3.0 п.2 (дизайн): диагональные тяги-подкосы от рамы к сцепке —
+    // раньше рама держалась "в воздухе" без видимой конструкции крепления,
+    // теперь силуэт читается как реальное навесное орудие.
+    const braceMat = frameMat;
+    const braceGeo = new THREE.CylinderGeometry(0.05, 0.05, 1.1, 6);
+    const braceL = new THREE.Mesh(braceGeo, braceMat);
+    braceL.rotation.x = Math.PI / 3.4;
+    braceL.position.set(-halfW * 0.35, 0.9, -1.6);
+    const braceR = new THREE.Mesh(braceGeo, braceMat);
+    braceR.rotation.x = Math.PI / 3.4;
+    braceR.position.set(halfW * 0.35, 0.9, -1.6);
+    group.add(braceL, braceR);
+
+    // Бункеры для семян/удобрений — несколько куполов вдоль рамы, с
+    // крышками-люками сверху (характерная деталь настоящих сеялок).
     const hopperMat = new THREE.MeshStandardMaterial({ color: opType === 'fertilizing' ? 0x455a64 : 0xffb300, roughness: 0.5, metalness: 0.15 });
+    const lidMat = new THREE.MeshStandardMaterial({ color: 0x263238, roughness: 0.6, metalness: 0.3 });
     const numHoppers = Math.max(2, Math.min(5, Math.round(width / 4)));
     for (let i = 0; i < numHoppers; i++) {
       const hopperGeo = new THREE.CylinderGeometry(0.35, 0.22, 0.55, 8);
@@ -8294,6 +8423,11 @@ function build3DImplement(opType, width, chassisMat) {
       const x = -halfW + (i + 0.5) * (width / numHoppers);
       hopper.position.set(x, 1.15, -2.2);
       group.add(hopper);
+
+      const lidGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.08, 12);
+      const lid = new THREE.Mesh(lidGeo, lidMat);
+      lid.position.set(x, 1.45, -2.2);
+      group.add(lid);
     }
 
     // Ряд сошников (заглубителей) под рамой, на расстоянии друг от друга.
@@ -8307,6 +8441,17 @@ function build3DImplement(opType, width, chassisMat) {
       coulter.position.set(-halfW + i * coulterSpacing, 0.32, -2.35);
       group.add(coulter);
     }
+
+    // Опорные колёса рамы по краям — держат раму на нужной высоте и делают
+    // силуэт узнаваемым при взгляде сзади/сбоку, особенно на широких сеялках.
+    const supportWheelMat = new THREE.MeshStandardMaterial({ color: 0x14181c, roughness: 0.9 });
+    [-halfW + 0.3, halfW - 0.3].forEach(x => {
+      const wGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.18, 16);
+      wGeo.rotateZ(Math.PI / 2);
+      const wheel = new THREE.Mesh(wGeo, supportWheelMat);
+      wheel.position.set(x, 0.3, -2.35);
+      group.add(wheel);
+    });
     return group;
   }
 
@@ -8318,6 +8463,24 @@ function build3DImplement(opType, width, chassisMat) {
     boom.position.set(0, 1.1, -2.2);
     boom.castShadow = true;
     group.add(boom);
+
+    // FIX v3.0 п.2 (дизайн): диагональные тросы-растяжки от вершины
+    // Y-образной мачты к концам штанги — на реальных опрыскивателях именно
+    // они держат широкую штангу от провисания, раньше штанга "висела в
+    // воздухе" сама по себе без видимой опорной конструкции.
+    const cableMat = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.5, metalness: 0.6 });
+    const mastGeo = new THREE.CylinderGeometry(0.05, 0.07, 1.0, 8);
+    const mast = new THREE.Mesh(mastGeo, cableMat);
+    mast.position.set(0, 1.75, -2.15);
+    group.add(mast);
+    [-halfW, halfW].forEach(x => {
+      const dist = Math.hypot(x, 0.65);
+      const cableGeo = new THREE.CylinderGeometry(0.015, 0.015, dist, 6);
+      const cable = new THREE.Mesh(cableGeo, cableMat);
+      cable.position.set(x / 2, 1.42, -2.2);
+      cable.rotation.z = Math.atan2(0.65, Math.abs(x)) * (x > 0 ? -1 : 1);
+      group.add(cable);
+    });
 
     // Тонкие вертикальные стойки-подвесы штанги (парение штанги над землёй).
     const strutMat = new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.5, metalness: 0.4 });
@@ -8337,7 +8500,7 @@ function build3DImplement(opType, width, chassisMat) {
       group.add(nozzle);
     }
 
-    // Бак с рабочим раствором за кабиной
+    // Бак с рабочим раствором за кабиной, на раме-подставке.
     const tankMat = new THREE.MeshPhysicalMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.55, roughness: 0.2, metalness: 0.1 });
     const tankGeo = new THREE.CylinderGeometry(0.55, 0.55, 1.1, 16);
     tankGeo.rotateZ(Math.PI / 2);
@@ -8345,6 +8508,12 @@ function build3DImplement(opType, width, chassisMat) {
     tank.position.set(0, 1.3, -1.5);
     tank.castShadow = true;
     group.add(tank);
+
+    const tankCapMat = new THREE.MeshStandardMaterial({ color: 0x263238, roughness: 0.5, metalness: 0.3 });
+    const tankCapGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.15, 12);
+    const tankCap = new THREE.Mesh(tankCapGeo, tankCapMat);
+    tankCap.position.set(0, 1.88, -1.5);
+    group.add(tankCap);
     return group;
   }
 
@@ -8357,12 +8526,43 @@ function build3DImplement(opType, width, chassisMat) {
     header.castShadow = true;
     group.add(header);
 
+    // FIX v3.0 п.2 (дизайн): режущий нож-полоса вдоль передней кромки
+    // жатки — блестящая тонкая планка с "зубцами", раньше корпус жатки
+    // выглядел просто как гладкий короб без рабочего края.
+    const knifeMat = new THREE.MeshStandardMaterial({ color: 0xcfd8dc, roughness: 0.25, metalness: 0.8 });
+    const knifeGeo = new THREE.BoxGeometry(width * 0.98, 0.08, 0.1);
+    const knife = new THREE.Mesh(knifeGeo, knifeMat);
+    knife.position.set(0, 0.32, -2.7);
+    group.add(knife);
+
+    // Боковые делители (носки) по краям жатки — характерная деталь,
+    // разграничивающая скошенную и нескошенную полосу.
+    const dividerMat = headerMat;
+    [-halfW, halfW].forEach(x => {
+      const divGeo = new THREE.ConeGeometry(0.12, 0.6, 8);
+      const div = new THREE.Mesh(divGeo, dividerMat);
+      div.rotation.z = Math.PI / 2;
+      div.position.set(x, 0.4, -2.75);
+      group.add(div);
+    });
+
     const reelMat = new THREE.MeshStandardMaterial({ color: 0x616161, roughness: 0.5, metalness: 0.4 });
     const reelAxleGeo = new THREE.CylinderGeometry(0.06, 0.06, width * 0.96, 8);
     reelAxleGeo.rotateZ(Math.PI / 2);
     const reelAxle = new THREE.Mesh(reelAxleGeo, reelMat);
     reelAxle.position.set(0, 1.15, -2.55);
     group.add(reelAxle);
+
+    // Опорные стойки мотовила по краям — соединяют ось мотовила с корпусом
+    // жатки, раньше ось "плавала" в воздухе без видимого крепления.
+    const reelArmMat = reelMat;
+    [-halfW * 0.9, halfW * 0.9].forEach(x => {
+      const armGeo = new THREE.BoxGeometry(0.08, 0.7, 0.15);
+      const arm = new THREE.Mesh(armGeo, reelArmMat);
+      arm.position.set(x, 0.85, -2.5);
+      arm.rotation.x = -Math.PI / 10;
+      group.add(arm);
+    });
 
     // Спицы мотовила — статичные (анимация вращения не требуется для превью),
     // но дают узнаваемый силуэт жатки на комбайне/фронтальной косилке.
@@ -8384,6 +8584,28 @@ function build3DImplement(opType, width, chassisMat) {
   boom.position.set(0, 0.75, -2.3);
   boom.castShadow = true;
   group.add(boom);
+
+  // FIX v3.0 п.2 (дизайн): вторая продольная балка рамы + опорные колёса —
+  // раньше борона была одним брусом с дисками "в воздухе", теперь у неё
+  // есть настоящая рама-конструкция и колёса транспортировки по краям.
+  const crossBraceMat = boomMat;
+  const numBraces = Math.max(2, Math.min(6, Math.round(width / 6)));
+  for (let i = 0; i <= numBraces; i++) {
+    const braceGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.9, 6);
+    const brace = new THREE.Mesh(braceGeo, crossBraceMat);
+    brace.rotation.x = Math.PI / 2;
+    brace.position.set(-halfW + i * (width / numBraces), 0.75, -2.05);
+    group.add(brace);
+  }
+
+  const harrowWheelMat = new THREE.MeshStandardMaterial({ color: 0x14181c, roughness: 0.9 });
+  [-halfW + 0.35, halfW - 0.35].forEach(x => {
+    const wGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.2, 16);
+    wGeo.rotateZ(Math.PI / 2);
+    const wheel = new THREE.Mesh(wGeo, harrowWheelMat);
+    wheel.position.set(x, 0.32, -2.3);
+    group.add(wheel);
+  });
 
   const discMat = new THREE.MeshStandardMaterial({ color: 0x9e9e9e, roughness: 0.3, metalness: 0.6 });
   const discGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.05, 16);
@@ -8809,7 +9031,9 @@ function refresh3DImplement() {
     tractor3DModel.remove(old);
   }
   const chassisMat = new THREE.MeshStandardMaterial({ color: 0x182026, roughness: 0.8, metalness: 0.5 });
-  const implementWidth = Math.max(6, tractorWidth || 12);
+  // FIX v3.0 п.3: то же самое исправление масштаба 1:1, что и в
+  // build3DTractorModel() — без искусственного минимума 6м.
+  const implementWidth = tractorWidth || 12;
   const implement = build3DImplement(tractorOpType, implementWidth, chassisMat);
   implement.name = 'tractorImplement';
   tractor3DModel.add(implement);
@@ -9015,6 +9239,61 @@ function toggleTractorSimulation() {
   }, 500);
 }
 
+// ════════════════════════════════════════════════════
+// FIX v3.0 п.3: ручное тестовое управление трактором в 3D-режиме.
+// Позволяет двигать трактор вперёд/назад и поворачивать курс влево/вправо
+// стрелками — удобно для тестирования (закраска следа, гоны, направляющие,
+// расчёт площади/дистанции) без реального GPS и без ожидания демо-режима.
+// Переиспользует ту же updateTractorLocation()/turf.destination(), что и
+// демо-режим (toggleTractorSimulation) — поэтому вся логика привязки к
+// tractorWidth, закраски, счётчиков площади/дистанции работает идентично.
+// ════════════════════════════════════════════════════
+const MANUAL_STEP_KM = 2 / 1000;   // 2 метра за одно нажатие "вперёд/назад"
+const MANUAL_TURN_DEG = 8;         // 8° за одно нажатие "влево/вправо"
+
+function manualTractorControl(direction) {
+  if (!tractorActive) return;
+
+  // Ручное управление и демо-режим не должны работать одновременно —
+  // иначе позиции будут конфликтовать (setInterval демо перезатирает
+  // то, что только что подвинула стрелка, и наоборот).
+  if (tractorSimInterval) {
+    clearInterval(tractorSimInterval);
+    tractorSimInterval = null;
+  }
+
+  if (direction === 'left' || direction === 'right') {
+    const delta = direction === 'left' ? -MANUAL_TURN_DEG : MANUAL_TURN_DEG;
+    let newHeading = (tractor3DHeading + delta) % 360;
+    if (newHeading < 0) newHeading += 360;
+    tractor3DHeading = newHeading;
+    // Курс поворачиваем мгновенно (без lerp) — так тестировщику сразу видно
+    // результат нажатия, а сглаживание рендера (tractor3DRenderHeading)
+    // само доедет до новой цели в animate(), как и при обычном GPS-курсе.
+    return;
+  }
+
+  let currentPoint = tractorPath.length > 0
+    ? tractorPath[tractorPath.length - 1]
+    : (tractorSpawnPoint ? [tractorSpawnPoint.lat, tractorSpawnPoint.lng] : (fieldCenter3D ? [fieldCenter3D.lat, fieldCenter3D.lng] : null));
+  if (!currentPoint) return;
+
+  // "Назад" — едем по курсу +180°, а не просто вычитаем шаг, чтобы логика
+  // (heading, поворот модели, направление закраски) была той же самой, что
+  // и при движении вперёд — без отдельной ветки со знаком "минус".
+  const heading = direction === 'backward' ? (tractor3DHeading + 180) % 360 : tractor3DHeading;
+
+  const point = turf.point([currentPoint[1], currentPoint[0]]);
+  const dest = turf.destination(point, MANUAL_STEP_KM, heading, { units: 'kilometers' });
+  const newLng = dest.geometry.coordinates[0];
+  const newLat = dest.geometry.coordinates[1];
+
+  const speedEl = document.getElementById('tractor-3d-stat-speed');
+  if (speedEl) speedEl.textContent = '—'; // ручной режим — скорость не GPS-измеряемая
+
+  updateTractorLocation([newLat, newLng]);
+}
+
 function stopTractorTracking() {
   toggleTractor3DView(false);
   tractor3DPos = { x: 0, z: 0 };
@@ -9041,6 +9320,22 @@ function stopTractorTracking() {
 
   const activeUi = document.getElementById('tractor-active-ui');
   if (activeUi) activeUi.style.display = 'none';
+
+  // FIX v3.0 п.2 ("карта мерещится" после заезда): пока был открыт
+  // полноэкранный 3D-режим (#tractor-3d-view, position:fixed поверх всего),
+  // контейнер 2D-карты Leaflet (#map) оставался скрытым. Leaflet не следит
+  // за display:none у родителя и не знает, что размеры контейнера могли
+  // измениться (например, после поворота экрана во время 3D-режима) — из-за
+  // этого при возврате часть тайлов рисуется неверно, серыми/сдвинутыми
+  // плитками ("рябь"/мерцание). invalidateSize() заставляет Leaflet
+  // пересчитать размеры контейнера и перерисовать видимые тайлы.
+  // requestAnimationFrame — даём браузеру завершить layout после
+  // toggleTractor3DView(false) (display:none -> flex) ПЕРЕД пересчётом.
+  if (typeof map !== 'undefined' && map) {
+    requestAnimationFrame(() => {
+      try { map.invalidateSize(false); } catch (_) {}
+    });
+  }
 
   const endTime = new Date();
   const elapsedSec = tractorStartTime ? Math.max(1, Math.round((endTime - tractorStartTime) / 1000)) : 60;
