@@ -8860,12 +8860,9 @@ function updateGuidanceLightbar(heading, x, z) {
   const targetX  = baseX + trackIndex * spacing;
   const deviation = x - targetX; // отклонение от центра текущего гона (м)
 
-  const trackEl = document.getElementById('tractor-guidance-track');
-  const hdgEl = document.getElementById('tractor-guidance-hdg');
   const offsetEl = document.getElementById('tractor-guidance-offset');
   const pillEl = document.getElementById('guidance-center-pill');
   const statusEl = document.getElementById('tractor-guidance-status');
-  const widthEl = document.getElementById('tractor-guidance-width');
   // REDESIGN: стрелка теперь отдельная иконка внутри pill (лучше читается
   // и легче анимируется/переворачивается, чем текстовый символ ←/→).
   // Иконка живёт в стабильной обёртке (#guidance-offset-arrow-wrap), а не
@@ -8875,9 +8872,10 @@ function updateGuidanceLightbar(heading, x, z) {
   // всегда, и её innerHTML можно безопасно перезаписывать.
   const arrowWrap = document.getElementById('guidance-offset-arrow-wrap');
 
-  if (widthEl) widthEl.textContent = `${Math.round(spacing)}м`;
-  if (trackEl) trackEl.textContent = `ГОН #${Math.abs(trackIndex) + 1}`; // FIX v3.0 п.Б3: trackIndex теперь от baseX, не от 0
-  if (hdgEl) hdgEl.textContent = `${Math.round(heading)}°`;
+  // REDESIGN: индикаторы "ГОН"/"КУРС"/"ШИРИНА" убраны из HUD — соответствующие
+  // DOM-элементы (#tractor-guidance-track/-hdg/-width) больше не существуют
+  // в разметке, поэтому их текст здесь больше не обновляется. Остальная
+  // логика функции (offset, светодиоды, статус-подсказка) не тронута.
 
   const leds = ['gled-l3', 'gled-l2', 'gled-l1', 'gled-r1', 'gled-r2', 'gled-r3'];
   leds.forEach(id => {
@@ -9231,16 +9229,45 @@ function toggleTractor3DView(show) {
 function start3DAnimationLoop() {
   if (tractor3DAnimId) cancelAnimationFrame(tractor3DAnimId);
 
-  // FIX v3.0 п.Б1: камера поднята выше и отодвинута дальше назад,
-  // REDESIGN: камера вождения — низкая, близкая, кинематографичная камера
-  // от третьего лица (как в референсных GPS-guidance приложениях), а не
-  // вид "с вертолёта". Меньше дистанция и высота дают куда более сильное
-  // ощущение скорости и масштаба техники относительно поля.
-  const CAM_DISTANCE  = 9.5;  // м позади трактора
-  const CAM_HEIGHT    = 4.6;  // высота камеры над землёй
+  // FIX (навесное оборудование не влезало в кадр): раньше CAM_DISTANCE/
+  // CAM_HEIGHT были фиксированными константами, не учитывающими реальный
+  // размер текущего навесного оборудования (tractorWidth/tractorOpType).
+  // На широких сеялках/опрыскивателях/жатках (basicWidth иногда >12м)
+  // камера стояла слишком близко и низко — оборудование сзади трактора
+  // просто не помещалось в кадр. Теперь дистанция/высота камеры зависят
+  // от ширины и "глубины" текущего орудия: чем шире/крупнее навеска, тем
+  // дальше и выше отъезжает камера, чтобы вся техника была видна целиком.
+  function computeCam3DFraming() {
+    const width = Math.max(6, tractorWidth || 12);
+    // Каждый build3DImplement (см. функцию) крепит орудие на hitch ~2.2–2.8м
+    // позади центра модели трактора — это фиксированная "глубина" навески,
+    // которую тоже нужно учитывать, иначе камера "видит" ширину орудия, но
+    // обрезает его дальний (по глубине) край на очень широких агрегатах.
+    const implementDepth = 2.8;
+    // Базовые значения — это старые CAM_DISTANCE/CAM_HEIGHT (9.5/4.6),
+    // которые остаются верными для стандартной ширины ~12м. Дальше камера
+    // масштабируется линейно с шириной сверх этой базы.
+    const BASE_WIDTH = 12;
+    const BASE_DISTANCE = 9.5;
+    const BASE_HEIGHT = 4.6;
+    const extraWidth = Math.max(0, width - BASE_WIDTH);
+    // ~0.45м доп. дистанции и ~0.16м доп. высоты на каждый метр ширины
+    // сверх базовой — подобрано так, чтобы орудие с запасом помещалось в
+    // угол обзора камеры (FOV) даже на максимальной ширине захвата.
+    const distance = BASE_DISTANCE + implementDepth * 0.35 + extraWidth * 0.45;
+    const height = BASE_HEIGHT + extraWidth * 0.16;
+    return {
+      distance: Math.min(26, distance),
+      height: Math.min(11, height)
+    };
+  }
+
+  let CAM_DISTANCE = 9.5;  // м позади трактора — пересчитывается по ширине орудия
+  let CAM_HEIGHT   = 4.6;  // высота камеры над землёй — пересчитывается по ширине орудия
   const CAM_LOOKAHEAD = 16;   // точка прицела вперёд — далеко, чтобы видеть гон
   const CAM_LOOK_HEIGHT = 1.1;
   const CAM_LERP = 0.11;      // чуть отзывчивее старого 0.07
+  let _lastCamFramingWidth = null; // пересчитываем framing только при смене ширины/орудия
 
   let camPosInitialized = false;
   const desiredPos    = new THREE.Vector3();
@@ -9249,8 +9276,15 @@ function start3DAnimationLoop() {
   // а не фиксированным лерп-коэффициентом на кадр — раньше при просадках
   // FPS движение либо "тормозило", либо телепортировалось рывками,
   // потому что 0.15 применялось одинаково независимо от реального dt.
-  const POS_SMOOTH_RATE = 9.0;   // 1/с — выше = быстрее "доезд" до цели
-  const HDG_SMOOTH_RATE = 10.0;  // 1/с — сглаживание поворота модели
+  // FIX (мерцание/остановки при движении): смягчено вместе с учащением
+  // тика демо-режима (см. toggleTractorSimulation, DEMO_TICK_MS) — при
+  // прежнем высоком POS_SMOOTH_RATE=9.0 рендер-позиция успевала полностью
+  // "доезжать" до цели между обновлениями и на миг замирала, создавая
+  // впечатление рывков/остановок. Более низкая скорость сглаживания даёт
+  // непрерывное, слегка "плывущее" движение без видимых стопов между
+  // тиками — при этом всё ещё достаточно отзывчиво к ручному управлению.
+  const POS_SMOOTH_RATE = 6.0;   // 1/с — выше = быстрее "доезд" до цели
+  const HDG_SMOOTH_RATE = 7.0;   // 1/с — сглаживание поворота модели
 
   // FIX v3.0 п.Б1: updateGuidanceLightbar подключён к animate-циклу,
   // чтобы HUD обновлялся при ручном управлении, а не только при GPS.
@@ -9305,6 +9339,17 @@ function start3DAnimationLoop() {
       updateGuidanceLightbar(tractor3DRenderHeading, tractor3DRenderPos.x, tractor3DRenderPos.z);
 
       if (camera3D) {
+        // Пересчитываем дистанцию/высоту камеры, только если ширина навески
+        // реально изменилась (смена оборудования/ширины захвата в UI) —
+        // не нужно пересчитывать это на каждом кадре без необходимости.
+        const curWidth = tractorWidth || 12;
+        if (_lastCamFramingWidth !== curWidth) {
+          const framing = computeCam3DFraming();
+          CAM_DISTANCE = framing.distance;
+          CAM_HEIGHT = framing.height;
+          _lastCamFramingWidth = curWidth;
+        }
+
         const tPos = tractor3DModel.position;
         const rad  = tractor3DModel.rotation.y;
 
@@ -9397,6 +9442,19 @@ function toggleTractorSimulation() {
     updateTractorLocation([demoStart.lat, demoStart.lng]);
   }
 
+  // FIX (мерцание/"заглохший" трактор в демо-режиме): раньше тик демо-
+  // симуляции был раз в 500мс большими прыжками по ~2.08м. tractor3DPos
+  // (цель) обновлялась редко и сразу большим скачком, а animate() тем
+  // временем сглаживал tractor3DRenderPos к цели с довольно высокой
+  // скоростью (POS_SMOOTH_RATE) — рендер-позиция успевала полностью
+  // "доехать" до цели ещё ДО следующего тика через 500мс и трактор
+  // визуально останавливался/замирал на месте, а затем резко срывался
+  // к новой точке при очередном тике. Это и создавало ощущение рывков и
+  // "заглохшего" трактора. Тик демо теперь идёт каждые 100мс маленькими
+  // шагами — цель обновляется намного чаще, и сглаживание в animate()
+  // всегда "догоняет" плавно текущую, а не устаревшую на 500мс точку.
+  const DEMO_TICK_MS = 100;
+  const DEMO_SPEED_MS = 4.16; // 15 км/ч
   tractorSimInterval = setInterval(() => {
     if (!tractorActive) {
       clearInterval(tractorSimInterval);
@@ -9404,8 +9462,7 @@ function toggleTractorSimulation() {
       return;
     }
     
-    // Simulate 15 km/h = 4.16 m/s -> ~2.08 meters per 500ms
-    const distKm = 2.08 / 1000;
+    const distKm = (DEMO_SPEED_MS * (DEMO_TICK_MS / 1000)) / 1000;
     
     let currentPoint = tractorPath.length > 0 ? tractorPath[tractorPath.length - 1] : null;
     if (!currentPoint && fieldCenter3D) {
@@ -9418,14 +9475,13 @@ function toggleTractorSimulation() {
       const newLng = dest.geometry.coordinates[0];
       const newLat = dest.geometry.coordinates[1];
       
-      document.getElementById('tractor-3d-stat-speed').textContent = '15.0';
       // FIX v3.0 п.Б3: фиксируем базовую X при первом тике демо.
       if (tractor3DBaseTrackX === null) tractor3DBaseTrackX = tractor3DPos.x;
       const speedElD = document.getElementById('tractor-3d-stat-speed');
       if (speedElD) speedElD.textContent = '15.0';
       updateTractorLocation([newLat, newLng]);
     }
-  }, 500);
+  }, DEMO_TICK_MS);
 }
 
 // ════════════════════════════════════════════════════

@@ -4555,6 +4555,10 @@
    отклонения от курса вместо перегруженной многоэтажной карточки.
 ══════════════════════════════════════ */
 
+/* REDESIGN v4: цельный вертикальный стек сверху экрана —
+   1) инфо о поле, 2) статистика заезда, 3) подсказка руления.
+   Левое/правое поле оставляет место под увеличенную миникарту в правом
+   верхнем углу, чтобы стек и радар никогда не перекрывались. */
 .tractor-hud-top {
   position: absolute;
   top: calc(var(--safe-top) + 10px);
@@ -4565,36 +4569,8 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 0 88px 0 14px; /* правое поле — не залезать на радар */
+  padding: 0 128px 0 14px; /* правое поле — не залезать на увеличенную миникарту */
   pointer-events: none;
-}
-.hud-tags-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  pointer-events: auto;
-}
-.guidance-tag {
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 3px 8px;
-  border-radius: 100px;
-  background: rgba(10, 16, 22, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: var(--text2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.guidance-tag.track {
-  background: rgba(0, 230, 118, 0.18);
-  color: #00e676;
-  border: 1px solid rgba(0, 230, 118, 0.3);
-}
-.guidance-tag.hdg {
-  color: #64b5f6;
 }
 
 /* Ряд: LED-lightbar слева/справа + крупный офсет-индикатор по центру —
@@ -4706,13 +4682,13 @@
   pointer-events: auto;
 }
 
-/* Крупная плашка скорости — справа от центра, на уровне глаз, отдельно
-   от офсет-индикатора (как в референсных приложениях: скорость всегда
-   отдельным крупным кружком). */
+/* REDESIGN v4: плашка скорости теперь под увеличенной миникартой в
+   правом верхнем углу (а не поверх стека инфо-о-поле/статистики), чтобы
+   верх экрана оставался цельным и без наложений. */
 .hud-speed-badge {
   position: absolute;
-  top: calc(var(--safe-top) + 92px);
-  right: 14px;
+  top: calc(var(--safe-top) + 122px);
+  right: 20px;
   z-index: 860;
   width: 58px;
   height: 58px;
@@ -4740,29 +4716,29 @@
   letter-spacing: 0.3px;
 }
 
-/* Сводка по полю/заезду — компактная плашка снизу слева, вне основной
-   зоны внимания при вождении (площадь/дистанция/время смотрят реже,
-   чем офсет от линии). */
+/* REDESIGN v4: инфо о поле + статистика заезда — теперь единая карточка
+   в самом верху HUD-стека (первый элемент внутри .tractor-hud-top), а не
+   отдельная плавающая плашка снизу слева. Центрирована по ширине
+   доступной области (левое/правое поле задаётся паддингом родителя). */
 .tractor-hud-stats {
-  position: absolute;
-  left: 14px;
-  top: calc(var(--safe-top) + 150px);
   z-index: 858;
   background: rgba(10, 16, 22, 0.72);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-sm);
-  padding: 8px 12px;
+  padding: 8px 14px;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 6px;
-  max-width: 62vw;
-  pointer-events: none;
+  max-width: 100%;
+  pointer-events: auto;
 }
 .hud-field-row {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   min-width: 0;
 }
@@ -4776,19 +4752,22 @@
   animation: pulse-green 1.5s infinite;
 }
 .guidance-field-title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+  max-width: 60vw;
 }
 .guidance-field-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px 10px;
-  font-size: 10.5px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px 12px;
+  font-size: 11px;
   color: var(--text2);
 }
 .guidance-field-stats > div {
