@@ -398,31 +398,39 @@
     <div id="tractor-3d-view" style="display:none; position:fixed; inset:0; z-index:850; background:#0f1923; overflow:hidden;">
       <canvas id="tractor-3d-canvas" style="width:100%; height:100%; display:block;"></canvas>
 
-      <!-- FIX v3.0 п.Б2: радар стал кликабельным — тап открывает оверлей карты поля. -->
+      <!-- REDESIGN: компактный радар в верхнем углу, меньше и скромнее —
+           в референсных guidance-приложениях миникарта не доминирует над
+           экраном вождения. -->
       <div id="tractor-3d-minimap"
            onclick="open3DFieldMapOverlay()"
            title="Нажмите для карты поля"
-           style="position:absolute; top:calc(var(--safe-top) + 14px); right:14px; width:140px; height:140px; border-radius:50%; background:rgba(15,25,35,0.85); backdrop-filter:blur(16px); border:2px solid #00e676; box-shadow:0 8px 24px rgba(0,0,0,0.6); overflow:hidden; z-index:860; pointer-events:auto; display:flex; align-items:center; justify-content:center; cursor:pointer;">
-        <canvas id="tractor-radar-canvas" width="140" height="140" style="width:100%; height:100%;"></canvas>
-        <div style="position:absolute; bottom:4px; font-size:10px; font-weight:700; color:#00e676; letter-spacing:0.5px; text-transform:uppercase;">РАДАР</div>
-        <div style="position:absolute; top:4px; font-size:8px; color:rgba(0,230,118,0.6); text-transform:uppercase; letter-spacing:0.3px;">▶ КАРТА</div>
+           style="position:absolute; top:calc(var(--safe-top) + 10px); right:14px; width:64px; height:64px; border-radius:50%; background:rgba(10,16,22,0.78); backdrop-filter:blur(14px); border:1.5px solid rgba(0,230,118,0.55); box-shadow:0 6px 18px rgba(0,0,0,0.45); overflow:hidden; z-index:860; pointer-events:auto; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+        <canvas id="tractor-radar-canvas" width="64" height="64" style="width:100%; height:100%;"></canvas>
       </div>
 
-      <!-- Единая HUD-карточка навигации -->
-      <div id="tractor-3d-guidance-bar" class="tractor-3d-guidance-bar">
-        <div class="guidance-hud-top">
+      <!-- REDESIGN: HUD в стиле референсных приложений GPS-guidance —
+           один крупный, легко читаемый на ходу индикатор отклонения по
+           центру сверху (стрелка + значение в метрах), с компактными
+           курс/гон/ширина плашками над ним. Светодиодная lightbar сведена
+           в тонкую полоску под ним. Всё остальное (площадь/дистанция/
+           время) вынесено в отдельную нижнюю левую плашку, вне зоны,
+           которая нужна глазу чаще всего при вождении. -->
+      <div class="tractor-hud-top">
+        <div class="hud-tags-row">
           <span class="guidance-tag track" id="tractor-guidance-track">ГОН #1</span>
           <span class="guidance-tag hdg">КУРС <span id="tractor-guidance-hdg">0°</span></span>
           <span class="guidance-tag width">ШИРИНА <span id="tractor-guidance-width">12м</span></span>
         </div>
-        <div class="guidance-lightbar-wrap">
+
+        <div class="hud-offset-row">
           <div class="guidance-leds left" id="gleds-left">
             <span class="gled" id="gled-l3"></span>
             <span class="gled" id="gled-l2"></span>
             <span class="gled" id="gled-l1"></span>
           </div>
           <div class="guidance-center-pill" id="guidance-center-pill">
-            <span id="tractor-guidance-offset">0.00 м</span>
+            <span id="guidance-offset-arrow-wrap" class="hud-offset-arrow"><i data-lucide="check" class="icon-sm"></i></span>
+            <span id="tractor-guidance-offset">0.00</span><span class="hud-offset-unit">м</span>
           </div>
           <div class="guidance-leds right" id="gleds-right">
             <span class="gled" id="gled-r1"></span>
@@ -431,15 +439,24 @@
           </div>
         </div>
         <div class="guidance-status-label" id="tractor-guidance-status">В ПОЛОСЕ (ON TRACK)</div>
-        <div class="guidance-field-divider"></div>
-        <div class="guidance-field-row">
+      </div>
+
+      <!-- Плашка скорости — справа, как в референсах (крупный км/ч в
+           отдельном кружке рядом с курсором). -->
+      <div class="hud-speed-badge">
+        <span id="tractor-3d-stat-speed">0.0</span>
+        <small>км/ч</small>
+      </div>
+
+      <!-- Компактная сводка по полю/заезду — снизу слева, не мешает обзору дороги. -->
+      <div class="tractor-hud-stats">
+        <div class="hud-field-row">
           <span class="guidance-field-dot"></span>
           <div class="guidance-field-title" id="tractor-3d-field-title">Поле</div>
         </div>
         <div class="guidance-field-stats">
           <div><i data-lucide="wheat" class="icon-sm"></i> <span id="tractor-3d-stat-area" style="font-weight:700; color:#00e676;">0.00</span> га</div>
           <div><i data-lucide="ruler" class="icon-sm"></i> <span id="tractor-3d-stat-dist" style="font-weight:700; color:#fff;">0.00</span> км</div>
-          <div><i data-lucide="zap" class="icon-sm"></i> <span id="tractor-3d-stat-speed" style="font-weight:700; color:#64b5f6;">0.0</span> км/ч</div>
           <div><i data-lucide="clock" class="icon-sm"></i> <span id="tractor-3d-stat-time" style="font-weight:700; color:#ffb74d;">00:00</span></div>
         </div>
       </div>

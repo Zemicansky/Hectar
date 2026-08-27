@@ -4549,38 +4549,44 @@
   transition: transform 0.2s ease-out;
 }
 
-.tractor-3d-guidance-bar {
+/* ══════════════════════════════════════
+   REDESIGN: HUD экрана вождения в стиле референсных приложений
+   GPS-guidance — крупный, легко читаемый на ходу центральный индикатор
+   отклонения от курса вместо перегруженной многоэтажной карточки.
+══════════════════════════════════════ */
+
+.tractor-hud-top {
   position: absolute;
-  top: calc(var(--safe-top) + 12px);
-  left: 14px;
-  right: 164px;
-  background: rgba(15, 25, 35, 0.88);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 230, 118, 0.35);
-  border-radius: var(--radius);
-  padding: 8px 12px;
+  top: calc(var(--safe-top) + 10px);
+  left: 0;
+  right: 0;
   z-index: 860;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 88px 0 14px; /* правое поле — не залезать на радар */
+  pointer-events: none;
 }
-.guidance-hud-top {
+.hud-tags-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 6px;
+  pointer-events: auto;
 }
 .guidance-tag {
   font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
+  padding: 3px 8px;
+  border-radius: 100px;
+  background: rgba(10, 16, 22, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   color: var(--text2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .guidance-tag.track {
   background: rgba(0, 230, 118, 0.18);
@@ -4590,17 +4596,21 @@
 .guidance-tag.hdg {
   color: #64b5f6;
 }
-.guidance-lightbar-wrap {
+
+/* Ряд: LED-lightbar слева/справа + крупный офсет-индикатор по центру —
+   это то, на что водитель смотрит чаще всего, поэтому он самый крупный
+   элемент HUD и стоит по центру экрана, как в референсных приложениях. */
+.hud-offset-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  justify-content: center;
+  gap: 10px;
+  pointer-events: auto;
 }
 .guidance-leds {
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex: 1;
+  gap: 5px;
 }
 .guidance-leds.left {
   justify-content: flex-end;
@@ -4609,8 +4619,8 @@
   justify-content: flex-start;
 }
 .gled {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -4632,55 +4642,129 @@
   border-color: #ff8a80;
 }
 .guidance-center-pill {
-  padding: 3px 10px;
-  border-radius: 12px;
-  background: rgba(0, 230, 118, 0.2);
-  border: 1px solid #00e676;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 8px 20px;
+  border-radius: 100px;
+  background: rgba(10, 16, 22, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid #00e676;
   color: #00e676;
-  font-size: 13px;
+  font-size: 26px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  box-shadow: 0 0 12px rgba(0, 230, 118, 0.3);
-  min-width: 68px;
-  text-align: center;
+  box-shadow: 0 0 20px rgba(0, 230, 118, 0.35), 0 8px 24px rgba(0, 0, 0, 0.4);
+  min-width: 118px;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.hud-offset-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+}
+.hud-offset-arrow svg {
+  width: 18px;
+  height: 18px;
+}
+.hud-offset-unit {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.75;
 }
 .guidance-center-pill.deviate-left {
-  background: rgba(255, 214, 0, 0.2);
+  background: rgba(10, 16, 22, 0.78);
   border-color: #ffd600;
   color: #ffd600;
-  box-shadow: 0 0 12px rgba(255, 214, 0, 0.3);
+  box-shadow: 0 0 20px rgba(255, 214, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 .guidance-center-pill.deviate-hard {
-  background: rgba(255, 82, 82, 0.2);
+  background: rgba(10, 16, 22, 0.78);
   border-color: #ff5252;
   color: #ff5252;
-  box-shadow: 0 0 12px rgba(255, 82, 82, 0.3);
+  box-shadow: 0 0 20px rgba(255, 82, 82, 0.35), 0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: hud-pill-alert 0.6s ease-in-out infinite;
+}
+@keyframes hud-pill-alert {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.045); }
 }
 .guidance-status-label {
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
   color: #00e676;
   text-align: center;
+  background: rgba(10, 16, 22, 0.6);
+  padding: 3px 10px;
+  border-radius: 100px;
+  pointer-events: auto;
 }
 
-/* Задача 1.1: объединённая карточка HUD — раздел с полем/статистикой под
-   курсоуказателем гона, в том же контейнере, без абсолютного позиционирования
-   и без хардкода отступов. Высота карточки теперь просто растёт вместе с
-   контентом (длинное название поля и т.д.), а не выходит за пределы,
-   заданные соседним блоком. */
-.guidance-field-divider {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.1);
-  margin: 2px 0;
+/* Крупная плашка скорости — справа от центра, на уровне глаз, отдельно
+   от офсет-индикатора (как в референсных приложениях: скорость всегда
+   отдельным крупным кружком). */
+.hud-speed-badge {
+  position: absolute;
+  top: calc(var(--safe-top) + 92px);
+  right: 14px;
+  z-index: 860;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: rgba(10, 16, 22, 0.8);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 800;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
 }
-.guidance-field-row {
+.hud-speed-badge small {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Сводка по полю/заезду — компактная плашка снизу слева, вне основной
+   зоны внимания при вождении (площадь/дистанция/время смотрят реже,
+   чем офсет от линии). */
+.tractor-hud-stats {
+  position: absolute;
+  left: 14px;
+  top: calc(var(--safe-top) + 150px);
+  z-index: 858;
+  background: rgba(10, 16, 22, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 62vw;
+  pointer-events: none;
+}
+.hud-field-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 0; /* обязательно для text-overflow: ellipsis внутри flex */
+  min-width: 0;
 }
 .guidance-field-dot {
   width: 8px;
@@ -4692,7 +4776,7 @@
   animation: pulse-green 1.5s infinite;
 }
 .guidance-field-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   color: #fff;
   white-space: nowrap;
@@ -4703,8 +4787,8 @@
 .guidance-field-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 10px;
-  font-size: 11px;
+  gap: 5px 10px;
+  font-size: 10.5px;
   color: var(--text2);
 }
 .guidance-field-stats > div {
