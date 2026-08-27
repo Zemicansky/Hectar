@@ -397,20 +397,18 @@
         <!-- 3D Режим от первого лица (Кабина / Трактор) -->
     <div id="tractor-3d-view" style="display:none; position:fixed; inset:0; z-index:850; background:#0f1923; overflow:hidden;">
       <canvas id="tractor-3d-canvas" style="width:100%; height:100%; display:block;"></canvas>
-      
-      <!-- GPS Радар / Миникарта поля в верхнем углу -->
-      <div id="tractor-3d-minimap" style="position:absolute; top:calc(var(--safe-top) + 14px); right:14px; width:140px; height:140px; border-radius:50%; background:rgba(15,25,35,0.85); backdrop-filter:blur(16px); border:2px solid #00e676; box-shadow:0 8px 24px rgba(0,0,0,0.6); overflow:hidden; z-index:860; pointer-events:none; display:flex; align-items:center; justify-content:center;">
+
+      <!-- FIX v3.0 п.Б2: радар стал кликабельным — тап открывает оверлей карты поля. -->
+      <div id="tractor-3d-minimap"
+           onclick="open3DFieldMapOverlay()"
+           title="Нажмите для карты поля"
+           style="position:absolute; top:calc(var(--safe-top) + 14px); right:14px; width:140px; height:140px; border-radius:50%; background:rgba(15,25,35,0.85); backdrop-filter:blur(16px); border:2px solid #00e676; box-shadow:0 8px 24px rgba(0,0,0,0.6); overflow:hidden; z-index:860; pointer-events:auto; display:flex; align-items:center; justify-content:center; cursor:pointer;">
         <canvas id="tractor-radar-canvas" width="140" height="140" style="width:100%; height:100%;"></canvas>
         <div style="position:absolute; bottom:4px; font-size:10px; font-weight:700; color:#00e676; letter-spacing:0.5px; text-transform:uppercase;">РАДАР</div>
+        <div style="position:absolute; top:4px; font-size:8px; color:rgba(0,230,118,0.6); text-transform:uppercase; letter-spacing:0.3px;">▶ КАРТА</div>
       </div>
 
-      <!-- Единая HUD-карточка навигации: курсоуказатель (гон/курс/ширина + LED-полоса
-           отклонения) и статус активного поля объединены в одну карточку с понятной
-           внутренней иерархией (заголовок гона -> LED-полоса -> разделитель -> поле/статистика).
-           Это гарантированно исключает наложение панелей при любом реальном контенте
-           (длинное название поля, любой язык, маленький экран) — раньше вторая панель
-           была захардкожена на top: calc(var(--safe-top) + 96px) и наезжала на первую,
-           если первая панель по факту была выше или ниже 96px. -->
+      <!-- Единая HUD-карточка навигации -->
       <div id="tractor-3d-guidance-bar" class="tractor-3d-guidance-bar">
         <div class="guidance-hud-top">
           <span class="guidance-tag track" id="tractor-guidance-track">ГОН #1</span>
@@ -433,9 +431,7 @@
           </div>
         </div>
         <div class="guidance-status-label" id="tractor-guidance-status">В ПОЛОСЕ (ON TRACK)</div>
-
         <div class="guidance-field-divider"></div>
-
         <div class="guidance-field-row">
           <span class="guidance-field-dot"></span>
           <div class="guidance-field-title" id="tractor-3d-field-title">Поле</div>
@@ -448,26 +444,38 @@
         </div>
       </div>
 
-      <!-- FIX v3.0 п.3: D-pad ручного тестового управления трактором.
-           Отдельная плавающая панель со стрелками над нижней панелью
-           действий — не мешает кнопкам "Демо заезд"/"Завершить" и не
-           перекрывает HUD-карточку курса/статистики сверху. -->
+      <!-- FIX v3.0 п.Б4: D-pad — hold-to-drive через onpointerdown/up/cancel. -->
       <div class="tractor-3d-dpad" id="tractor-3d-dpad">
-        <button type="button" class="btn-3d-dpad up" onclick="manualTractorControl('forward')" aria-label="Вперёд">
+        <button type="button" class="btn-3d-dpad up"
+                onpointerdown="start3DGas(1)"  onpointerup="stop3DGas()"   onpointercancel="stop3DGas()"
+                aria-label="Вперёд" style="touch-action:none;">
           <i data-lucide="chevron-up" class="icon-sm"></i>
         </button>
-        <button type="button" class="btn-3d-dpad left" onclick="manualTractorControl('left')" aria-label="Влево">
+        <button type="button" class="btn-3d-dpad left"
+                onpointerdown="start3DSteer(-1)" onpointerup="stop3DSteer()" onpointercancel="stop3DSteer()"
+                aria-label="Влево" style="touch-action:none;">
           <i data-lucide="chevron-left" class="icon-sm"></i>
         </button>
-        <button type="button" class="btn-3d-dpad down" onclick="manualTractorControl('backward')" aria-label="Назад">
+        <button type="button" class="btn-3d-dpad down"
+                onpointerdown="start3DGas(-1)" onpointerup="stop3DGas()"   onpointercancel="stop3DGas()"
+                aria-label="Назад" style="touch-action:none;">
           <i data-lucide="chevron-down" class="icon-sm"></i>
         </button>
-        <button type="button" class="btn-3d-dpad right" onclick="manualTractorControl('right')" aria-label="Вправо">
+        <button type="button" class="btn-3d-dpad right"
+                onpointerdown="start3DSteer(1)"  onpointerup="stop3DSteer()" onpointercancel="stop3DSteer()"
+                aria-label="Вправо" style="touch-action:none;">
           <i data-lucide="chevron-right" class="icon-sm"></i>
         </button>
       </div>
 
-      <!-- Нижняя панель действий в 3D (GPS-навигатор) -->
+      <!-- FIX v3.0 п.Б5: кнопка геолокации. -->
+      <button id="btn-3d-gps-locate" onclick="locate3DGPS()"
+              title="Моё местоположение"
+              style="position:absolute; bottom:calc(80px + env(safe-area-inset-bottom,0px)); left:16px; width:46px; height:46px; border-radius:50%; background:rgba(15,25,35,0.88); border:1.5px solid rgba(100,181,246,0.7); color:#64b5f6; display:flex; align-items:center; justify-content:center; z-index:862; cursor:pointer; box-shadow:0 4px 16px rgba(0,0,0,0.5);">
+        <i data-lucide="locate" class="icon-sm"></i>
+      </button>
+
+      <!-- Нижняя панель действий в 3D -->
       <div class="tractor-3d-bottom-bar">
         <button type="button" class="btn-3d-action demo" id="btn-3d-sim" onclick="toggleTractorSimulation()">
           <i data-lucide="play" class="icon-sm"></i> Демо заезд
@@ -475,6 +483,18 @@
         <button type="button" class="btn-3d-action finish" onclick="stopTractorTracking()">
           <i data-lucide="check" class="icon-sm"></i> Завершить
         </button>
+      </div>
+    </div>
+
+    <!-- FIX v3.0 п.Б2: оверлей карты поля (открывается по тапу на радар). -->
+    <div id="tractor-field-map-overlay"
+         style="display:none; position:fixed; top:0; left:0; right:0; z-index:950; pointer-events:auto; flex-direction:column; align-items:stretch;">
+      <div style="display:flex; align-items:center; gap:10px; padding:calc(var(--safe-top) + 10px) 14px 10px; background:rgba(10,18,26,0.92); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border-bottom:1px solid rgba(0,230,118,0.3); box-shadow:0 4px 20px rgba(0,0,0,0.5);">
+        <button type="button" onclick="close3DFieldMapOverlay()"
+                style="background:rgba(0,230,118,0.18); border:1px solid rgba(0,230,118,0.5); color:#00e676; border-radius:100px; padding:8px 16px; font-size:13px; font-weight:700; cursor:pointer;">
+          ← В 3D вид</button>
+        <span style="color:#fff; font-weight:700; font-size:15px;">Карта поля</span>
+        <span style="color:rgba(255,255,255,0.6); font-size:12px; margin-left:auto;">2D обзор поля</span>
       </div>
     </div>
     <!-- Панель активного заезда -->

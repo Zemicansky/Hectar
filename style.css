@@ -4811,6 +4811,24 @@
 .btn-3d-dpad.down  { grid-column: 2; grid-row: 3; }
 .btn-3d-dpad.right { grid-column: 3; grid-row: 2; }
 
+/* FIX v3.0 п.Б4: визуальная обратная связь при удержании D-pad */
+.btn-3d-dpad:active,
+.btn-3d-dpad.pressed {
+  background: rgba(0, 230, 118, 0.28);
+  transform: scale(0.92);
+  border-color: #00e676;
+}
+
+/* FIX v3.0 п.Б5: кнопка GPS геолокации — спиннер при загрузке */
+#btn-3d-gps-locate.gps-loading {
+  animation: gps-spin 0.9s linear infinite;
+  opacity: 0.8;
+}
+@keyframes gps-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 .tractor-note-badge {
   display: inline-flex;
   align-items: center;
