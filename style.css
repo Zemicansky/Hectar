@@ -606,6 +606,7 @@
   .draw-mode-pill {
     background: var(--bg2);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-radius: 24px;
     display: flex;
     overflow: hidden;
@@ -638,6 +639,7 @@
     align-self: center;
     background: var(--bg2);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border);
     border-radius: 100px;
     padding: 8px 16px;
@@ -672,6 +674,7 @@
     border: 1px solid var(--border);
     background: var(--bg2);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     color: var(--text);
     font-size: 13px;
     font-weight: 600;
@@ -1332,6 +1335,7 @@
     z-index: var(--z-modal);
     background: rgba(0,0,0,0.6);
     backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     align-items: flex-end;
     display: none;
     pointer-events: none;
@@ -1400,7 +1404,12 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text);
-    font-size: 15px;
+    /* FIX (iOS zoom-on-focus): Safari автоматически увеличивает масштаб
+       страницы при фокусе на инпуте/селекте, если его font-size < 16px.
+       Было 15px — при каждом тапе в поле экран резко зумился и потом не
+       возвращался к исходному масштабу. 16px — минимум, при котором
+       Safari не зумит. */
+    font-size: 16px;
     padding: 12px 14px;
     outline: none;
     font-family: inherit;
@@ -1441,6 +1450,7 @@
     color: var(--text) !important;
     border-radius: 16px !important;
     backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(76,175,80,0.1) !important;
     padding: 0 !important;
   }
@@ -1503,6 +1513,7 @@
     z-index: var(--z-map);
     background: var(--bg2);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     padding: 10px 12px;
@@ -1990,7 +2001,8 @@
     color: var(--text);
     border-radius: 8px;
     padding: 6px 10px;
-    font-size: 14px;
+    /* FIX (iOS zoom-on-focus): <16px триггерит авто-зум Safari на тапе. */
+    font-size: 16px;
     font-family: inherit;
   }
   .toggle-switch {
@@ -2550,7 +2562,8 @@
     background: transparent;
     border: none;
     color: var(--text);
-    font-size: 13px;
+    /* FIX (iOS zoom-on-focus): <16px триггерит авто-зум Safari на тапе. */
+    font-size: 16px;
     font-family: inherit;
     padding: 8px 0;
     outline: none;
@@ -2575,7 +2588,9 @@
     background: transparent;
     border: none;
     color: var(--text);
-    font-size: 13px;
+    /* FIX (iOS zoom-on-focus): <16px триггерит авто-зум Safari на тапе;
+       набор текста при постоянно прыгающем масштабе экрана был неудобен. */
+    font-size: 16px;
     font-family: inherit;
     padding: 8px 0;
     outline: none;
@@ -4159,7 +4174,9 @@
   .fb-auth-input {
     width: 100%; background: var(--bg3); border: 1px solid var(--border);
     border-radius: var(--radius-sm); color: var(--text);
-    font-size: 15px; padding: 12px 14px; margin-bottom: 10px;
+    /* FIX (iOS zoom-on-focus): <16px триггерит авто-зум Safari при тапе
+       в поле логина/пароля — особенно неприятно на экране входа. */
+    font-size: 16px; padding: 12px 14px; margin-bottom: 10px;
     outline: none; font-family: inherit; box-sizing: border-box;
   }
   .fb-auth-input:focus { border-color: var(--accent); }
@@ -4354,7 +4371,9 @@
   .fb-auth-input {
     width: 100%; background: var(--bg3); border: 1px solid var(--border);
     border-radius: var(--radius-sm); color: var(--text);
-    font-size: 15px; padding: 12px 14px; margin-bottom: 10px;
+    /* FIX (iOS zoom-on-focus): <16px триггерит авто-зум Safari при тапе
+       в поле логина/пароля — особенно неприятно на экране входа. */
+    font-size: 16px; padding: 12px 14px; margin-bottom: 10px;
     outline: none; font-family: inherit; box-sizing: border-box;
   }
   .fb-auth-input:focus { border-color: var(--accent); }

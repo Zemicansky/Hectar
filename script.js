@@ -3723,7 +3723,25 @@ function exportFieldsPDF() {
     </body></html>`;
 
     const win = window.open('', '_blank');
-    if (!win) { showToast(isRu ? 'Разрешите всплывающие окна' : 'Allow pop-ups'); return; }
+    // FIX (iOS standalone PWA): window.open() внутри установленного на
+    // домашний экран приложения (standalone WKWebView) на iOS нередко
+    // возвращает null или не открывает окно независимо от настроек
+    // всплывающих окон — это ограничение платформы, а не блокировка
+    // попапов. Прежнее сообщение "Разрешите всплывающие окна" вводило в
+    // заблуждение в этом случае: пользователь не может ничего "разрешить".
+    // Даём точную подсказку и для этого сценария.
+    if (!win) {
+      const isStandalone = window.navigator.standalone === true
+        || window.matchMedia('(display-mode: standalone)').matches;
+      if (isStandalone) {
+        showToast(isRu
+          ? '⚠️ Печать/PDF недоступны в установленном приложении — откройте Hectar в Safari для экспорта'
+          : '⚠️ Print/PDF unavailable in the installed app — open Hectar in Safari to export');
+      } else {
+        showToast(isRu ? 'Разрешите всплывающие окна' : 'Allow pop-ups');
+      }
+      return;
+    }
     win.document.write(html);
     win.document.close();
     win.focus();
@@ -7203,16 +7221,46 @@ function hideSplash() {
 */
 // ════════════════════════════════════════════════════
 // SERVICE WORKER — offline caching (point 5)
-// Registers an inline SW via Blob URL so it works from
-// a single HTML file without a separate sw.js file.
-// After the first online visit the page loads from cache.
+// FIX (iOS Safari): navigator.serviceWorker.register() c blob: URL
+// ненадёжен/блокируется в WebKit на iOS — из-за этого офлайн-режим
+// PWA не работал на iPhone/iPad, хотя manifest/apple-mobile-web-app
+// теги обещали полноценный PWA-опыт. Теперь основной путь — реальный
+// same-origin файл sw.js (см. sw.js рядом с index.html), который
+// регистрируется как обычный скрипт и работает во всех браузерах,
+// включая Safari. Blob-подход оставлен ТОЛЬКО как запасной вариант на
+// случай, если sw.js почему-то недоступен по сети (например, кто-то
+// раздаёт один index.html без остальных файлов) — но он специально
+// пропускается на iOS, где всё равно не сработает, чтобы не оставлять
+// молчаливо проваленную регистрацию.
 // ════════════════════════════════════════════════════
-(function registerInlineSW() {
+(function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
-  const SW_VERSION = 'hectar-v2.6';
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPadOS reports as Mac
 
-  const swCode = `
+  // Основной путь: реальный same-origin sw.js — работает везде, включая iOS.
+  navigator.serviceWorker.register('./sw.js', { scope: './' })
+    .then(function (reg) {
+      console.log('[Hectar SW] Registered (sw.js), scope:', reg.scope);
+    })
+    .catch(function (err) {
+      console.warn('[Hectar SW] sw.js registration failed:', err && err.message);
+      // На iOS Blob-регистрация тоже не работает — нет смысла пробовать,
+      // это только производило бы ещё одну тихую ошибку в консоли.
+      if (isIOS) {
+        console.warn('[Hectar SW] Skipping blob fallback on iOS (unsupported).');
+        return;
+      }
+      registerInlineSWFallback();
+    });
+
+  // Запасной путь для не-iOS браузеров, если sw.js недоступен по сети
+  // (например, файл не был задеплоен вместе с остальным проектом).
+  function registerInlineSWFallback() {
+    const SW_VERSION = 'hectar-v' + APP_VERSION;
+
+    const swCode = `
 const CACHE_NAME = '${SW_VERSION}';
 
 // On install: cache the page itself
@@ -7287,21 +7335,22 @@ self.addEventListener('fetch', function(event) {
 });
 `;
 
-  try {
-    var blob = new Blob([swCode], { type: 'application/javascript' });
-    var swUrl = URL.createObjectURL(blob);
-    navigator.serviceWorker.register(swUrl, { scope: '/' })
-      .then(function(reg) {
-        console.log('[Hectar SW] Registered, scope:', reg.scope);
-      })
-      .catch(function(err) {
-        // Blob-URL scope restriction on some browsers — try without explicit scope
-        navigator.serviceWorker.register(swUrl)
-          .then(function(reg) { console.log('[Hectar SW] Registered (no scope):', reg.scope); })
-          .catch(function(e) { console.warn('[Hectar SW] Registration failed:', e.message); });
-      });
-  } catch(e) {
-    console.warn('[Hectar SW] Could not create SW blob:', e.message);
+    try {
+      var blob = new Blob([swCode], { type: 'application/javascript' });
+      var swUrl = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swUrl, { scope: '/' })
+        .then(function(reg) {
+          console.log('[Hectar SW] Registered (blob fallback), scope:', reg.scope);
+        })
+        .catch(function(err) {
+          // Blob-URL scope restriction on some browsers — try without explicit scope
+          navigator.serviceWorker.register(swUrl)
+            .then(function(reg) { console.log('[Hectar SW] Registered (blob fallback, no scope):', reg.scope); })
+            .catch(function(e) { console.warn('[Hectar SW] Blob fallback registration failed:', e.message); });
+        });
+    } catch(e) {
+      console.warn('[Hectar SW] Could not create SW blob:', e.message);
+    }
   }
 })();
 (function() {
@@ -7354,6 +7403,22 @@ let tractor3DPos = { x: 0, z: 0 };
 let tractor3DRenderPos = { x: 0, z: 0 };
 let tractor3DRenderHeading = 0;
 let fieldCenter3D = null;
+// Точка спавна трактора (край поля при выбранном поле, либо стартовая
+// GPS/дефолтная точка при свободном заезде). ВАЖНО: это НЕ обязательно
+// то же самое, что fieldCenter3D (который является опорным центром (0,0)
+// 3D-мира/сетки) — трактор должен появляться и телепортироваться в демо
+// на краю поля, а не в геометрическом центре.
+let tractorSpawnPoint = null;
+
+// Цвет закраски пройденного (обработанного) участка. ВАЖНО: намеренно НЕ
+// зелёный/неоновый — сетка поля, контур границ, маяки и лазерная разметка
+// орудия все используют оттенки зелёного (0x00e676/0x00ff88), и закраска
+// того же цвета визуально сливалась с ними, пользователю было не понять,
+// где он уже проехал. Янтарно-оранжевый даёт чёткий контраст на зелёном
+// поле и на фоне зелёной разметки/границ при любом освещении сцены.
+const SOIL_TRAIL_COLOR_HEX = 0xff8f00; // 3D шлейф/канвас-заливка (Three.js)
+const SOIL_TRAIL_FILL_CSS = '#ff8f00';
+const SOIL_TRAIL_STROKE_CSS = '#ef6c00';
 let coverage3DTexture = null, coverage3DCanvas = null, coverage3DCtx = null;
 let radarCanvas = null, radarCtx = null;
 
@@ -7434,7 +7499,9 @@ function closeTractorSetupModal() {
 function startTractorTracking() {
   const widthInput = document.getElementById('tractor-width-input');
   if (widthInput && widthInput.value) {
-    tractorWidth = Math.max(1, parseFloat(widthInput.value) || 12);
+    // Ширина захвата ограничена диапазоном 1-100 метров (максимум для
+    // ввода пользователем — самое широкое реальное с/х оборудование).
+    tractorWidth = Math.min(100, Math.max(1, parseFloat(widthInput.value) || 12));
   }
 
   const allFields = (typeof loadFields === 'function') ? loadFields() : [];
@@ -7517,6 +7584,41 @@ function startTractorTracking() {
     fieldCenter3D = { lat: centerPoint[0], lng: centerPoint[1] };
   } else {
     fieldCenter3D = { lat: initialPoint[0], lng: initialPoint[1] };
+  }
+
+  // Точка спавна ВСЕГДА край поля (initialPoint), независимо от того, что
+  // fieldCenter3D — это центр (нужен только как опорная точка сетки/земли).
+  // FIX: раньше демо-режим (toggleTractorSimulation) телепортировал трактор
+  // в fieldCenter3D, из-за чего трактор стартовал из центра поля, а не с
+  // края — визуально выглядело как "прыжок"/баг при первом же движении.
+  tractorSpawnPoint = { lat: initialPoint[0], lng: initialPoint[1] };
+
+  // FIX (трактор в центре при открытии 3D): tractor3DPos/RenderPos были
+  // сброшены в {0,0} чуть выше, а {0,0} 3D-мира — это fieldCenter3D
+  // (геометрический ЦЕНТР поля). Из-за этого 3D-модель трактора появлялась
+  // в центре поля ещё ДО первого вызова updateTractorLocation (то есть сразу
+  // при открытии 3D-режима, до старта GPS/демо) — вместо требуемого края
+  // поля. Пересчитываем стартовую 3D-позицию сразу в координаты края.
+  if (fieldCenter3D) {
+    const spawnX = (tractorSpawnPoint.lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
+    const spawnZ = -(tractorSpawnPoint.lat - fieldCenter3D.lat) * 111320;
+    tractor3DPos.x = spawnX;
+    tractor3DPos.z = spawnZ;
+    tractor3DRenderPos.x = spawnX;
+    tractor3DRenderPos.z = spawnZ;
+  }
+
+  // Начальный курс — вдоль первой стороны контура поля, чтобы трактор с
+  // самого появления смотрел вдоль гона, а не произвольно/на север.
+  if (tractorActiveField) {
+    const coords = tractorActiveField.coordinates || tractorActiveField.coords;
+    if (coords && coords.length >= 2) {
+      const p0 = coords[0], p1 = coords[1];
+      let spawnHeading = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]) * (180 / Math.PI);
+      if (spawnHeading < 0) spawnHeading += 360;
+      tractor3DHeading = spawnHeading;
+      tractor3DRenderHeading = spawnHeading;
+    }
   }
 
   // Обновление заголовка в 3D
@@ -7653,9 +7755,10 @@ function onTractorPosition(pos) {
             : '<i data-lucide="alert-triangle" class="icon-sm"></i> GPS is far from the field — showing demo trajectory');
         }
       }
-      // Стартуем визуально из центра 3D-мира (поля), а не из реальной
-      // (далёкой) GPS-точки, иначе камера не увидит землю.
-      updateTractorLocation([fieldCenter3D.lat, fieldCenter3D.lng]);
+      // Стартуем визуально с края поля (точка спавна), а не из реальной
+      // (далёкой) GPS-точки и не из геометрического центра поля.
+      const spawn = tractorSpawnPoint || fieldCenter3D;
+      updateTractorLocation([spawn.lat, spawn.lng]);
       return;
     }
   }
@@ -7759,21 +7862,31 @@ function updateTractorLocation(newPoint) {
     const areaEl = document.getElementById('tractor-3d-stat-area');
     if (areaEl) areaEl.textContent = tractorAreaHa.toFixed(2);
 
-    // Синхронизация с 3D миром по центру поля
+    // Синхронизация с 3D миром по центру поля.
+    // FIX (баг/рассинхрон при движении): раньше закраска пройденного участка
+    // (paint3DSoilCoverage) вызывалась прямо здесь, по "сырой" GPS-цели
+    // (tractor3DPos) — той самой точке, куда модель трактора ТОЛЬКО НАЧИНАЕТ
+    // плавно доезжать через lerp в animate(). Модель на экране всегда чуть
+    // "отставала" от уже нарисованного следа, из-за чего казалось, что
+    // трактор едет с рывками/не туда. Теперь координата цели только
+    // обновляется здесь, а сама отрисовка следа перенесена в animate() и
+    // использует ту же сглаженную позицию (tractor3DRenderPos), что и модель
+    // трактора на экране — след и трактор всегда синхронны.
     if (fieldCenter3D) {
       tractor3DPos.x = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
       tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
       tractor3DHeading = heading;
-      paint3DSoilCoverage(tractor3DPos.x, tractor3DPos.z, tractorWidth || 12);
       updateGuidanceLightbar(heading, tractor3DPos.x, tractor3DPos.z);
     }
 
-    // Закрашивание на 2D Leaflet
+    // Закрашивание на 2D Leaflet. Цвет согласован с 3D-шлейфом
+    // (SOIL_TRAIL_*) — контрастный янтарный, не сливается с зелёным полем
+    // и с зелёными границами/маяками поля.
     try {
       const buffered = turf.buffer(segLine, (tractorWidth / 2) / 1000, { units: 'kilometers' });
       if (buffered) {
         L.geoJSON(buffered, {
-          style: { color: '#00c853', weight: 1, fillColor: '#00e676', fillOpacity: 0.55 },
+          style: { color: SOIL_TRAIL_STROKE_CSS, weight: 1, fillColor: SOIL_TRAIL_FILL_CSS, fillOpacity: 0.55 },
           interactive: false
         }).addTo(tractorTrailGroup);
       }
@@ -8595,9 +8708,17 @@ function draw3DRadar() {
   radarCtx.restore();
 }
 
-/** Закрашивание обработанной почвы: на текстуре земли и в 3D динамическом шлейфе */
-function paint3DSoilCoverage(x, z, widthMeters) {
+/**
+ * Закрашивание обработанной почвы: на текстуре земли и в 3D динамическом
+ * шлейфе. heading (градусы) обязателен для 3D-шлейфа — раньше функция сама
+ * читала глобальный tractor3DHeading, но вызывающий код теперь передаёт
+ * тот же сглаженный курс (tractor3DRenderHeading), что используется для
+ * позиционирования самой модели трактора на экране, иначе шлейф и модель
+ * визуально рассинхронизируются на поворотах.
+ */
+function paint3DSoilCoverage(x, z, widthMeters, headingDeg) {
   const w = widthMeters || 12;
+  const heading = (typeof headingDeg === 'number') ? headingDeg : tractor3DHeading;
 
   // 1. Отрисовка на 2D Canvas текстуре грунта
   if (coverage3DCtx && coverage3DTexture) {
@@ -8605,8 +8726,8 @@ function paint3DSoilCoverage(x, z, widthMeters) {
     const cz = Math.max(0, Math.min(1023, 512 + (z * 0.8533)));
     const r = Math.max(6, (w * 0.8533) / 2);
 
-    coverage3DCtx.fillStyle = '#00e676';
-    coverage3DCtx.strokeStyle = '#00c853';
+    coverage3DCtx.fillStyle = SOIL_TRAIL_FILL_CSS;
+    coverage3DCtx.strokeStyle = SOIL_TRAIL_STROKE_CSS;
     coverage3DCtx.lineWidth = r * 2;
     coverage3DCtx.lineCap = 'round';
     coverage3DCtx.lineJoin = 'round';
@@ -8628,7 +8749,7 @@ function paint3DSoilCoverage(x, z, widthMeters) {
 
   // 2. 3D динамический шлейф (Realtime 3D Ribbon Trail за орудием)
   if (tractor3DTrailGroup) {
-    const rad = tractor3DHeading * (Math.PI / 180);
+    const rad = heading * (Math.PI / 180);
     const halfW = w / 2;
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
@@ -8655,9 +8776,9 @@ function paint3DSoilCoverage(x, z, widthMeters) {
       ]);
       segGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
       const segMat = new THREE.MeshBasicMaterial({
-        color: 0x00e676,
+        color: SOIL_TRAIL_COLOR_HEX,
         transparent: true,
-        opacity: 0.72,
+        opacity: 0.78,
         side: THREE.DoubleSide
       });
       const segMesh = new THREE.Mesh(segGeo, segMat);
@@ -8764,6 +8885,14 @@ function start3DAnimationLoop() {
       tractor3DModel.position.set(tractor3DRenderPos.x, 0, tractor3DRenderPos.z);
       tractor3DModel.rotation.y = tractor3DRenderHeading * (Math.PI / 180);
 
+      // Закраска пройденного участка — рисуем по той же сглаженной позиции
+      // (tractor3DRenderPos/RenderHeading), в которой сейчас реально стоит
+      // 3D-модель трактора на экране, а не по "сырой" GPS-цели. Так след
+      // всегда точно совпадает с видимым положением орудия — без рывков.
+      if (tractorActive && (tractorSimInterval || tractorWatchId)) {
+        paint3DSoilCoverage(tractor3DRenderPos.x, tractor3DRenderPos.z, tractorWidth || 12, tractor3DRenderHeading);
+      }
+
       if (camera3D) {
         const tPos = tractor3DModel.position;
         const rad = tractor3DModel.rotation.y;
@@ -8824,12 +8953,39 @@ function toggleTractorSimulation() {
   }
 
   showToast(lang === 'ru' ? '<i data-lucide="arrow-right" class="icon-sm"></i> Демо заезд запущен' : '<i data-lucide="arrow-right" class="icon-sm"></i> Demo running');
-  
-  // Телепорт на начало поля для демо-режима, если GPS увел нас далеко
-  if (tractorActiveField && fieldCenter3D) {
+
+  // FIX (баг/прыжок при старте демо): раньше трактор телепортировался в
+  // fieldCenter3D — геометрический ЦЕНТР поля, хотя трактор по требованиям
+  // должен стоять на КРАЮ поля. Из-за этого при запуске демо было видно,
+  // как трактор резко "прыгает" из точки спавна на краю в центр поля, а
+  // затем плавно едет дальше — это и воспринималось как баг движения.
+  // Теперь используем tractorSpawnPoint (край поля / исходная точка).
+  const demoStart = tractorSpawnPoint || fieldCenter3D;
+  if (demoStart) {
     tractorPath = [];
-    updateTractorLocation([fieldCenter3D.lat, fieldCenter3D.lng]);
-    tractor3DHeading = 0; // Направляем на север
+    lastSoilPaintPos = null;
+    if (tractor3DTrailGroup) {
+      tractor3DTrailGroup.clear();
+      tractor3DTrailGroup.userData = {};
+    }
+    // Курс движения — вдоль первой стороны контура поля (если известна),
+    // иначе строго на север (0°). Раньше heading всегда жёстко ставился
+    // в 0°, из-за чего на повёрнутых полях трактор в демо мог сразу же
+    // "смотреть" не вдоль гона, а поперёк него/за пределы поля.
+    let demoHeading = 0;
+    if (tractorActiveField) {
+      const coords = tractorActiveField.coordinates || tractorActiveField.coords;
+      if (coords && coords.length >= 2) {
+        const p0 = coords[0], p1 = coords[1];
+        const dLng = p1[1] - p0[1];
+        const dLat = p1[0] - p0[0];
+        demoHeading = Math.atan2(dLng, dLat) * (180 / Math.PI);
+        if (demoHeading < 0) demoHeading += 360;
+      }
+    }
+    tractor3DHeading = demoHeading;
+    tractor3DRenderHeading = demoHeading;
+    updateTractorLocation([demoStart.lat, demoStart.lng]);
   }
 
   tractorSimInterval = setInterval(() => {
