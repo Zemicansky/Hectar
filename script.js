@@ -7470,11 +7470,12 @@ let tractorSpawnPoint = null;
 // зелёный/неоновый — сетка поля, контур границ, маяки и лазерная разметка
 // орудия все используют оттенки зелёного (0x00e676/0x00ff88), и закраска
 // того же цвета визуально сливалась с ними, пользователю было не понять,
-// где он уже проехал. Янтарно-оранжевый даёт чёткий контраст на зелёном
-// поле и на фоне зелёной разметки/границ при любом освещении сцены.
-const SOIL_TRAIL_COLOR_HEX = 0xff8f00; // 3D шлейф/канвас-заливка (Three.js)
-const SOIL_TRAIL_FILL_CSS = '#ff8f00';
-const SOIL_TRAIL_STROKE_CSS = '#ef6c00';
+// где он уже проехал. Земляной коричневый даёт чёткий контраст на зелёном
+// поле и на фоне зелёной разметки/границ при любом освещении сцены, и
+// визуально читается как "вспаханная/обработанная почва".
+const SOIL_TRAIL_COLOR_HEX = 0x6d4c26; // 3D шлейф/канвас-заливка (Three.js)
+const SOIL_TRAIL_FILL_CSS = '#6d4c26';
+const SOIL_TRAIL_STROKE_CSS = '#4e3620';
 let coverage3DTexture = null, coverage3DCanvas = null, coverage3DCtx = null;
 let radarCanvas = null, radarCtx = null;
 
@@ -7518,6 +7519,16 @@ let pendingTractorSummary = null;
 // Задача 1.2: чтобы не спамить пользователя предупреждением "GPS далеко от
 // поля" на каждое обновление геолокации, показываем его один раз за заезд.
 let tractorGpsFarWarningShown = false;
+
+// FIX (п.5/2 — телепорт из центра, мерцание камеры): время последнего GPS
+// фикса, чтобы оценивать правдоподобную скорость сегмента и отличать
+// реальный переезд от шумового скачка (см. updateTractorLocation).
+let tractorLastFixAt = null;
+// Флаг: следующий кадр animate() должен мгновенно "телепортировать" камеру
+// на новую позицию вместо плавного lerp — иначе честный телепорт трактора
+// (например, после длительной паузы) заставляет камеру лететь через всю
+// сцену за несколько кадров, что выглядит как мерцание/дёрганье (п.2).
+let tractorTeleportPending = false;
 
 function openAddMenuModal() {
   const m = document.getElementById('modal-add-menu');
@@ -7632,6 +7643,8 @@ function startTractorTracking() {
   tractor3DRenderHeading = 0;
   lastSoilPaintPos = null;
   tractorGpsFarWarningShown = false;
+  tractorLastFixAt = null;
+  tractorTeleportPending = false;
   // Сброс инерции ручного управления от предыдущего заезда — иначе новый
   // заезд мог бы "унаследовать" остаточную скорость/руление, если человек
   // завершил предыдущий не отпустив кнопку D-pad.
@@ -7879,20 +7892,54 @@ function updateTractorLocation(newPoint) {
   const prevPoint = tractorPath[tractorPath.length - 1];
   const segLine = turf.lineString([[prevPoint[1], prevPoint[0]], [lng, lat]]);
   const segKm = turf.length(segLine, { units: 'kilometers' });
+  const segMetersRaw = segKm * 1000;
 
-  // Защита от GPS прыжка
+  // FIX (п.5 — трактор телепортировался из центра на край поля): старая
+  // защита срабатывала на ЛЮБОЙ одиночный GPS-фикс дальше 300м и в ответ
+  // либо переносила трактор в новую точку, либо (для полей с контуром)
+  // резко сбрасывала его в геометрический ЦЕНТР (0,0) — именно это и
+  // выглядело как "трактор телепортирует из центра до края поля": обычный
+  // шум GPS (плохой сигнал, отражение от построек/техники) легко даёт
+  // единичный фикс с ошибкой в 300-500м, особенно на открытом поле.
+  //
+  // Новая логика:
+  //  1) Оцениваем правдоподобную скорость сегмента (м/с) по времени между
+  //     фиксами. Трактор физически не может проехать 300м за 2 секунды —
+  //     если скорость нереалистична, это шум GPS, а не движение: фикс
+  //     ИГНОРИРУЕТСЯ целиком (не двигаем трактор и не рвём путь/след).
+  //  2) Если скорость правдоподобна (реальный протяжённый переезд техники
+  //     между картами, либо первый фикс после длительной паузы) — это
+  //     настоящий телепорт: переносим позицию мгновенно на карте (2D) и в
+  //     3D, но НЕ рвём и не обнуляем уже нарисованный след/статистику, и
+  //     принудительно переинициализируем камеру (см. animate/camPosInitialized
+  //     через tractorTeleportPending), чтобы камера не "долетала" через
+  //     всю сцену лерпом — это убирает мерцание при таких прыжках (п.2).
+  const nowFixMs = Date.now();
+  const dtFixSec = tractorLastFixAt ? Math.max(0.2, (nowFixMs - tractorLastFixAt) / 1000) : 1;
+  tractorLastFixAt = nowFixMs;
+  const impliedSpeedMs = segMetersRaw / dtFixSec;
+  // 30 м/с (~108 км/ч) — с большим запасом выше реальной скорости трактора
+  // (обычно 5-25 км/ч), но отсекает GPS-шум, дающий "прыжок" за секунды.
+  const MAX_PLAUSIBLE_SPEED_MS = 30;
+
   if (segKm > 0.3) {
+    if (impliedSpeedMs > MAX_PLAUSIBLE_SPEED_MS) {
+      // Похоже на одиночный шумовой GPS-фикс — просто игнорируем его,
+      // трактор остаётся на месте, путь и след не трогаем.
+      return;
+    }
+
+    // Настоящий протяжённый переезд — честный телепорт, без сброса следа.
     tractorMarker.setLatLng(newPoint);
-    tractorPath = [newPoint];
-    lastSoilPaintPos = null;
-    if (tractor3DTrailGroup) tractor3DTrailGroup.userData = {};
-    
-    // Синхронизация с 3D миром при прыжке
+    tractorPath.push(newPoint);
+    tractorTeleportPending = true; // просим animate() не лерпить камеру на этом кадре
+
     if (fieldCenter3D) {
-      // FIX: если прыжок унёс нас далеко (>2км) от текущего центра 3D-мира,
-      // трактор окажется за пределами отрендеренной земли/границ и будет
-      // видно только небо. В таком случае остаёмся визуально в центре
-      // 3D-мира вместо того чтобы улетать вслед за реальным GPS.
+      // Если телепорт унёс нас очень далеко (>2км) от центра 3D-мира поля,
+      // трактор окажется за пределами отрендеренной земли/границ — в этом
+      // случае предупреждаем один раз и НЕ переносим 3D-позицию за пределы
+      // сцены (иначе видно только небо), но при этом не сбрасываем в (0,0)
+      // резким скачком — оставляем трактор там, где он был визуально.
       const distFromCenter = Math.hypot(
         (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180)),
         (lat - fieldCenter3D.lat) * 111320
@@ -7900,27 +7947,26 @@ function updateTractorLocation(newPoint) {
       if (distFromCenter > 2000) {
         if (!tractorActiveField) {
           fieldCenter3D = { lat: lat, lng: lng };
+          tractor3DPos.x = 0;
+          tractor3DPos.z = 0;
+          tractor3DRenderPos.x = 0;
+          tractor3DRenderPos.z = 0;
+          updateGuidanceLightbar(tractor3DHeading, 0, 0);
         } else if (!tractorGpsFarWarningShown) {
           tractorGpsFarWarningShown = true;
           if (typeof showToast === 'function') {
             showToast(lang === 'ru'
-              ? '<i data-lucide="alert-triangle" class="icon-sm"></i> GPS далеко от поля — показываю демо-траекторию'
-              : '<i data-lucide="alert-triangle" class="icon-sm"></i> GPS is far from the field — showing demo trajectory');
+              ? '<i data-lucide="alert-triangle" class="icon-sm"></i> GPS далеко от поля — позиция не обновлена'
+              : '<i data-lucide="alert-triangle" class="icon-sm"></i> GPS is far from the field — position not updated');
           }
         }
-        tractor3DPos.x = 0;
-        tractor3DPos.z = 0;
-        // Телепорт — синхронизируем рендер-позицию мгновенно, без доезда.
-        tractor3DRenderPos.x = 0;
-        tractor3DRenderPos.z = 0;
-        updateGuidanceLightbar(tractor3DHeading, 0, 0);
         return;
       }
       tractor3DPos.x = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
       tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
-      // GPS-прыжок (>0.3км за один фикс) — переносим трактор мгновенно,
-      // а не плавно "доезжаем", иначе на резком скачке модель будет ехать
-      // через всю сцену вместо честного телепорта.
+      // Честный телепорт — переносим рендер-позицию мгновенно, без "доезда",
+      // а camPosInitialized сбросит и камеру мгновенно на новое место в
+      // animate() (см. tractorTeleportPending), а не лерпом через сцену.
       tractor3DRenderPos.x = tractor3DPos.x;
       tractor3DRenderPos.z = tractor3DPos.z;
       updateGuidanceLightbar(tractor3DHeading, tractor3DPos.x, tractor3DPos.z);
@@ -9163,8 +9209,17 @@ function paint3DSoilCoverage(x, z, widthMeters, headingDeg) {
       tractor3DTrailGroup.add(segMesh);
     }
 
-    // Ограничение числа сегментов — удаляем самые старые, чтобы не переполнить сцену.
-    while (tractor3DTrailGroup.children.length > 1200) {
+    // FIX (п.4 — закраска пропадала на длинных заездах): лимит в 1200
+    // сегментов достигался уже через ~1-2 минуты обычной езды (каждый шаг
+    // >= MIN_PAINT_STEP=0.4м создаёт новый сегмент), после чего САМЫЕ
+    // СТАРЫЕ куски следа удалялись из сцены — обработанное поле визуально
+    // "размывалось" позади трактора, будто закраска не сохраняется. След
+    // должен оставаться на весь заезд, поэтому лимит поднят с большим
+    // запасом (типичный заезд по полю в несколько га укладывается в это
+    // число сегментов); чистка происходит только при новом заезде
+    // (startTractorTracking/clearTractorRunTraces), а не во время текущего.
+    const MAX_TRAIL_SEGMENTS = 20000;
+    while (tractor3DTrailGroup.children.length > MAX_TRAIL_SEGMENTS) {
       const old = tractor3DTrailGroup.children[0];
       tractor3DTrailGroup.remove(old);
       if (old.geometry) old.geometry.dispose();
@@ -9244,12 +9299,15 @@ function start3DAnimationLoop() {
     // которую тоже нужно учитывать, иначе камера "видит" ширину орудия, но
     // обрезает его дальний (по глубине) край на очень широких агрегатах.
     const implementDepth = 2.8;
-    // Базовые значения — это старые CAM_DISTANCE/CAM_HEIGHT (9.5/4.6),
-    // которые остаются верными для стандартной ширины ~12м. Дальше камера
-    // масштабируется линейно с шириной сверх этой базы.
+    // Базовые значения — раньше были 9.5/4.6, но при стандартной ширине
+    // навесное оборудование (сеялка/опрыскиватель) всё равно частично
+    // обрезалось нижним/дальним краем кадра. Пункт 1: камера отодвинута
+    // дальше и выше примерно на 25-30% по сравнению со старыми базовыми
+    // значениями, чтобы весь трактор + орудие уверенно помещались в кадр
+    // с запасом, а не впритык.
     const BASE_WIDTH = 12;
-    const BASE_DISTANCE = 9.5;
-    const BASE_HEIGHT = 4.6;
+    const BASE_DISTANCE = 12.3;  // было 9.5 (+~30%)
+    const BASE_HEIGHT = 5.9;     // было 4.6 (+~28%)
     const extraWidth = Math.max(0, width - BASE_WIDTH);
     // ~0.45м доп. дистанции и ~0.16м доп. высоты на каждый метр ширины
     // сверх базовой — подобрано так, чтобы орудие с запасом помещалось в
@@ -9257,13 +9315,13 @@ function start3DAnimationLoop() {
     const distance = BASE_DISTANCE + implementDepth * 0.35 + extraWidth * 0.45;
     const height = BASE_HEIGHT + extraWidth * 0.16;
     return {
-      distance: Math.min(26, distance),
-      height: Math.min(11, height)
+      distance: Math.min(30, distance),
+      height: Math.min(13, height)
     };
   }
 
-  let CAM_DISTANCE = 9.5;  // м позади трактора — пересчитывается по ширине орудия
-  let CAM_HEIGHT   = 4.6;  // высота камеры над землёй — пересчитывается по ширине орудия
+  let CAM_DISTANCE = 12.3;  // м позади трактора — пересчитывается по ширине орудия (см. computeCam3DFraming)
+  let CAM_HEIGHT   = 5.9;   // высота камеры над землёй — пересчитывается по ширине орудия
   const CAM_LOOKAHEAD = 16;   // точка прицела вперёд — далеко, чтобы видеть гон
   const CAM_LOOK_HEIGHT = 1.1;
   const CAM_LERP = 0.11;      // чуть отзывчивее старого 0.07
@@ -9312,16 +9370,27 @@ function start3DAnimationLoop() {
       // слабых устройствах) движение либо "тормозило" на низком FPS, либо
       // выглядело дёрганым на высоком, т.к. одна и та же доля применялась
       // независимо от реально прошедшего времени.
-      const posT = 1 - Math.exp(-POS_SMOOTH_RATE * dt);
-      const hdgT = 1 - Math.exp(-HDG_SMOOTH_RATE * dt);
+      if (tractorTeleportPending) {
+        // Честный телепорт (см. updateTractorLocation): переносим
+        // рендер-позицию/курс МГНОВЕННО, без сглаживания — иначе модель
+        // (и следом за ней камера через lerp) "проезжает" визуально всю
+        // дистанцию телепорта за несколько кадров, что и создаёт эффект
+        // мерцания/дёрганья камеры на резких прыжках (п.2).
+        tractor3DRenderPos.x = tractor3DPos.x;
+        tractor3DRenderPos.z = tractor3DPos.z;
+        tractor3DRenderHeading = tractor3DHeading;
+      } else {
+        const posT = 1 - Math.exp(-POS_SMOOTH_RATE * dt);
+        const hdgT = 1 - Math.exp(-HDG_SMOOTH_RATE * dt);
 
-      tractor3DRenderPos.x += (tractor3DPos.x - tractor3DRenderPos.x) * posT;
-      tractor3DRenderPos.z += (tractor3DPos.z - tractor3DRenderPos.z) * posT;
+        tractor3DRenderPos.x += (tractor3DPos.x - tractor3DRenderPos.x) * posT;
+        tractor3DRenderPos.z += (tractor3DPos.z - tractor3DRenderPos.z) * posT;
 
-      let headingDiff = tractor3DHeading - tractor3DRenderHeading;
-      while (headingDiff >  180) headingDiff -= 360;
-      while (headingDiff < -180) headingDiff += 360;
-      tractor3DRenderHeading += headingDiff * hdgT;
+        let headingDiff = tractor3DHeading - tractor3DRenderHeading;
+        while (headingDiff >  180) headingDiff -= 360;
+        while (headingDiff < -180) headingDiff += 360;
+        tractor3DRenderHeading += headingDiff * hdgT;
+      }
 
       tractor3DModel.position.set(tractor3DRenderPos.x, 0, tractor3DRenderPos.z);
       tractor3DModel.rotation.y = tractor3DRenderHeading * (Math.PI / 180);
@@ -9364,7 +9433,10 @@ function start3DAnimationLoop() {
           tPos.z + Math.cos(rad) * CAM_LOOKAHEAD
         );
 
-        if (!camPosInitialized) {
+        if (!camPosInitialized || tractorTeleportPending) {
+          // Мгновенная установка камеры — как при первом появлении, так и
+          // сразу после честного телепорта трактора (п.2/п.5), вместо
+          // лерпа, который иначе "тащит" камеру через всю сцену рывками.
           camera3D.position.copy(desiredPos);
           camPosInitialized = true;
         } else {
@@ -9372,6 +9444,8 @@ function start3DAnimationLoop() {
         }
         camera3D.lookAt(desiredLookAt);
       }
+
+      if (tractorTeleportPending) tractorTeleportPending = false;
     }
 
     draw3DRadar();
@@ -9535,8 +9609,23 @@ function _tickManual3DControl(dt) {
   } else {
     _manualCurSteerRate += Math.sign(steerDelta) * steerStep;
   }
-  if (_manualCurSteerRate !== 0) {
-    let newH = (tractor3DHeading + _manualCurSteerRate * dt) % 360;
+  // FIX (п.3 — нестабильный курс): раньше руление поворачивало
+  // tractor3DHeading с полной угловой скоростью ДАЖЕ КОГДА ТРАКТОР СТОИТ
+  // (_manualCurSpeed === 0, газ не нажат) — держа/зажимая "влево-вправо"
+  // на стоянке, курс продолжал крутиться вхолостую. При следующем нажатии
+  // газа трактор срывался в сторону, в которую водитель не целился, что
+  // и ощущалось как "курс работает нестабильно". Как у настоящей техники,
+  // руление теперь пропорционально текущей скорости движения (на полном
+  // ходу — полный поворот руля, на малом газу — медленнее, на стоянке —
+  // курс не меняется вообще). speedFactor ограничен снизу небольшим
+  // минимумом (0.15), чтобы можно было слегка довернуть колёса трогаясь
+  // с места, не давая при этом полностью "простаивающему" рулю крутить
+  // курс на месте.
+  const speedFactor = Math.abs(_manualCurSpeed) > 0.02
+    ? Math.min(1, 0.15 + Math.abs(_manualCurSpeed) / MANUAL_MAX_SPEED_MS)
+    : 0;
+  if (_manualCurSteerRate !== 0 && speedFactor > 0) {
+    let newH = (tractor3DHeading + _manualCurSteerRate * dt * speedFactor) % 360;
     if (newH < 0) newH += 360;
     tractor3DHeading = newH;
   }
@@ -9651,6 +9740,8 @@ function stopTractorTracking() {
   tractor3DBaseTrackX = null;
   _3dGasActive = 0; _3dSteerActive = 0; _lastFrameTime = 0;
   _manualCurSpeed = 0; _manualCurSteerRate = 0; _manualLastSyncAt = 0;
+  tractorLastFixAt = null;
+  tractorTeleportPending = false;
 
   if (tractorWatchId) {
     navigator.geolocation.clearWatch(tractorWatchId);
