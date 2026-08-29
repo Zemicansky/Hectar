@@ -7486,6 +7486,18 @@ let tractorStartTime = null;
 let tractorPath = [];
 let tractorWidth = 12; // метры
 let tractorAreaHa = 0;
+// FIX (фермерский аудит — учёт перекрытий): раньше tractorAreaHa просто
+// накапливалась как distance × width на каждом шаге (см. vehicleApplyGpsFix
+// и vehiclePhysicsTick), без проверки, не обрабатывался ли этот участок уже
+// раньше в этом же заезде. Разворот в конце гона, объезд препятствия,
+// повторный заход — и отчёт показывал площадь БОЛЬШЕ реального поля,
+// а эта цифра уходит в историю поля, расход СЗР/удобрений, отчётность.
+// Теперь реальная площадь считается через объединение (turf.union) всех
+// пройденных полос покрытия — повторный проход по тому же месту площадь
+// больше не увеличивает. tractorCoverageUnion хранит текущий накопленный
+// полигон покрытия; пересчитывается асинхронно (см. recomputeCoverageArea).
+let tractorCoverageUnion = null;
+let _coverageRecomputePending = false;
 let tractorDistKm = 0;
 let tractorCurrentSpeed = 0;
 let tractorMarker = null;
@@ -7551,6 +7563,7 @@ function openTractorSetupModal() {
     const defOpt = document.createElement('option');
     defOpt.value = '';
     defOpt.disabled = true;
+    defOpt.selected = true;
     defOpt.textContent = lang === 'ru' ? '— Выберите поле (для направляющих полос) —' : '— Select field (for guideline tracks) —';
     sel.appendChild(defOpt);
     
@@ -7562,10 +7575,12 @@ function openTractorSetupModal() {
       sel.appendChild(opt);
     });
 
-    const freeOpt = document.createElement('option');
-    freeOpt.value = 'free';
-    freeOpt.textContent = lang === 'ru' ? '🚜 Свободный заезд (без контура поля)' : '🚜 Free drive (no field bounds)';
-    sel.appendChild(freeOpt);
+    // REMOVED (фермерский аудит): опция "Свободный заезд (без контура поля)"
+    // убрана. Заезд без выбранного поля не строил границы/направляющие линии
+    // на 3D-сцене (см. update3DFieldBounds()) и заставлял выбирать поле уже
+    // ПОСЛЕ заезда в модалке итогов — на практике фермер либо работает на
+    // конкретном участке, либо это тест техники, который не должен попадать
+    // в агрономическую историю поля.
 
     if (typeof currentFieldId !== 'undefined' && currentFieldId && allFields.some(f => f.id === currentFieldId)) {
       sel.value = currentFieldId;
@@ -7604,6 +7619,19 @@ function startTractorTracking() {
   const fieldId = fieldSel ? fieldSel.value : '';
   tractorActiveField = allFields.find(f => String(f.id) === String(fieldId)) || null;
 
+  // REMOVED (фермерский аудит): "свободный заезд" убран — поле теперь
+  // обязательно. Без него update3DFieldBounds() не строит ни границы поля,
+  // ни направляющие линии курса, ориентированные по реальной стороне
+  // участка — водитель ехал буквально вслепую, без разметки.
+  if (!tractorActiveField) {
+    if (typeof showToast === 'function') {
+      showToast(lang === 'ru'
+        ? '<i data-lucide="alert-triangle" class="icon-sm"></i> Выберите поле — без него нет границ и направляющих линий'
+        : '<i data-lucide="alert-triangle" class="icon-sm"></i> Select a field — no boundaries/guide lines without it');
+    }
+    return;
+  }
+
   const opSel = document.getElementById('tractor-op-select');
   tractorOpType = opSel ? opSel.value : 'sowing';
 
@@ -7627,15 +7655,16 @@ function startTractorTracking() {
     tractorMarker = null;
   }
 
-  if (tractorSimInterval) {
-    clearInterval(tractorSimInterval);
-    tractorSimInterval = null;
-  }
+  // FIX: tractorSimInterval — булев флаг (true/false/null), а не ID
+  // таймера — clearInterval() на нём был мёртвым кодом (no-op). Оставлено
+  // только реальное действие — сброс флага.
+  tractorSimInterval = null;
 
   tractorActive = true;
   tractorStartTime = new Date();
   tractorPath = [];
   tractorAreaHa = 0;
+  tractorCoverageUnion = null; // сброс union-полигона покрытия для нового заезда
   tractorDistKm = 0;
   tractorCurrentSpeed = 0;
   tractor3DPos = { x: 0, z: 0 };
@@ -7646,6 +7675,8 @@ function startTractorTracking() {
   tractorGpsFarWarningShown = false;
   tractorLastFixAt = null;
   tractorTeleportPending = false;
+  _gpsRawHistory = []; // сброс сглаживания GPS от предыдущего заезда
+  updateGpsAccuracyHud(null); // сброс индикатора точности GPS от предыдущего заезда
   // Сброс инерции ручного управления от предыдущего заезда — иначе новый
   // заезд мог бы "унаследовать" остаточную скорость/руление, если человек
   // завершил предыдущий не отпустив кнопку D-pad.
@@ -7821,9 +7852,40 @@ function startTractorTracking() {
   showToast(lang === 'ru' ? '<i data-lucide="tractor" class="icon-sm"></i> 3D Заезд запущен!' : '<i data-lucide="tractor" class="icon-sm"></i> 3D Drive started!');
 }
 
+// Обновляет индикатор точности GPS на HUD во время заезда. Пороги:
+// <=3м — отличный сигнал (открытое поле, хорошая антенна), <=8м — рабочий
+// сигнал (обычный смартфон в кабине), >8м — предупреждаем: с такой
+// погрешностью направляющие линии/статистика заезда ненадёжны, особенно
+// на узких орудиях (несколько метров захвата).
+function updateGpsAccuracyHud(accuracyMeters) {
+  const el = document.getElementById('tractor-3d-stat-accuracy');
+  if (!el) return;
+  if (typeof accuracyMeters !== 'number' || !isFinite(accuracyMeters)) {
+    el.textContent = '—';
+    el.style.color = '#fff';
+    return;
+  }
+  const rounded = Math.round(accuracyMeters);
+  el.textContent = `±${rounded}м`;
+  if (accuracyMeters <= 3) {
+    el.style.color = '#00e676'; // отличный сигнал
+  } else if (accuracyMeters <= 8) {
+    el.style.color = '#ffd600'; // рабочий, но не идеальный
+  } else {
+    el.style.color = '#ff5252'; // ненадёжно — предупреждаем цветом
+  }
+}
+
 function onTractorPosition(pos) {
   if (!tractorActive || !pos || !pos.coords) return;
-  if (tractorSimInterval !== null) return; // Ignore GPS if demo mode is active
+  // FIX (пауза демо блокирует реальный GPS/руки): tractorSimInterval — это
+  // булев флаг (true = демо едет, false = демо на паузе, null = демо не
+  // запускалось), а не ID таймера, несмотря на название. Старая проверка
+  // "!== null" считала демо активным и при true, и при false — то есть
+  // после постановки демо на паузу реальный GPS всё ещё игнорировался, и
+  // трактор "зависал": ни демо не едет, ни GPS/руки не берут управление.
+  // Игнорировать GPS нужно только пока демо реально едет (=== true).
+  if (tractorSimInterval === true) return; // Ignore GPS only while demo is actually running
   
   const lat = pos.coords.latitude;
   const lng = pos.coords.longitude;
@@ -7832,6 +7894,10 @@ function onTractorPosition(pos) {
   tractorCurrentSpeed = Math.max(0, speedMs * 3.6);
   const speedEl = document.getElementById('tractor-3d-stat-speed');
   if (speedEl) speedEl.textContent = tractorCurrentSpeed.toFixed(1);
+
+  // ДОБАВЛЕНО (фермерский аудит): показываем точность сигнала в реальном
+  // времени, а не только по кнопке "найти меня".
+  updateGpsAccuracyHud(pos.coords.accuracy);
 
   // FIX: если реальный GPS находится далеко (>2км) от центра 3D-мира,
   // трактор улетает за пределы отрендеренной земли/границ поля — видно
@@ -7869,8 +7935,50 @@ function onTractorPosition(pos) {
 }
 
 /** Обновление положения трактора */
+// FIX (рывки при движении на реальном GPS): сырые координаты от
+// navigator.geolocation регулярно "дрожат" на несколько метров между
+// соседними фиксами даже когда трактор стоит или едет по прямой — это
+// нормальный шум датчика, не реальное перемещение. Раньше каждая сырая
+// точка сразу шла в vehicleApplyGpsFix(), из-за чего трактор на экране
+// подёргивался туда-обратно. Усредняем последние GPS_SMOOTH_WINDOW точек
+// перед использованием — гасит дрожание, не съедая реальное движение
+// (окно короткое, задержка на глаз незаметна).
+const GPS_SMOOTH_WINDOW = 3;
+let _gpsRawHistory = [];
+
+// Пересчитывает реально покрытую площадь (с учётом перекрытий) из
+// накопленного union-полигона покрытия и обновляет tractorAreaHa/UI.
+// Вызывается асинхронно (не в каждом кадре/GPS-фиксе) — turf.union на
+// большом количестве сегментов не бесплатен, а точность до пары сотых
+// га фермеру для оперативного HUD не критична.
+function recomputeCoverageArea(newSegmentPolygon) {
+  if (!newSegmentPolygon) return;
+  try {
+    tractorCoverageUnion = tractorCoverageUnion
+      ? turf.union(turf.featureCollection([tractorCoverageUnion, newSegmentPolygon]))
+      : newSegmentPolygon;
+    const areaM2 = turf.area(tractorCoverageUnion);
+    tractorAreaHa = areaM2 / 10000;
+    const aEl = document.getElementById('tractor-3d-stat-area');
+    if (aEl) aEl.textContent = tractorAreaHa.toFixed(2);
+    const areaElS = document.getElementById('tractor-3d-stat-area');
+    if (areaElS) areaElS.textContent = tractorAreaHa.toFixed(2);
+  } catch (_) {
+    // union может изредка падать на вырожденной геометрии (самопересечение
+    // после буфера почти нулевой длины сегмента) — просто пропускаем этот
+    // сегмент, накопленная площадь остаётся прежней, а не ломается совсем.
+  }
+}
+
 function vehicleApplyGpsFix(lat, lng, tsMs) {
   if (!tractorActive || !tractorMarker) return;
+
+  _gpsRawHistory.push([lat, lng]);
+  if (_gpsRawHistory.length > GPS_SMOOTH_WINDOW) _gpsRawHistory.shift();
+  const smoothedLat = _gpsRawHistory.reduce((s, p) => s + p[0], 0) / _gpsRawHistory.length;
+  const smoothedLng = _gpsRawHistory.reduce((s, p) => s + p[1], 0) / _gpsRawHistory.length;
+  lat = smoothedLat;
+  lng = smoothedLng;
 
   if (!fieldCenter3D) {
     fieldCenter3D = { lat: lat, lng: lng };
@@ -7944,12 +8052,18 @@ function vehicleApplyGpsFix(lat, lng, tsMs) {
     if (markerEl) markerEl.style.transform = `${markerEl.style.transform.replace(/rotate\([^)]+\)/g, '')} rotate(${heading.toFixed(0)}deg)`;
 
     tractorDistKm += segKm;
-    tractorAreaHa += (segMetersRaw * (tractorWidth || 12)) / 10000;
-    
     const dEl = document.getElementById('tractor-3d-stat-dist');
     if (dEl) dEl.textContent = tractorDistKm.toFixed(2);
-    const aEl = document.getElementById('tractor-3d-stat-area');
-    if (aEl) aEl.textContent = tractorAreaHa.toFixed(2);
+
+    // FIX (учёт перекрытий, реальный GPS): вместо суммирования
+    // segMetersRaw*width (задваивало площадь при повторном проходе) строим
+    // полигон-полосу этого сегмента и объединяем с уже накопленным
+    // покрытием — реальная площадь считается из объединённой геометрии.
+    try {
+      const segLine = turf.lineString([[prevPoint[1], prevPoint[0]], [lng, lat]]);
+      const segPoly = turf.buffer(segLine, (tractorWidth / 2) / 1000, { units: 'kilometers' });
+      recomputeCoverageArea(segPoly);
+    } catch (_) {}
 
     vehicleState.x = newX;
     vehicleState.z = newZ;
@@ -8714,6 +8828,27 @@ function update3DFieldBounds(field) {
 
   const coords = field ? (field.coordinates || field.coords) : null;
 
+  // FIX (не понятно куда ехать / разметка не совпадает с полем): раньше
+  // параллельные гоны (курс AB, см. ниже "2. ПАРАЛЛЕЛЬНЫЕ ГОНЫ") всегда
+  // строились вдоль фиксированной мировой оси Z, независимо от реальной
+  // ориентации поля/стартового курса трактора. Если поле развёрнуто не
+  // строго по оси (почти всегда так), направляющие линии шли по диагонали
+  // к реальному краю поля — водитель видел разметку, но она не совпадала
+  // с тем, куда физически нужно ехать вдоль границы поля. Курс гонов
+  // теперь равен курсу первой стороны контура поля (тот же spawnHeading,
+  // что и стартовое направление трактора в startTractorTracking()), а для
+  // свободного заезда без поля — курсу трактора в момент открытия 3D-вида.
+  let trackHeadingDeg = 0;
+  if (coords && coords.length >= 2) {
+    const p0 = coords[0], p1 = coords[1];
+    trackHeadingDeg = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]) * (180 / Math.PI);
+  } else if (typeof tractor3DRenderHeading === 'number') {
+    trackHeadingDeg = tractor3DRenderHeading;
+  }
+  const trackGroup = new THREE.Group();
+  trackGroup.rotation.y = -trackHeadingDeg * (Math.PI / 180);
+  field3DOutline.add(trackGroup);
+
   if (coords && coords.length >= 3) {
     const centerLat = field.center ? field.center[0] : coords[0][0];
     const centerLng = field.center ? field.center[1] : coords[0][1];
@@ -8804,7 +8939,7 @@ function update3DFieldBounds(field) {
       isCenterTrack ? 0.35 : 0.2,
       isCenterTrack ? 1.0 : 0.85
     );
-    field3DOutline.add(trackLine);
+    trackGroup.add(trackLine);
 
     // Светящаяся полоса-лента на земле. FIX: непрозрачность была слишком
     // низкой (0.18–0.35) и гоны почти не читались на фоне зелёной текстуры
@@ -8821,7 +8956,7 @@ function update3DFieldBounds(field) {
     const ribbonMesh = new THREE.Mesh(ribbonGeo, ribbonMat);
     ribbonMesh.rotation.x = -Math.PI / 2;
     ribbonMesh.position.set(xPos, 0.09, 0);
-    field3DOutline.add(ribbonMesh);
+    trackGroup.add(ribbonMesh);
   }
 
   scene3D.add(field3DOutline);
@@ -9251,23 +9386,33 @@ function start3DAnimationLoop() {
     // дальше и выше примерно на 25-30% по сравнению со старыми базовыми
     // значениями, чтобы весь трактор + орудие уверенно помещались в кадр
     // с запасом, а не впритык.
+    // ============================================================
+    // ВНИМАНИЕ: параметры камеры ниже настроены вручную по запросу
+    // владельца проекта (отдаление ~40-50% от прежних значений, чтобы
+    // в кадре было видно больше пространства вокруг трактора).
+    // НЕ МЕНЯТЬ BASE_DISTANCE / BASE_HEIGHT / коэффициенты extraWidth
+    // без явного разрешения и отдельного запроса владельца проекта.
+    // ============================================================
     const BASE_WIDTH = 12;
-    const BASE_DISTANCE = 12.3;  // было 9.5 (+~30%)
-    const BASE_HEIGHT = 5.9;     // было 4.6 (+~28%)
+    const BASE_DISTANCE = 17.8;  // было 12.3 (+~45%) — камера отдалена по запросу владельца
+    const BASE_HEIGHT = 8.4;     // было 5.9  (+~42%) — камера приподнята соразмерно
     const extraWidth = Math.max(0, width - BASE_WIDTH);
     // ~0.45м доп. дистанции и ~0.16м доп. высоты на каждый метр ширины
     // сверх базовой — подобрано так, чтобы орудие с запасом помещалось в
     // угол обзора камеры (FOV) даже на максимальной ширине захвата.
     const distance = BASE_DISTANCE + implementDepth * 0.35 + extraWidth * 0.45;
     const height = BASE_HEIGHT + extraWidth * 0.16;
+    // Потолки подняты пропорционально новым BASE_DISTANCE/BASE_HEIGHT
+    // (см. предупреждение выше), чтобы отдаление реально применялось и
+    // на широких навесных орудиях, а не срезалось старым лимитом.
     return {
-      distance: Math.min(30, distance),
-      height: Math.min(13, height)
+      distance: Math.min(43, distance),
+      height: Math.min(19, height)
     };
   }
 
-  let CAM_DISTANCE = 12.3;  // м позади трактора — пересчитывается по ширине орудия (см. computeCam3DFraming)
-  let CAM_HEIGHT   = 5.9;   // высота камеры над землёй — пересчитывается по ширине орудия
+  let CAM_DISTANCE = 17.8;  // м позади трактора — пересчитывается по ширине орудия (см. computeCam3DFraming)
+  let CAM_HEIGHT   = 8.4;   // высота камеры над землёй — пересчитывается по ширине орудия
   const CAM_LOOKAHEAD = 16;   // точка прицела вперёд — далеко, чтобы видеть гон
   const CAM_LOOK_HEIGHT = 1.1;
   const CAM_LERP = 0.11;      // чуть отзывчивее старого 0.07
@@ -9388,9 +9533,17 @@ function toggleTractorSimulation() {
 
   showToast(lang === 'ru' ? '<i data-lucide="arrow-right" class="icon-sm"></i> Демо заезд запущен' : '<i data-lucide="arrow-right" class="icon-sm"></i> Demo running');
 
+  // ДОБАВЛЕНО: в демо-режиме реального GPS нет — показывать последнюю
+  // реальную точность было бы вводящей в заблуждение, поэтому явно гасим
+  // индикатор на время демо.
+  const accEl = document.getElementById('tractor-3d-stat-accuracy');
+  if (accEl) { accEl.textContent = lang === 'ru' ? 'демо' : 'demo'; accEl.style.color = '#90a4ae'; }
+
   const demoStart = tractorSpawnPoint || fieldCenter3D;
   if (demoStart) {
     tractorPath = [];
+    tractorAreaHa = 0;
+    tractorCoverageUnion = null;
     lastSoilPaintPos = null;
     tractor3DBaseTrackX = null;
     if (tractor3DTrailGroup) {
@@ -9447,7 +9600,13 @@ const MANUAL_ACCEL_MS2      = 3.2;   // м/с² — разгон до полно
 const MANUAL_DECEL_MS2      = 5.5;   // м/с² — торможение быстрее разгона (естественнее)
 const MANUAL_MAX_STEER_DS   = 34;    // град/с — макс. угловая скорость поворота
 const MANUAL_STEER_ACCEL_DS = 90;    // град/с² — с какой скоростью руль "довинчивается" до максимума
-const SYNC_INTERVAL_MS      = 350;   // как часто синхронизировать локальную позицию в lat/lng
+// FIX (рывки маркера на 2D-карте): было 350 мс — 3D-сцена рендерится
+// каждый кадр (~60 раз/сек), а маркер на 2D-карте и статистика площади
+// обновлялись лишь ~3 раза/сек, из-за чего на 2D-карте движение трактора
+// выглядело рваным, скачками, хотя 3D-модель ехала плавно. 120 мс — разумный
+// компромисс: маркер обновляется заметно чаще (~8 раз/сек), но turf.buffer
+// (тяжёлая операция, см. ниже) не вызывается на каждый кадр без необходимости.
+const SYNC_INTERVAL_MS      = 120;   // как часто синхронизировать локальную позицию в lat/lng
 
 // Текущая (сглаженная) скорость и угловая скорость руления ручного режима.
 // Не путать с _3dGasActive/_3dSteerActive — те лишь хранят "нажато ли",
@@ -9500,11 +9659,12 @@ function vehiclePhysicsTick(dt) {
   if (distMeters > 0) {
     const segKm = distMeters / 1000;
     tractorDistKm += segKm;
-    tractorAreaHa += (distMeters * (tractorWidth || 12)) / 10000;
     const distElS = document.getElementById('tractor-3d-stat-dist');
     if (distElS) distElS.textContent = tractorDistKm.toFixed(2);
-    const areaElS = document.getElementById('tractor-3d-stat-area');
-    if (areaElS) areaElS.textContent = tractorAreaHa.toFixed(2);
+    // FIX (учёт перекрытий): площадь больше не накапливается здесь как
+    // distance*width на каждый физ-тик — реальная площадь считается ниже,
+    // из объединённого (turf.union) полигона покрытия батчем раз в
+    // SYNC_INTERVAL_MS, см. recomputeCoverageArea().
   }
 
   const nowMs = performance.now();
@@ -9521,17 +9681,31 @@ function vehiclePhysicsTick(dt) {
     }
     tractorPath.push([lat, lng]);
     if (tractorPath.length > 4000) tractorPath.shift();
-    
-    try {
-        const segLine = turf.lineString([[tractorPath[tractorPath.length-2][1], tractorPath[tractorPath.length-2][0]], [lng, lat]]);
-        const buffered = turf.buffer(segLine, (tractorWidth / 2) / 1000, { units: 'kilometers' });
-        if (buffered) {
+
+    // FIX (микрорывки в 3D): turf.buffer — сравнительно тяжёлая геометрическая
+    // операция. Раньше она выполнялась синхронно прямо внутри vehiclePhysicsTick(),
+    // который сам вызывается из animate() каждый кадр — на слабых устройствах это
+    // могло подвешивать кадр рендера и ощущаться как рывок движения трактора.
+    // Она не обязана успеть строго в этот же кадр (это просто отрисовка следа
+    // на 2D-карте и расчёт площади), поэтому переносим её в следующий свободный
+    // тик event loop.
+    const prevLL = tractorPath[tractorPath.length - 2];
+    const curLL = [lat, lng];
+    const widthNow = tractorWidth;
+    const trailGroupRef = tractorTrailGroup;
+    setTimeout(() => {
+      try {
+        const segLine = turf.lineString([[prevLL[1], prevLL[0]], [curLL[1], curLL[0]]]);
+        const buffered = turf.buffer(segLine, (widthNow / 2) / 1000, { units: 'kilometers' });
+        if (buffered && trailGroupRef) {
           L.geoJSON(buffered, {
             style: { color: SOIL_TRAIL_STROKE_CSS, weight: 1, fillColor: SOIL_TRAIL_FILL_CSS, fillOpacity: 0.55 },
             interactive: false
-          }).addTo(tractorTrailGroup);
+          }).addTo(trailGroupRef);
         }
-    } catch (_) {}
+        recomputeCoverageArea(buffered);
+      } catch (_) {}
+    }, 0);
   }
 }
 
@@ -9540,10 +9714,19 @@ function _tickManual3DControl(dt) {
 }
 
 // Запуск/остановка газа (кнопки ↑↓)
+// ДОБАВЛЕНО: общий переход в режим ручного управления — останавливает демо
+// и гасит индикатор точности GPS (реального сигнала при ручном вождении
+// не используется, показывать устаревшее значение было бы обманчиво).
+function _enterManualControlMode() {
+  if (tractorSimInterval) { tractorSimInterval = null; } // FIX: bool-флаг, не таймер
+  const accEl = document.getElementById('tractor-3d-stat-accuracy');
+  if (accEl) { accEl.textContent = lang === 'ru' ? 'ручн.' : 'manual'; accEl.style.color = '#90a4ae'; }
+}
+
 function start3DGas(dir) {
   if (!tractorActive) return;
   // Останавливаем демо-интервал при ручном управлении.
-  if (tractorSimInterval) { clearInterval(tractorSimInterval); tractorSimInterval = null; }
+  _enterManualControlMode();
   _3dGasActive = dir;   // +1 вперёд, -1 назад
   if (navigator.vibrate) navigator.vibrate(8);
 }
@@ -9552,7 +9735,7 @@ function stop3DGas() { _3dGasActive = 0; }
 // Запуск/остановка поворота (кнопки ←→)
 function start3DSteer(dir) {
   if (!tractorActive) return;
-  if (tractorSimInterval) { clearInterval(tractorSimInterval); tractorSimInterval = null; }
+  _enterManualControlMode();
   _3dSteerActive = dir;  // +1 вправо, -1 влево
   if (navigator.vibrate) navigator.vibrate(8);
 }
@@ -9562,7 +9745,7 @@ function stop3DSteer() { _3dSteerActive = 0; }
 // При зажатой кнопке D-pad теперь используются start3DGas/start3DSteer.
 function manualTractorControl(direction) {
   if (!tractorActive) return;
-  if (tractorSimInterval) { clearInterval(tractorSimInterval); tractorSimInterval = null; }
+  _enterManualControlMode();
   if (direction === 'left')     { start3DSteer(-1); setTimeout(stop3DSteer, 200); }
   else if (direction === 'right')    { start3DSteer(1);  setTimeout(stop3DSteer, 200); }
   else if (direction === 'forward')  { start3DGas(1);   setTimeout(stop3DGas,   200); }
@@ -9579,15 +9762,13 @@ function stopTractorTracking() {
   _manualCurSpeed = 0; _manualCurSteerRate = 0; _manualLastSyncAt = 0;
   tractorLastFixAt = null;
   tractorTeleportPending = false;
+  _gpsRawHistory = []; // сброс сглаживания GPS при завершении заезда
 
   if (tractorWatchId) {
     navigator.geolocation.clearWatch(tractorWatchId);
     tractorWatchId = null;
   }
-  if (tractorSimInterval) {
-    clearInterval(tractorSimInterval);
-    tractorSimInterval = null;
-  }
+  tractorSimInterval = null; // bool-флаг, не таймер — clearInterval() не требуется
   tractorActive = false;
 
   if (tractorMarker) {
@@ -9717,6 +9898,7 @@ function clearTractorRunTraces() {
     tractor3DTrailGroup.userData = {};
   }
   tractorPath = [];
+  tractorCoverageUnion = null; // отчёт (pendingTractorSummary) уже зафиксировал площадь этого заезда
 }
 
 // Действие "Сохранить в историю поля": пишет запись в season[] выбранного

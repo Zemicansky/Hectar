@@ -156,7 +156,15 @@
         </p>
         <div style="margin-bottom:14px;">
           <label style="display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;">Поле для обработки</label>
-          <select id="tractor-field-select" class="modal-select"></select>
+          <select id="tractor-field-select" class="modal-select" required></select>
+          <!-- REMOVED (фермерский аудит): опция "Свободный заезд (без контура
+               поля)" убрана из select (см. openTractorSetupModal() в script.js).
+               Заезд без привязки к полю не даёт границ/направляющих линий и
+               создаёт запись, которую потом приходится вручную приписывать
+               полю в модалке итогов — на практике фермер либо работает на
+               конкретном участке (и должен выбрать его сразу), либо это
+               тестовый прогон техники, что не должно попадать в
+               агрономическую историю поля наравне с реальной обработкой. -->
         </div>
         <div style="margin-bottom:14px;">
           <label style="display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;">Ширина захвата оборудования (метры)</label>
@@ -423,6 +431,16 @@
             <div><i data-lucide="ruler" class="icon-sm"></i> <span id="tractor-3d-stat-dist" style="font-weight:700; color:#fff;">0.00</span> км</div>
             <div><i data-lucide="clock" class="icon-sm"></i> <span id="tractor-3d-stat-time" style="font-weight:700; color:#ffb74d;">00:00</span></div>
             <div><i data-lucide="gauge" class="icon-sm"></i> <span id="tractor-3d-stat-speed" style="font-weight:700; color:#fff;">0.0</span> км/ч</div>
+          </div>
+          <!-- ДОБАВЛЕНО (фермерский аудит): индикатор точности GPS в реальном
+               времени. Раньше точность (pos.coords.accuracy) считывалась
+               только в отдельной кнопке "найти меня" (locate3DGPS()), а во
+               время самого заезда никак не показывалась — при погрешности
+               10-15м на тракторе шириной 12м направляющие линии/статистика
+               становятся ненадёжными, но фермер об этом не узнавал. См.
+               updateGpsAccuracyHud() в script.js. -->
+          <div class="guidance-field-stats" id="tractor-gps-accuracy-row" style="margin-top:4px;">
+            <div><i data-lucide="satellite" class="icon-sm"></i> GPS: <span id="tractor-3d-stat-accuracy" style="font-weight:700; color:#00e676;">—</span></div>
           </div>
         </div>
 
