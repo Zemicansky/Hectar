@@ -7447,6 +7447,7 @@ let lastSoilPaintPos = null;
 let steer3DInput = 0, gas3DInput = 0;
 let tractor3DAnimId = null;
 let tractor3DHeading = 0;
+const vehicleState = { x: 0, z: 0, heading: 0, speed: 0, steerRate: 0 };
 let tractor3DPos = { x: 0, z: 0 };
 // FIX (дёрганье при движении): раньше tractor3DPos менялся только в момент
 // прихода GPS-события (watchPosition, ~раз в секунду), а сама 3D-модель
@@ -7868,109 +7869,67 @@ function onTractorPosition(pos) {
 }
 
 /** Обновление положения трактора */
-function updateTractorLocation(newPoint) {
+function vehicleApplyGpsFix(lat, lng, tsMs) {
   if (!tractorActive || !tractorMarker) return;
-  const lat = newPoint[0];
-  const lng = newPoint[1];
+
+  if (!fieldCenter3D) {
+    fieldCenter3D = { lat: lat, lng: lng };
+    vehicleState.x = 0;
+    vehicleState.z = 0;
+    vehicleState.heading = 0;
+    tractor3DRenderPos.x = 0;
+    tractor3DRenderPos.z = 0;
+    tractor3DRenderHeading = 0;
+    tractorMarker.setLatLng([lat, lng]);
+    tractorPath.push([lat, lng]);
+    return;
+  }
+
+  const newX = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
+  const newZ = -(lat - fieldCenter3D.lat) * 111320;
 
   if (tractorPath.length === 0) {
-    tractorMarker.setLatLng(newPoint);
-    tractorPath.push(newPoint);
-    if (fieldCenter3D) {
-      tractor3DPos.x = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
-      tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
-      // Первая точка заезда — ставим рендер-позицию сразу на месте, без
-      // плавного "доезда" от (0,0), иначе трактор въезжал бы в кадр издалека.
-      tractor3DRenderPos.x = tractor3DPos.x;
-      tractor3DRenderPos.z = tractor3DPos.z;
-      if (tractor3DBaseTrackX === null) tractor3DBaseTrackX = tractor3DPos.x;
-      updateGuidanceLightbar(tractor3DHeading, tractor3DPos.x, tractor3DPos.z);
-    }
+    tractorMarker.setLatLng([lat, lng]);
+    tractorPath.push([lat, lng]);
+    vehicleState.x = newX;
+    vehicleState.z = newZ;
+    tractor3DRenderPos.x = vehicleState.x;
+    tractor3DRenderPos.z = vehicleState.z;
+    if (tractor3DBaseTrackX === null) tractor3DBaseTrackX = vehicleState.x;
     return;
   }
 
   const prevPoint = tractorPath[tractorPath.length - 1];
-  const segLine = turf.lineString([[prevPoint[1], prevPoint[0]], [lng, lat]]);
-  const segKm = turf.length(segLine, { units: 'kilometers' });
+  const segKm = Math.hypot(newX - vehicleState.x, newZ - vehicleState.z) / 1000;
   const segMetersRaw = segKm * 1000;
 
-  // FIX (п.5 — трактор телепортировался из центра на край поля): старая
-  // защита срабатывала на ЛЮБОЙ одиночный GPS-фикс дальше 300м и в ответ
-  // либо переносила трактор в новую точку, либо (для полей с контуром)
-  // резко сбрасывала его в геометрический ЦЕНТР (0,0) — именно это и
-  // выглядело как "трактор телепортирует из центра до края поля": обычный
-  // шум GPS (плохой сигнал, отражение от построек/техники) легко даёт
-  // единичный фикс с ошибкой в 300-500м, особенно на открытом поле.
-  //
-  // Новая логика:
-  //  1) Оцениваем правдоподобную скорость сегмента (м/с) по времени между
-  //     фиксами. Трактор физически не может проехать 300м за 2 секунды —
-  //     если скорость нереалистична, это шум GPS, а не движение: фикс
-  //     ИГНОРИРУЕТСЯ целиком (не двигаем трактор и не рвём путь/след).
-  //  2) Если скорость правдоподобна (реальный протяжённый переезд техники
-  //     между картами, либо первый фикс после длительной паузы) — это
-  //     настоящий телепорт: переносим позицию мгновенно на карте (2D) и в
-  //     3D, но НЕ рвём и не обнуляем уже нарисованный след/статистику, и
-  //     принудительно переинициализируем камеру (см. animate/camPosInitialized
-  //     через tractorTeleportPending), чтобы камера не "долетала" через
-  //     всю сцену лерпом — это убирает мерцание при таких прыжках (п.2).
-  const nowFixMs = Date.now();
-  const dtFixSec = tractorLastFixAt ? Math.max(0.2, (nowFixMs - tractorLastFixAt) / 1000) : 1;
-  tractorLastFixAt = nowFixMs;
+  const dtFixSec = tractorLastFixAt ? Math.max(0.2, (tsMs - tractorLastFixAt) / 1000) : 1;
+  tractorLastFixAt = tsMs;
   const impliedSpeedMs = segMetersRaw / dtFixSec;
-  // 30 м/с (~108 км/ч) — с большим запасом выше реальной скорости трактора
-  // (обычно 5-25 км/ч), но отсекает GPS-шум, дающий "прыжок" за секунды.
   const MAX_PLAUSIBLE_SPEED_MS = 30;
 
+  if (impliedSpeedMs > MAX_PLAUSIBLE_SPEED_MS) return;
+
   if (segKm > 0.3) {
-    if (impliedSpeedMs > MAX_PLAUSIBLE_SPEED_MS) {
-      // Похоже на одиночный шумовой GPS-фикс — просто игнорируем его,
-      // трактор остаётся на месте, путь и след не трогаем.
-      return;
+    tractorMarker.setLatLng([lat, lng]);
+    tractorPath.push([lat, lng]);
+    tractorTeleportPending = true;
+    
+    const distFromCenter = Math.hypot(newX, newZ);
+    if (distFromCenter > 2000) {
+       if (!tractorActiveField) {
+         fieldCenter3D = { lat: lat, lng: lng };
+         vehicleState.x = 0; vehicleState.z = 0; tractor3DRenderPos.x = 0; tractor3DRenderPos.z = 0;
+       } else if (!tractorGpsFarWarningShown) {
+         tractorGpsFarWarningShown = true;
+         if (typeof showToast === 'function') showToast('GPS is far from the field');
+       }
+       return;
     }
-
-    // Настоящий протяжённый переезд — честный телепорт, без сброса следа.
-    tractorMarker.setLatLng(newPoint);
-    tractorPath.push(newPoint);
-    tractorTeleportPending = true; // просим animate() не лерпить камеру на этом кадре
-
-    if (fieldCenter3D) {
-      // Если телепорт унёс нас очень далеко (>2км) от центра 3D-мира поля,
-      // трактор окажется за пределами отрендеренной земли/границ — в этом
-      // случае предупреждаем один раз и НЕ переносим 3D-позицию за пределы
-      // сцены (иначе видно только небо), но при этом не сбрасываем в (0,0)
-      // резким скачком — оставляем трактор там, где он был визуально.
-      const distFromCenter = Math.hypot(
-        (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180)),
-        (lat - fieldCenter3D.lat) * 111320
-      );
-      if (distFromCenter > 2000) {
-        if (!tractorActiveField) {
-          fieldCenter3D = { lat: lat, lng: lng };
-          tractor3DPos.x = 0;
-          tractor3DPos.z = 0;
-          tractor3DRenderPos.x = 0;
-          tractor3DRenderPos.z = 0;
-          updateGuidanceLightbar(tractor3DHeading, 0, 0);
-        } else if (!tractorGpsFarWarningShown) {
-          tractorGpsFarWarningShown = true;
-          if (typeof showToast === 'function') {
-            showToast(lang === 'ru'
-              ? '<i data-lucide="alert-triangle" class="icon-sm"></i> GPS далеко от поля — позиция не обновлена'
-              : '<i data-lucide="alert-triangle" class="icon-sm"></i> GPS is far from the field — position not updated');
-          }
-        }
-        return;
-      }
-      tractor3DPos.x = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
-      tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
-      // Честный телепорт — переносим рендер-позицию мгновенно, без "доезда",
-      // а camPosInitialized сбросит и камеру мгновенно на новое место в
-      // animate() (см. tractorTeleportPending), а не лерпом через сцену.
-      tractor3DRenderPos.x = tractor3DPos.x;
-      tractor3DRenderPos.z = tractor3DPos.z;
-      updateGuidanceLightbar(tractor3DHeading, tractor3DPos.x, tractor3DPos.z);
-    }
+    vehicleState.x = newX;
+    vehicleState.z = newZ;
+    tractor3DRenderPos.x = vehicleState.x;
+    tractor3DRenderPos.z = vehicleState.z;
     return;
   }
 
@@ -7980,55 +7939,28 @@ function updateTractorLocation(newPoint) {
     let heading = Math.atan2(dLng, dLat) * (180 / Math.PI);
     if (heading < 0) heading += 360;
 
-    tractorMarker.setLatLng(newPoint);
-
+    tractorMarker.setLatLng([lat, lng]);
     const markerEl = tractorMarker.getElement();
-    if (markerEl) {
-      markerEl.style.transform = `${markerEl.style.transform.replace(/rotate\([^)]+\)/g, '')} rotate(${heading.toFixed(0)}deg)`;
-    }
+    if (markerEl) markerEl.style.transform = `${markerEl.style.transform.replace(/rotate\([^)]+\)/g, '')} rotate(${heading.toFixed(0)}deg)`;
 
     tractorDistKm += segKm;
-    const segMeters = segKm * 1000;
-    const addedAreaHa = (segMeters * tractorWidth) / 10000;
-    tractorAreaHa += addedAreaHa;
+    tractorAreaHa += (segMetersRaw * (tractorWidth || 12)) / 10000;
+    
+    const dEl = document.getElementById('tractor-3d-stat-dist');
+    if (dEl) dEl.textContent = tractorDistKm.toFixed(2);
+    const aEl = document.getElementById('tractor-3d-stat-area');
+    if (aEl) aEl.textContent = tractorAreaHa.toFixed(2);
 
-    const distEl = document.getElementById('tractor-3d-stat-dist');
-    if (distEl) distEl.textContent = tractorDistKm.toFixed(2);
-    const areaEl = document.getElementById('tractor-3d-stat-area');
-    if (areaEl) areaEl.textContent = tractorAreaHa.toFixed(2);
-
-    // Синхронизация с 3D миром по центру поля.
-    // FIX (баг/рассинхрон при движении): раньше закраска пройденного участка
-    // (paint3DSoilCoverage) вызывалась прямо здесь, по "сырой" GPS-цели
-    // (tractor3DPos) — той самой точке, куда модель трактора ТОЛЬКО НАЧИНАЕТ
-    // плавно доезжать через lerp в animate(). Модель на экране всегда чуть
-    // "отставала" от уже нарисованного следа, из-за чего казалось, что
-    // трактор едет с рывками/не туда. Теперь координата цели только
-    // обновляется здесь, а сама отрисовка следа перенесена в animate() и
-    // использует ту же сглаженную позицию (tractor3DRenderPos), что и модель
-    // трактора на экране — след и трактор всегда синхронны.
-    if (fieldCenter3D) {
-      tractor3DPos.x = (lng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
-      tractor3DPos.z = -(lat - fieldCenter3D.lat) * 111320;
-      tractor3DHeading = heading;
-      updateGuidanceLightbar(heading, tractor3DPos.x, tractor3DPos.z);
-    }
-
-    // Закрашивание на 2D Leaflet. Цвет согласован с 3D-шлейфом
-    // (SOIL_TRAIL_*) — контрастный янтарный, не сливается с зелёным полем
-    // и с зелёными границами/маяками поля.
-    try {
-      const buffered = turf.buffer(segLine, (tractorWidth / 2) / 1000, { units: 'kilometers' });
-      if (buffered) {
-        L.geoJSON(buffered, {
-          style: { color: SOIL_TRAIL_STROKE_CSS, weight: 1, fillColor: SOIL_TRAIL_FILL_CSS, fillOpacity: 0.55 },
-          interactive: false
-        }).addTo(tractorTrailGroup);
-      }
-    } catch (_) {}
-
-    tractorPath.push(newPoint);
+    vehicleState.x = newX;
+    vehicleState.z = newZ;
+    vehicleState.heading = heading;
+    
+    tractorPath.push([lat, lng]);
   }
+}
+
+function updateTractorLocation(newPoint) {
+  vehicleApplyGpsFix(newPoint[0], newPoint[1], Date.now());
 }
 
 /** Инициализация 3D Сцены */
@@ -8987,23 +8919,42 @@ function updateGuidanceLightbar(heading, x, z) {
 
 // ── ЗАДАЧА 2: Оверлей карты поля по тапу на радар ──────────────────────
 // Скрываем 3D view и показываем 2D карту Leaflet с плавающей плашкой возврата в 3D
+let overlayMap = null;
+let overlayPolyline = null;
+
 function open3DFieldMapOverlay() {
   const container3D = document.getElementById('tractor-3d-view');
   if (container3D) container3D.style.display = 'none';
   const overlay = document.getElementById('tractor-field-map-overlay');
   if (overlay) overlay.style.display = 'flex';
-  if (typeof map !== 'undefined' && map) {
-    requestAnimationFrame(() => {
-      try { map.invalidateSize(false); } catch(_) {}
-      if (fieldCenter3D) {
-        const latOffset = tractor3DPos.z / 111320;
-        const lngOffset = tractor3DPos.x / (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
-        const lat = fieldCenter3D.lat - latOffset;
-        const lng = fieldCenter3D.lng + lngOffset;
-        map.setView([lat, lng], 17);
-      }
-    });
-  }
+  
+  requestAnimationFrame(() => {
+    if (!overlayMap) {
+      overlayMap = L.map('tractor-field-map-overlay-canvas', {
+        zoomControl: false,
+        attributionControl: false
+      });
+      L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        maxZoom: 22
+      }).addTo(overlayMap);
+      
+      overlayPolyline = L.polyline([], {color: '#8D6E63', weight: 4}).addTo(overlayMap);
+    }
+    
+    try { overlayMap.invalidateSize(false); } catch(_) {}
+    
+    if (typeof tractorPath !== 'undefined' && tractorPath.length > 0) {
+      overlayPolyline.setLatLngs(tractorPath);
+    }
+
+    if (fieldCenter3D) {
+      const latOffset = tractor3DPos.z / 111320;
+      const lngOffset = tractor3DPos.x / (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
+      const lat = fieldCenter3D.lat - latOffset;
+      const lng = fieldCenter3D.lng + lngOffset;
+      overlayMap.setView([lat, lng], 17);
+    }
+  });
 }
 
 function close3DFieldMapOverlay() {
@@ -9011,11 +8962,6 @@ function close3DFieldMapOverlay() {
   if (overlay) overlay.style.display = 'none';
   const container3D = document.getElementById('tractor-3d-view');
   if (container3D) container3D.style.display = 'block';
-  if (typeof map !== 'undefined' && map) {
-    requestAnimationFrame(() => {
-      try { map.invalidateSize(false); } catch(_) {}
-    });
-  }
 }
 
 // ── ЗАДАЧА 5: Кнопка геолокации ─────────────────────────────────────────
@@ -9350,43 +9296,27 @@ function start3DAnimationLoop() {
     if (!tractor3DActive) return;
     tractor3DAnimId = requestAnimationFrame(animate);
 
-    // FIX v3.0 п.Б4: непрерывное движение D-pad — тик выполняется каждый кадр.
     const now = performance.now();
     const dt  = _lastFrameTime > 0 ? Math.min((now - _lastFrameTime) / 1000, 0.1) : 0.016;
     _lastFrameTime = now;
-    // FIX: тик должен продолжать выполняться, пока ЛИБО зажата кнопка,
-    // ЛИБО инерция ещё не погашена (иначе отпускание кнопки при ненулевой
-    // _manualCurSpeed/_manualCurSteerRate "замораживало" трактор посреди
-    // движения — торможение с инерцией просто переставало считаться).
-    if (_3dGasActive !== 0 || _3dSteerActive !== 0 ||
-        _manualCurSpeed !== 0 || _manualCurSteerRate !== 0) {
-      _tickManual3DControl(dt);
+
+    if (_3dGasActive !== 0 || _3dSteerActive !== 0 || vehicleState.speed !== 0 || vehicleState.steerRate !== 0 || tractorSimInterval) {
+      vehiclePhysicsTick(dt);
     }
 
     if (tractor3DModel) {
-      // FIX: сглаживание позиции/курса теперь по формуле, зависящей от dt
-      // (экспоненциальное затухание 1 - e^-rate*dt), а не по фиксированной
-      // доле за кадр — раньше при просадках FPS (частые в WebView на
-      // слабых устройствах) движение либо "тормозило" на низком FPS, либо
-      // выглядело дёрганым на высоком, т.к. одна и та же доля применялась
-      // независимо от реально прошедшего времени.
       if (tractorTeleportPending) {
-        // Честный телепорт (см. updateTractorLocation): переносим
-        // рендер-позицию/курс МГНОВЕННО, без сглаживания — иначе модель
-        // (и следом за ней камера через lerp) "проезжает" визуально всю
-        // дистанцию телепорта за несколько кадров, что и создаёт эффект
-        // мерцания/дёрганья камеры на резких прыжках (п.2).
-        tractor3DRenderPos.x = tractor3DPos.x;
-        tractor3DRenderPos.z = tractor3DPos.z;
-        tractor3DRenderHeading = tractor3DHeading;
+        tractor3DRenderPos.x = vehicleState.x;
+        tractor3DRenderPos.z = vehicleState.z;
+        tractor3DRenderHeading = vehicleState.heading;
       } else {
         const posT = 1 - Math.exp(-POS_SMOOTH_RATE * dt);
         const hdgT = 1 - Math.exp(-HDG_SMOOTH_RATE * dt);
 
-        tractor3DRenderPos.x += (tractor3DPos.x - tractor3DRenderPos.x) * posT;
-        tractor3DRenderPos.z += (tractor3DPos.z - tractor3DRenderPos.z) * posT;
+        tractor3DRenderPos.x += (vehicleState.x - tractor3DRenderPos.x) * posT;
+        tractor3DRenderPos.z += (vehicleState.z - tractor3DRenderPos.z) * posT;
 
-        let headingDiff = tractor3DHeading - tractor3DRenderHeading;
+        let headingDiff = vehicleState.heading - tractor3DRenderHeading;
         while (headingDiff >  180) headingDiff -= 360;
         while (headingDiff < -180) headingDiff += 360;
         tractor3DRenderHeading += headingDiff * hdgT;
@@ -9395,22 +9325,13 @@ function start3DAnimationLoop() {
       tractor3DModel.position.set(tractor3DRenderPos.x, 0, tractor3DRenderPos.z);
       tractor3DModel.rotation.y = tractor3DRenderHeading * (Math.PI / 180);
 
-      // FIX v3.0 п.Б1 + инерция: закраска при любом активном движении
-      // (GPS, демо, ручное) — включая "докат" по инерции после отпускания
-      // кнопки газа, иначе последний метр-другой пути до полной остановки
-      // не закрашивался и в шлейфе появлялся разрыв.
-      if (tractorActive && (tractorSimInterval || tractorWatchId || _3dGasActive !== 0 || _manualCurSpeed !== 0)) {
-        paint3DSoilCoverage(tractor3DRenderPos.x, tractor3DRenderPos.z,
-                            tractorWidth || 12, tractor3DRenderHeading);
+      if (tractorActive && (tractorSimInterval || tractorWatchId || _3dGasActive !== 0 || Math.abs(vehicleState.speed) > 0)) {
+        paint3DSoilCoverage(tractor3DRenderPos.x, tractor3DRenderPos.z, tractorWidth || 12, tractor3DRenderHeading);
       }
 
-      // Обновляем HUD курсоуказателя (гон/курс/ширина).
       updateGuidanceLightbar(tractor3DRenderHeading, tractor3DRenderPos.x, tractor3DRenderPos.z);
 
       if (camera3D) {
-        // Пересчитываем дистанцию/высоту камеры, только если ширина навески
-        // реально изменилась (смена оборудования/ширины захвата в UI) —
-        // не нужно пересчитывать это на каждом кадре без необходимости.
         const curWidth = tractorWidth || 12;
         if (_lastCamFramingWidth !== curWidth) {
           const framing = computeCam3DFraming();
@@ -9422,21 +9343,10 @@ function start3DAnimationLoop() {
         const tPos = tractor3DModel.position;
         const rad  = tractor3DModel.rotation.y;
 
-        desiredPos.set(
-          tPos.x - Math.sin(rad) * CAM_DISTANCE,
-          CAM_HEIGHT,
-          tPos.z - Math.cos(rad) * CAM_DISTANCE
-        );
-        desiredLookAt.set(
-          tPos.x + Math.sin(rad) * CAM_LOOKAHEAD,
-          CAM_LOOK_HEIGHT,
-          tPos.z + Math.cos(rad) * CAM_LOOKAHEAD
-        );
+        desiredPos.set(tPos.x - Math.sin(rad) * CAM_DISTANCE, CAM_HEIGHT, tPos.z - Math.cos(rad) * CAM_DISTANCE);
+        desiredLookAt.set(tPos.x + Math.sin(rad) * CAM_LOOKAHEAD, CAM_LOOK_HEIGHT, tPos.z + Math.cos(rad) * CAM_LOOKAHEAD);
 
         if (!camPosInitialized || tractorTeleportPending) {
-          // Мгновенная установка камеры — как при первом появлении, так и
-          // сразу после честного телепорта трактора (п.2/п.5), вместо
-          // лерпа, который иначе "тащит" камеру через всю сцену рывками.
           camera3D.position.copy(desiredPos);
           camPosInitialized = true;
         } else {
@@ -9471,35 +9381,23 @@ function on3DWindowResize() {
 function toggleTractorSimulation() {
   if (!tractorActive) return;
   if (tractorSimInterval) {
-    clearInterval(tractorSimInterval);
-    tractorSimInterval = null;
+    tractorSimInterval = false;
     showToast(lang === 'ru' ? '<i data-lucide="pause" class="icon-sm"></i> Демо на паузе' : '<i data-lucide="pause" class="icon-sm"></i> Simulation paused');
     return;
   }
 
   showToast(lang === 'ru' ? '<i data-lucide="arrow-right" class="icon-sm"></i> Демо заезд запущен' : '<i data-lucide="arrow-right" class="icon-sm"></i> Demo running');
 
-  // FIX (баг/прыжок при старте демо): раньше трактор телепортировался в
-  // fieldCenter3D — геометрический ЦЕНТР поля, хотя трактор по требованиям
-  // должен стоять на КРАЮ поля. Из-за этого при запуске демо было видно,
-  // как трактор резко "прыгает" из точки спавна на краю в центр поля, а
-  // затем плавно едет дальше — это и воспринималось как баг движения.
-  // Теперь используем tractorSpawnPoint (край поля / исходная точка).
   const demoStart = tractorSpawnPoint || fieldCenter3D;
   if (demoStart) {
     tractorPath = [];
     lastSoilPaintPos = null;
-    // FIX v3.0 п.Б3: сброс базовой X при старте демо — гон #1 начнётся
-    // именно с этой точки, а не с центра поля.
     tractor3DBaseTrackX = null;
     if (tractor3DTrailGroup) {
       tractor3DTrailGroup.clear();
       tractor3DTrailGroup.userData = {};
     }
-    // Курс движения — вдоль первой стороны контура поля (если известна),
-    // иначе строго на север (0°). Раньше heading всегда жёстко ставился
-    // в 0°, из-за чего на повёрнутых полях трактор в демо мог сразу же
-    // "смотреть" не вдоль гона, а поперёк него/за пределы поля.
+    
     let demoHeading = 0;
     if (tractorActiveField) {
       const coords = tractorActiveField.coordinates || tractorActiveField.coords;
@@ -9511,51 +9409,12 @@ function toggleTractorSimulation() {
         if (demoHeading < 0) demoHeading += 360;
       }
     }
-    tractor3DHeading = demoHeading;
+    vehicleState.heading = demoHeading;
     tractor3DRenderHeading = demoHeading;
-    updateTractorLocation([demoStart.lat, demoStart.lng]);
+    vehicleApplyGpsFix(demoStart.lat, demoStart.lng, Date.now());
   }
 
-  // FIX (мерцание/"заглохший" трактор в демо-режиме): раньше тик демо-
-  // симуляции был раз в 500мс большими прыжками по ~2.08м. tractor3DPos
-  // (цель) обновлялась редко и сразу большим скачком, а animate() тем
-  // временем сглаживал tractor3DRenderPos к цели с довольно высокой
-  // скоростью (POS_SMOOTH_RATE) — рендер-позиция успевала полностью
-  // "доехать" до цели ещё ДО следующего тика через 500мс и трактор
-  // визуально останавливался/замирал на месте, а затем резко срывался
-  // к новой точке при очередном тике. Это и создавало ощущение рывков и
-  // "заглохшего" трактора. Тик демо теперь идёт каждые 100мс маленькими
-  // шагами — цель обновляется намного чаще, и сглаживание в animate()
-  // всегда "догоняет" плавно текущую, а не устаревшую на 500мс точку.
-  const DEMO_TICK_MS = 100;
-  const DEMO_SPEED_MS = 4.16; // 15 км/ч
-  tractorSimInterval = setInterval(() => {
-    if (!tractorActive) {
-      clearInterval(tractorSimInterval);
-      tractorSimInterval = null;
-      return;
-    }
-    
-    const distKm = (DEMO_SPEED_MS * (DEMO_TICK_MS / 1000)) / 1000;
-    
-    let currentPoint = tractorPath.length > 0 ? tractorPath[tractorPath.length - 1] : null;
-    if (!currentPoint && fieldCenter3D) {
-      currentPoint = [fieldCenter3D.lat, fieldCenter3D.lng];
-    }
-    
-    if (currentPoint) {
-      const point = turf.point([currentPoint[1], currentPoint[0]]);
-      const dest = turf.destination(point, distKm, tractor3DHeading, {units: 'kilometers'});
-      const newLng = dest.geometry.coordinates[0];
-      const newLat = dest.geometry.coordinates[1];
-      
-      // FIX v3.0 п.Б3: фиксируем базовую X при первом тике демо.
-      if (tractor3DBaseTrackX === null) tractor3DBaseTrackX = tractor3DPos.x;
-      const speedElD = document.getElementById('tractor-3d-stat-speed');
-      if (speedElD) speedElD.textContent = '15.0';
-      updateTractorLocation([newLat, newLng]);
-    }
-  }, DEMO_TICK_MS);
+  tractorSimInterval = true; 
 }
 
 // ════════════════════════════════════════════════════
@@ -9597,77 +9456,46 @@ let _manualCurSpeed = 0;      // м/с, со знаком (+ вперёд, - н�
 let _manualCurSteerRate = 0;  // град/с, со знаком (+ вправо, - влево)
 let _manualLastSyncAt = 0;
 
-function _tickManual3DControl(dt) {
+function vehiclePhysicsTick(dt) {
   if (!tractorActive) return;
 
-  // ── Руление с инерцией ──────────────────────────────────────────────
+  const gas = tractorSimInterval ? 1 : _3dGasActive;
+  
   const steerTarget = _3dSteerActive * MANUAL_MAX_STEER_DS;
-  const steerDelta = steerTarget - _manualCurSteerRate;
+  const steerDelta = steerTarget - vehicleState.steerRate;
   const steerStep = MANUAL_STEER_ACCEL_DS * dt;
-  if (Math.abs(steerDelta) <= steerStep) {
-    _manualCurSteerRate = steerTarget;
-  } else {
-    _manualCurSteerRate += Math.sign(steerDelta) * steerStep;
-  }
-  // FIX (п.3 — нестабильный курс): раньше руление поворачивало
-  // tractor3DHeading с полной угловой скоростью ДАЖЕ КОГДА ТРАКТОР СТОИТ
-  // (_manualCurSpeed === 0, газ не нажат) — держа/зажимая "влево-вправо"
-  // на стоянке, курс продолжал крутиться вхолостую. При следующем нажатии
-  // газа трактор срывался в сторону, в которую водитель не целился, что
-  // и ощущалось как "курс работает нестабильно". Как у настоящей техники,
-  // руление теперь пропорционально текущей скорости движения (на полном
-  // ходу — полный поворот руля, на малом газу — медленнее, на стоянке —
-  // курс не меняется вообще). speedFactor ограничен снизу небольшим
-  // минимумом (0.15), чтобы можно было слегка довернуть колёса трогаясь
-  // с места, не давая при этом полностью "простаивающему" рулю крутить
-  // курс на месте.
-  const speedFactor = Math.abs(_manualCurSpeed) > 0.02
-    ? Math.min(1, 0.15 + Math.abs(_manualCurSpeed) / MANUAL_MAX_SPEED_MS)
-    : 0;
-  if (_manualCurSteerRate !== 0 && speedFactor > 0) {
-    let newH = (tractor3DHeading + _manualCurSteerRate * dt * speedFactor) % 360;
-    if (newH < 0) newH += 360;
-    tractor3DHeading = newH;
-  }
+  if (Math.abs(steerDelta) <= steerStep) vehicleState.steerRate = steerTarget;
+  else vehicleState.steerRate += Math.sign(steerDelta) * steerStep;
 
-  // ── Разгон/торможение с инерцией ────────────────────────────────────
-  const speedTarget = _3dGasActive * MANUAL_MAX_SPEED_MS;
-  const accelRate = Math.abs(speedTarget) > Math.abs(_manualCurSpeed) ? MANUAL_ACCEL_MS2 : MANUAL_DECEL_MS2;
-  const speedDelta = speedTarget - _manualCurSpeed;
+  const speedTarget = gas * (tractorSimInterval ? 4.16 : MANUAL_MAX_SPEED_MS);
+  const accelRate = Math.abs(speedTarget) > Math.abs(vehicleState.speed) ? MANUAL_ACCEL_MS2 : MANUAL_DECEL_MS2;
+  const speedDelta = speedTarget - vehicleState.speed;
   const speedStep = accelRate * dt;
-  if (Math.abs(speedDelta) <= speedStep) {
-    _manualCurSpeed = speedTarget;
-  } else {
-    _manualCurSpeed += Math.sign(speedDelta) * speedStep;
+  if (Math.abs(speedDelta) <= speedStep) vehicleState.speed = speedTarget;
+  else vehicleState.speed += Math.sign(speedDelta) * speedStep;
+
+  const speedFactor = Math.abs(vehicleState.speed) > 0.05 || gas !== 0 ? 1 : 0;
+  if (speedFactor > 0 && vehicleState.steerRate !== 0) {
+    let step = vehicleState.steerRate * dt;
+    step = Math.max(-2, Math.min(2, step));
+    vehicleState.heading = (vehicleState.heading + step) % 360;
+    if (vehicleState.heading < 0) vehicleState.heading += 360;
   }
 
   const speedEl = document.getElementById('tractor-3d-stat-speed');
-  if (speedEl) speedEl.textContent = Math.abs(_manualCurSpeed * 3.6).toFixed(1);
+  if (speedEl) speedEl.textContent = Math.abs(vehicleState.speed * 3.6).toFixed(1);
 
-  if (Math.abs(_manualCurSpeed) < 0.0005 && _3dGasActive === 0) {
-    // Полностью остановились и газ отпущен — синхронизируем финальную
-    // позицию (если есть что синхронизировать) и выходим, не гоняя
-    // лишних вычислений впустую.
-    if (tractor3DBaseTrackX === null) {
-      // ничего не двигали — нечего фиксировать как базовый гон.
-    }
-    return;
-  }
+  if (Math.abs(vehicleState.speed) < 0.0005 && gas === 0) return;
 
-  // Направление движения — вдоль текущего heading (heading уже включает
-  // руление выше); знак _manualCurSpeed определяет вперёд/назад.
-  const rad = tractor3DHeading * (Math.PI / 180);
-  const dist = _manualCurSpeed * dt; // со знаком, метры за этот тик
-  tractor3DPos.x += Math.sin(rad) * dist;
-  tractor3DPos.z += Math.cos(rad) * dist;
+  const rad = vehicleState.heading * (Math.PI / 180);
+  const dist = vehicleState.speed * dt;
+  vehicleState.x += Math.sin(rad) * dist;
+  vehicleState.z += Math.cos(rad) * dist;
 
-  // FIX v3.0 п.Б3: фиксируем базовую X при первом движении вперёд.
   if (tractor3DBaseTrackX === null && dist > 0) {
-    tractor3DBaseTrackX = tractor3DPos.x;
+    tractor3DBaseTrackX = vehicleState.x;
   }
 
-  // Статистика (площадь/дистанция) копится локально по факту пройденного
-  // пути — не нужно ждать GPS-синк, иначе счётчики будут скакать батчами.
   const distMeters = Math.abs(dist);
   if (distMeters > 0) {
     const segKm = distMeters / 1000;
@@ -9679,27 +9507,36 @@ function _tickManual3DControl(dt) {
     if (areaElS) areaElS.textContent = tractorAreaHa.toFixed(2);
   }
 
-  // Периодически (не каждый кадр) синхронизируем локальные x/z обратно в
-  // lat/lng — только для 2D Leaflet-маркера и на случай выхода из 3D-режима.
-  // Тяжёлые turf-операции (буфер полигона следа на 2D карте и т.п.) больше
-  // НЕ выполняются на каждый шаг ручного управления, только на этот тик.
   const nowMs = performance.now();
   if (fieldCenter3D && (nowMs - _manualLastSyncAt) >= SYNC_INTERVAL_MS) {
     _manualLastSyncAt = nowMs;
-    const lat = fieldCenter3D.lat - (tractor3DPos.z / 111320);
-    const lng = fieldCenter3D.lng + (tractor3DPos.x / (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180)));
+    const lat = fieldCenter3D.lat - (vehicleState.z / 111320);
+    const lng = fieldCenter3D.lng + (vehicleState.x / (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180)));
     if (tractorMarker) {
       try {
         tractorMarker.setLatLng([lat, lng]);
         const markerEl = tractorMarker.getElement();
-        if (markerEl) {
-          markerEl.style.transform = `${markerEl.style.transform.replace(/rotate\([^)]+\)/g, '')} rotate(${tractor3DHeading.toFixed(0)}deg)`;
-        }
+        if (markerEl) markerEl.style.transform = `${markerEl.style.transform.replace(/rotate\([^)]+\)/g, '')} rotate(${vehicleState.heading.toFixed(0)}deg)`;
       } catch (_) {}
     }
     tractorPath.push([lat, lng]);
     if (tractorPath.length > 4000) tractorPath.shift();
+    
+    try {
+        const segLine = turf.lineString([[tractorPath[tractorPath.length-2][1], tractorPath[tractorPath.length-2][0]], [lng, lat]]);
+        const buffered = turf.buffer(segLine, (tractorWidth / 2) / 1000, { units: 'kilometers' });
+        if (buffered) {
+          L.geoJSON(buffered, {
+            style: { color: SOIL_TRAIL_STROKE_CSS, weight: 1, fillColor: SOIL_TRAIL_FILL_CSS, fillOpacity: 0.55 },
+            interactive: false
+          }).addTo(tractorTrailGroup);
+        }
+    } catch (_) {}
   }
+}
+
+function _tickManual3DControl(dt) {
+    vehiclePhysicsTick(dt);
 }
 
 // Запуск/остановка газа (кнопки ↑↓)

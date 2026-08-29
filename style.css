@@ -1,4 +1,4 @@
-﻿  /* ══════════════════════════════════════
+  /* ══════════════════════════════════════
      CSS ПЕРЕМЕННЫЕ И СБРОС СТИЛЕЙ
   ══════════════════════════════════════ */
   :root {
@@ -4682,39 +4682,7 @@
   pointer-events: auto;
 }
 
-/* REDESIGN v4: плашка скорости теперь под увеличенной миникартой в
-   правом верхнем углу (а не поверх стека инфо-о-поле/статистики), чтобы
-   верх экрана оставался цельным и без наложений. */
-.hud-speed-badge {
-  position: absolute;
-  top: calc(var(--safe-top) + 122px);
-  right: 20px;
-  z-index: 860;
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  background: rgba(10, 16, 22, 0.8);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1.5px solid rgba(255, 255, 255, 0.18);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 800;
-  font-size: 17px;
-  font-variant-numeric: tabular-nums;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
-  pointer-events: none;
-}
-.hud-speed-badge small {
-  font-size: 8px;
-  font-weight: 700;
-  color: var(--text2);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
+
 
 /* REDESIGN v4: инфо о поле + статистика заезда — теперь единая карточка
    в самом верху HUD-стека (первый элемент внутри .tractor-hud-top), а не
