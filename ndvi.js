@@ -573,10 +573,10 @@ function getVegetationStage(field) {
   const isRu = lang === 'ru';
   const crop = field.crop;
 
-  // Ищем дату посева в событиях сезона
+  // field.sowingDate — основной источник (обновляется полем "Дата посева" в карточке).
+  // Событие в season — запасной вариант, на случай старых данных без sowingDate.
   const sowEvent = (field.season || []).find(e => e.type === 'sowing');
-  // Также проверяем field.sowingDate (если задано в карточке поля)
-  const sowDateStr = sowEvent ? sowEvent.date : (field.sowingDate || null);
+  const sowDateStr = field.sowingDate || (sowEvent ? sowEvent.date : null);
 
   if (!sowDateStr || !crop) {
     // Нет данных — показываем прочерк или "Не указана"
