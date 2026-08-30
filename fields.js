@@ -533,8 +533,7 @@ function renderFieldsList() {
     }
 
     // Дата последнего посева
-    const sowEvent = (field.season || []).find(e => e.type === 'sowing');
-    const sowDate = sowEvent ? new Date(sowEvent.date).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { month: 'short', day: 'numeric' }) : '—';
+    const sowDate = field.sowingDate ? new Date(field.sowingDate).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { month: 'short', day: 'numeric' }) : '—';
 
     const card = document.createElement('div');
     card.className = 'field-card-expanded';
@@ -651,8 +650,7 @@ function renderFieldDetailHTML(field) {
   const health = getHealthStatus(ndvi);
   // FIX v1.8: removed fake getVegetationStage() and getYieldForecast() — user-editable instead
   const ndviColor = getNdviColor(ndvi);
-  const sowEvent = (field.season || []).find(e => e.type === 'sowing');
-  const sowDate = sowEvent ? sowEvent.date : '—';
+  const sowDate = field.sowingDate || '—';
   // FIX v1.8: removed auto-computed nextTreatDate (was +14 days fake calc)
 
   // FIX v1.8 R2: season events with edit/delete buttons
