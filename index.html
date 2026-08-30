@@ -1115,7 +1115,21 @@
 
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="script.js"></script>
+
+<!-- ══════════════════════════════════════
+     СКРИПТЫ ПРИЛОЖЕНИЯ (было: единый script.js)
+     Порядок важен — более поздние файлы используют функции
+     и переменные из более ранних. См. PROJECT-MAP.md.
+══════════════════════════════════════ -->
+<script src="core.js"></script>
+<script src="map.js"></script>
+<script src="fields.js"></script>
+<script src="ndvi.js"></script>
+<script src="weather.js"></script>
+<script src="notes-seasons.js"></script>
+<script src="firebase-sync.js"></script>
+<script src="tractor-3d.js"></script>
+<script src="export.js"></script>
 
 
 
