@@ -40,17 +40,42 @@ const BRAND = {
 // пространство под нижним таб-баром именно в standalone-режиме, а не в
 // обычном Safari.
 //
-// Решение: меряем реальную высоту через window.visualViewport (самый
-// точный источник высоты видимой области на iOS — учитывает клавиатуру,
-// safe area и панели браузера лучше, чем window.innerHeight) и пишем её
-// в CSS-переменную --app-height на <html>, которую #app-wrapper уже
-// готов использовать. Пересчитываем при загрузке, повороте экрана и
-// изменении размеров (visualViewport.resize — надёжнее, чем window.resize,
-// на iOS). Также выставляем класс pwa-standalone, который CSS уже ждёт.
+// FIX 2 (полоса под #tab-bar не исчезала после первого фикса — толком не
+// хватало ~59px, а safe-area-inset-bottom всего 34px): на iOS в
+// standalone-режиме window.innerHeight/visualViewport.height САМИ ПО СЕБЕ
+// уже исключают safe-area И сверху, И снизу (в обычной вкладке Safari
+// этого не происходит — там browser chrome компенсирует иначе, поэтому в
+// Safari бага не было). Но вёрстка при этом ОТДЕЛЬНО резервирует место под
+// --safe-top (padding-top в .screen-header) и --safe-bottom (padding-bottom
+// в #tab-bar) ВНУТРИ #app-wrapper. Если #app-wrapper при этом получает
+// высоту, из которой safe-area уже вычтена браузером, safe-area оказывается
+// учтена дважды — и низ #app-wrapper не дотягивается до физического края
+// экрана ровно на величину этого двойного вычета.
+//
+// В standalone-режиме используем window.screen.height (физическая высота
+// экрана) вместо innerHeight/visualViewport, чтобы #app-wrapper занимал
+// весь физический экран, а внутренние safe-area отступы расходовали именно
+// эту полную высоту, а не урезанную. В обычном Safari (не standalone)
+// поведение не меняем — там innerHeight и так корректен.
 function setAppHeightVar() {
-  const vh = (window.visualViewport && window.visualViewport.height)
-    ? window.visualViewport.height
-    : window.innerHeight;
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
+
+  let vh;
+  if (isStandalone && window.screen && window.screen.height) {
+    // screen.height не учитывает поворот экрана сам по себе (всегда
+    // "портретное" физическое измерение на iOS) — подстраховываемся через
+    // screen.width для альбомной ориентации.
+    const isLandscape = window.innerWidth > window.innerHeight;
+    vh = isLandscape
+      ? Math.min(window.screen.width, window.screen.height)
+      : Math.max(window.screen.width, window.screen.height);
+  } else {
+    vh = (window.visualViewport && window.visualViewport.height)
+      ? window.visualViewport.height
+      : window.innerHeight;
+  }
   document.documentElement.style.setProperty('--app-height', vh + 'px');
 }
 
