@@ -1599,13 +1599,56 @@ function updateGuidanceLightbar(heading, x, z) {
 // Скрываем 3D view и показываем 2D карту Leaflet с плавающей плашкой возврата в 3D
 let overlayMap = null;
 let overlayPolyline = null;
+// FIX (мини-карта не двигалась во время заезда): раньше overlayMap
+// центрировалась и получала маркер один раз, в момент открытия
+// (requestAnimationFrame внутри open3DFieldMapOverlay), а дальше никак не
+// обновлялась, пока оверлей открыт — выглядело так, будто трактор на
+// карте "не едет". Теперь, пока оверлей открыт, отдельный
+// requestAnimationFrame-цикл (_overlayMapAnimId) каждый кадр подтягивает
+// актуальную позицию/след трактора, используя ту же живую
+// tractor3DRenderPos/RenderHeading, что и 3D-модель и радар.
+let overlayTractorMarker = null;
+let _overlayMapAnimId = null;
+let _overlayMapOpen = false;
+
+function _overlayMapTractorLatLng() {
+  if (!fieldCenter3D) return null;
+  const latOffset = tractor3DRenderPos.z / 111320;
+  const lngOffset = tractor3DRenderPos.x / (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
+  return [fieldCenter3D.lat - latOffset, fieldCenter3D.lng + lngOffset];
+}
+
+function _overlayMapTick() {
+  if (!_overlayMapOpen || !overlayMap) { _overlayMapAnimId = null; return; }
+
+  if (typeof tractorPath !== 'undefined' && tractorPath.length > 0 && overlayPolyline) {
+    overlayPolyline.setLatLngs(tractorPath);
+  }
+
+  const ll = _overlayMapTractorLatLng();
+  if (ll) {
+    if (overlayTractorMarker) {
+      overlayTractorMarker.setLatLng(ll);
+      const el = overlayTractorMarker.getElement();
+      if (el) el.style.transform += ` rotate(${tractor3DRenderHeading.toFixed(0)}deg)`;
+    }
+    // Карта следует за трактором, но не дёргает зум/центр если пользователь
+    // сам подвинул карту руками — проверяем, не задан ли флаг ручной панорамы.
+    if (!overlayMap._userPanned) {
+      overlayMap.panTo(ll, { animate: false });
+    }
+  }
+
+  _overlayMapAnimId = requestAnimationFrame(_overlayMapTick);
+}
 
 function open3DFieldMapOverlay() {
   const container3D = document.getElementById('tractor-3d-view');
   if (container3D) container3D.style.display = 'none';
   const overlay = document.getElementById('tractor-field-map-overlay');
   if (overlay) overlay.style.display = 'flex';
-  
+  _overlayMapOpen = true;
+
   requestAnimationFrame(() => {
     if (!overlayMap) {
       overlayMap = L.map('tractor-field-map-overlay-canvas', {
@@ -1615,23 +1658,38 @@ function open3DFieldMapOverlay() {
       L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
         maxZoom: 22
       }).addTo(overlayMap);
-      
+
       overlayPolyline = L.polyline([], {color: '#8D6E63', weight: 4}).addTo(overlayMap);
+
+      // Пользователь начал сам двигать карту руками — перестаём
+      // авто-центрировать, чтобы не выдёргивать её у него из-под пальца.
+      overlayMap.on('dragstart', () => { overlayMap._userPanned = true; });
+
+      overlayTractorMarker = L.marker([0, 0], {
+        icon: L.divIcon({
+          className: 'overlay-tractor-marker',
+          html: '<div style="width:14px;height:14px;background:#00e676;border:2px solid #fff;border-radius:50% 50% 50% 0;box-shadow:0 0 6px rgba(0,230,118,0.8);"></div>',
+          iconSize: [14, 14],
+          iconAnchor: [7, 7]
+        })
+      }).addTo(overlayMap);
     }
-    
+
+    overlayMap._userPanned = false; // сбрасываем ручную панораму при каждом открытии
     try { overlayMap.invalidateSize(false); } catch(_) {}
-    
+
     if (typeof tractorPath !== 'undefined' && tractorPath.length > 0) {
       overlayPolyline.setLatLngs(tractorPath);
     }
 
-    if (fieldCenter3D) {
-      const latOffset = tractor3DPos.z / 111320;
-      const lngOffset = tractor3DPos.x / (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
-      const lat = fieldCenter3D.lat - latOffset;
-      const lng = fieldCenter3D.lng + lngOffset;
-      overlayMap.setView([lat, lng], 17);
+    const ll = _overlayMapTractorLatLng();
+    if (ll) {
+      overlayMap.setView(ll, 17);
+      if (overlayTractorMarker) overlayTractorMarker.setLatLng(ll);
     }
+
+    if (_overlayMapAnimId) cancelAnimationFrame(_overlayMapAnimId);
+    _overlayMapAnimId = requestAnimationFrame(_overlayMapTick);
   });
 }
 function close3DFieldMapOverlay() {
@@ -1639,6 +1697,17 @@ function close3DFieldMapOverlay() {
   if (overlay) overlay.style.display = 'none';
   const container3D = document.getElementById('tractor-3d-view');
   if (container3D) container3D.style.display = 'block';
+  _overlayMapOpen = false;
+  if (_overlayMapAnimId) { cancelAnimationFrame(_overlayMapAnimId); _overlayMapAnimId = null; }
+  // FIX (мерцание/рябь после возврата из вложенной 2D-карты в 3D): тот же
+  // класс проблемы, что и с основным #map — Leaflet не знает, что контейнер
+  // мини-карты был скрыт, поэтому дальнейшие открытия могут рисовать тайлы
+  // некорректно, если размеры контейнера успели поменяться.
+  if (overlayMap) {
+    requestAnimationFrame(() => {
+      try { overlayMap.invalidateSize(false); } catch (_) {}
+    });
+  }
 }
 // ── ЗАДАЧА 5: Кнопка геолокации ─────────────────────────────────────────
 function locate3DGPS() {
@@ -1728,14 +1797,21 @@ function draw3DRadar() {
     radarCtx.stroke();
   }
 
-  // Трактор со стрелкой курса на радаре
-  const tX = cx + (tractor3DPos.x * RADAR_SCALE);
-  const tY = cy + (tractor3DPos.z * RADAR_SCALE);
+  // FIX (радар не двигался): раньше стрелка рисовалась по tractor3DPos/
+  // tractor3DHeading — эти переменные выставлялись ОДИН РАЗ при спавне
+  // трактора и больше никогда не обновлялись ни в GPS-режиме, ни в ручном/
+  // демо-режиме (обновлялась только tractor3DRenderPos/RenderHeading —
+  // сглаженная позиция, которую использует сама 3D-модель). В итоге 3D
+  // трактор ехал, а стрелка на радаре и центр оверлей-карты (см.
+  // open3DFieldMapOverlay) стояли на месте. Используем ту же живую
+  // позицию, что и 3D-модель.
+  const tX = cx + (tractor3DRenderPos.x * RADAR_SCALE);
+  const tY = cy + (tractor3DRenderPos.z * RADAR_SCALE);
 
   const arrowScale = W / 140; // пропорционально уменьшенному радару
   radarCtx.save();
   radarCtx.translate(tX, tY);
-  radarCtx.rotate((tractor3DHeading) * (Math.PI / 180));
+  radarCtx.rotate((tractor3DRenderHeading) * (Math.PI / 180));
   radarCtx.fillStyle = '#00e676';
   radarCtx.beginPath();
   radarCtx.moveTo(0, -7 * arrowScale);
@@ -1818,12 +1894,27 @@ function paint3DSoilCoverage(x, z, widthMeters, headingDeg) {
         iL.x,    iL.y,    iL.z
       ]);
       segGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+      // FIX (сильное мерцание следа именно во время движения, не на стоянке):
+      // раньше материал каждого сегмента ленты был transparent + depthWrite:false.
+      // Новые сегменты создаются постоянно, пока трактор едет (каждые >=0.4м —
+      // см. MIN_PAINT_STEP), и слегка перекрываются на стыках друг с другом и
+      // с плоскостью земли. Без записи в depth-buffer у полупрозрачных
+      // объектов WebGL не может стабильно отсортировать порядок отрисовки
+      // между десятками пересекающихся сегментов на каждом кадре — это
+      // классический z-fighting, который выглядит как мерцание именно
+      // растущего "хвоста" за движущимся трактором. Сегменты почвы визуально
+      // непрозрачны (закрашенный участок), поэтому включаем depthWrite и
+      // добавляем небольшой polygonOffset, чтобы соседние сегменты и
+      // плоскость земли больше не боролись за один и тот же пиксель глубины.
       const segMat = new THREE.MeshBasicMaterial({
         color: SOIL_TRAIL_COLOR_HEX,
         transparent: true,
         opacity: 0.82,
         side: THREE.DoubleSide,
-        depthWrite: false
+        depthWrite: true,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1
       });
       const segMesh = new THREE.Mesh(segGeo, segMat);
       tractor3DTrailGroup.add(segMesh);
@@ -2005,6 +2096,15 @@ function start3DAnimationLoop() {
 
       tractor3DModel.position.set(tractor3DRenderPos.x, 0, tractor3DRenderPos.z);
       tractor3DModel.rotation.y = tractor3DRenderHeading * (Math.PI / 180);
+
+      // FIX (радар/мини-карта не двигались): tractor3DPos/tractor3DHeading
+      // раньше выставлялись один раз при спавне и больше не обновлялись.
+      // Держим их синхронными с живой рендер-позицией на случай, если
+      // где-то ещё в коде используются эти (исторически "публичные")
+      // переменные вместо tractor3DRenderPos/RenderHeading.
+      tractor3DPos.x = tractor3DRenderPos.x;
+      tractor3DPos.z = tractor3DRenderPos.z;
+      tractor3DHeading = tractor3DRenderHeading;
 
       if (tractorActive && (tractorSimInterval || tractorWatchId || _3dGasActive !== 0 || Math.abs(vehicleState.speed) > 0)) {
         paint3DSoilCoverage(tractor3DRenderPos.x, tractor3DRenderPos.z, tractorWidth || 12, tractor3DRenderHeading);
@@ -2281,6 +2381,11 @@ function manualTractorControl(direction) {
 }
 function stopTractorTracking() {
   toggleTractor3DView(false);
+  // FIX: если заезд завершили, пока была открыта вложенная 2D мини-карта
+  // (open3DFieldMapOverlay), останавливаем её цикл обновления — иначе
+  // requestAnimationFrame продолжал бы вызываться вхолостую в фоне.
+  _overlayMapOpen = false;
+  if (_overlayMapAnimId) { cancelAnimationFrame(_overlayMapAnimId); _overlayMapAnimId = null; }
   tractor3DPos = { x: 0, z: 0 };
   tractor3DHeading = 0;
   // FIX v3.0 п.Б3/Б4: сброс базовой X гона и состояния D-pad при завершении заезда.

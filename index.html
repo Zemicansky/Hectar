@@ -425,22 +425,18 @@
             <span class="guidance-field-dot"></span>
             <div class="guidance-field-title" id="tractor-3d-field-title">Поле</div>
           </div>
-          <!-- 2. Статистика заезда — сразу под названием поля. -->
+          <!-- 2. Статистика заезда — сразу под названием поля.
+               ПЕРЕМЕЩЕНО: индикатор точности GPS раньше шёл отдельной
+               строкой НИЖЕ всей остальной статистики (area/dist/time/speed),
+               из-за чего он визуально "отрывался" от остальных данных.
+               Теперь он первым элементом в той же строке — вся статистика
+               заезда идёт единым аккуратным рядом. -->
           <div class="guidance-field-stats">
+            <div><i data-lucide="satellite" class="icon-sm"></i> <span id="tractor-3d-stat-accuracy" style="font-weight:700; color:#00e676;">—</span></div>
             <div><i data-lucide="wheat" class="icon-sm"></i> <span id="tractor-3d-stat-area" style="font-weight:700; color:#00e676;">0.00</span> га</div>
             <div><i data-lucide="ruler" class="icon-sm"></i> <span id="tractor-3d-stat-dist" style="font-weight:700; color:#fff;">0.00</span> км</div>
             <div><i data-lucide="clock" class="icon-sm"></i> <span id="tractor-3d-stat-time" style="font-weight:700; color:#ffb74d;">00:00</span></div>
             <div><i data-lucide="gauge" class="icon-sm"></i> <span id="tractor-3d-stat-speed" style="font-weight:700; color:#fff;">0.0</span> км/ч</div>
-          </div>
-          <!-- ДОБАВЛЕНО (фермерский аудит): индикатор точности GPS в реальном
-               времени. Раньше точность (pos.coords.accuracy) считывалась
-               только в отдельной кнопке "найти меня" (locate3DGPS()), а во
-               время самого заезда никак не показывалась — при погрешности
-               10-15м на тракторе шириной 12м направляющие линии/статистика
-               становятся ненадёжными, но фермер об этом не узнавал. См.
-               updateGpsAccuracyHud() в script.js. -->
-          <div class="guidance-field-stats" id="tractor-gps-accuracy-row" style="margin-top:4px;">
-            <div><i data-lucide="satellite" class="icon-sm"></i> GPS: <span id="tractor-3d-stat-accuracy" style="font-weight:700; color:#00e676;">—</span></div>
           </div>
         </div>
 
