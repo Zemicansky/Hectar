@@ -169,6 +169,12 @@ function initDebugOverlay() {
     const tabBar = document.getElementById('tab-bar');
     const wrapperRect = appWrapper ? appWrapper.getBoundingClientRect() : null;
     const tabRect = tabBar ? tabBar.getBoundingClientRect() : null;
+    const mainApp = document.getElementById('main-app');
+    const activeScreen = document.querySelector('.screen.active');
+    const mainAppRect = mainApp ? mainApp.getBoundingClientRect() : null;
+    const activeScreenRect = activeScreen ? activeScreen.getBoundingClientRect() : null;
+    const mapEl = document.getElementById('map');
+    const mapRect = mapEl ? mapEl.getBoundingClientRect() : null;
     // Пробуем прочитать env(safe-area-inset-bottom) напрямую, а не через
     // переменную --safe-bottom (которая объявлена в :root — хотим убедиться,
     // что сам браузер вообще отдаёт ненулевое значение в этом контексте).
@@ -201,7 +207,10 @@ function initDebugOverlay() {
       'tabbar bottom=' + (tabRect ? Math.round(tabRect.bottom) : 'n/a'),
       'tabbar position=' + (tabBarStyle ? tabBarStyle.position : 'n/a') + ' / tabbar computed bottom=' + (tabBarStyle ? tabBarStyle.bottom : 'n/a'),
       'tabbar padding-bottom=' + (tabBarStyle ? tabBarStyle.paddingBottom : 'n/a'),
-      'gap under tabbar=' + (tabRect ? Math.round(window.innerHeight - tabRect.bottom) : 'n/a') + 'px'
+      'gap under tabbar=' + (tabRect ? Math.round(window.innerHeight - tabRect.bottom) : 'n/a') + 'px',
+      'main-app height=' + (mainAppRect ? Math.round(mainAppRect.height) : 'n/a') + ' / bottom=' + (mainAppRect ? Math.round(mainAppRect.bottom) : 'n/a'),
+      'active screen id=' + (activeScreen ? activeScreen.id : 'n/a') + ' / height=' + (activeScreenRect ? Math.round(activeScreenRect.height) : 'n/a') + ' / bottom=' + (activeScreenRect ? Math.round(activeScreenRect.bottom) : 'n/a'),
+      '#map height=' + (mapRect ? Math.round(mapRect.height) : 'n/a') + ' / bottom=' + (mapRect ? Math.round(mapRect.bottom) : 'n/a')
     ];
     box.textContent = lines.join(' | ');
   }
