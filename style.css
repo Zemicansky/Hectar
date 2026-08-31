@@ -3406,17 +3406,29 @@
      to apply extra top padding so nothing hides under the status bar. */
   @media (display-mode: standalone) {
     html, body {
-      height: 100% !important;
-      height: -webkit-fill-available !important;
-      /* FIX v3.0 п.5: явно снимаем ограничения высоты при работе с домашнего экрана */
-      min-height: 100vh !important;
-      min-height: -webkit-fill-available !important;
+      /* FIX (пустая полоса под таб-баром в установленном PWA): раньше здесь
+         стояло "height: 100% !important" — в standalone-режиме на iOS это
+         не гарантирует совпадение со РЕАЛЬНОЙ видимой высотой экрана
+         (100% считается от родителя, который сам может быть неверно
+         измерен WebKit при первом рендере standalone-режима, до того как
+         системный UI досчитает безопасные зоны). Настоящий фикс — реальная
+         высота, измеренная в JS (см. initViewportHeightFix() в core.js,
+         пишет --app-height через window.visualViewport). Здесь оставляем
+         -webkit-fill-available как более надёжный нативный примитив iOS,
+         без !important, чтобы не перебивать --app-height у #app-wrapper. */
+      height: 100%;
+      height: -webkit-fill-available;
       overflow: hidden !important;
     }
     #app-wrapper {
       /* Respect safe-area on all sides */
       padding-left: env(safe-area-inset-left, 0px);
       padding-right: env(safe-area-inset-right, 0px);
+      /* FIX: в standalone-режиме отдаём приоритет именно JS-измеренной
+         высоте (см. core.js) — она единственная реально учитывает, что
+         никакого браузерного хрома, "съедающего" нижнюю safe-area, здесь
+         больше нет, в отличие от обычной вкладки Safari. */
+      height: var(--app-height, 100dvh) !important;
     }
     .screen-header {
       padding-top: calc(var(--safe-top) + 20px) !important;
@@ -3430,12 +3442,14 @@
   }
   /* JS-detected standalone fallback for iOS where matchMedia doesn't always fire */
   html.pwa-standalone, html.pwa-standalone body {
-    height: 100% !important;
+    height: 100%;
+    height: -webkit-fill-available;
     overflow: hidden !important;
   }
   html.pwa-standalone #app-wrapper {
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
+    height: var(--app-height, 100dvh) !important;
   }
   html.pwa-standalone .screen-header {
     padding-top: calc(var(--safe-top) + 20px);

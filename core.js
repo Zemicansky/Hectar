@@ -25,6 +25,67 @@ const BRAND = {
   accentDark: '#1b5e20'
 };
 
+// ════════════════════════════════════════════════════
+// FIX (iOS Safari: PWA "На экран Домой" — низ вёрстки не доходит до края
+// экрана, остаётся пустая полоса под #tab-bar): style.css уже давно
+// ссылается на переменную --app-height ("JS-measured height wins") и на
+// класс html.pwa-standalone (см. комментарии в :root и в блоке
+// @media (display-mode: standalone) в style.css) — но нигде в проекте не
+// было JS-кода, который бы их реально выставлял. Из-за этого CSS всегда
+// падал на фолбэк 100dvh, а на iOS в установленном на домашний экран PWA
+// (display-mode: standalone) 100dvh на некоторых версиях WebKit
+// вычисляется по высоте экрана БЕЗ вычета зоны home indicator снизу и не
+// пересчитывается динамически как в обычной вкладке Safari (там эту зону
+// визуально "съедает" системный браузерный хром) — отсюда пустое
+// пространство под нижним таб-баром именно в standalone-режиме, а не в
+// обычном Safari.
+//
+// Решение: меряем реальную высоту через window.visualViewport (самый
+// точный источник высоты видимой области на iOS — учитывает клавиатуру,
+// safe area и панели браузера лучше, чем window.innerHeight) и пишем её
+// в CSS-переменную --app-height на <html>, которую #app-wrapper уже
+// готов использовать. Пересчитываем при загрузке, повороте экрана и
+// изменении размеров (visualViewport.resize — надёжнее, чем window.resize,
+// на iOS). Также выставляем класс pwa-standalone, который CSS уже ждёт.
+function setAppHeightVar() {
+  const vh = (window.visualViewport && window.visualViewport.height)
+    ? window.visualViewport.height
+    : window.innerHeight;
+  document.documentElement.style.setProperty('--app-height', vh + 'px');
+}
+
+function detectPwaStandalone() {
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    // iOS Safari-specific flag — matchMedia не всегда успевает сработать
+    // вовремя на старте в установленном PWA, поэтому проверяем и его.
+    window.navigator.standalone === true;
+  document.documentElement.classList.toggle('pwa-standalone', isStandalone);
+}
+
+function initViewportHeightFix() {
+  setAppHeightVar();
+  detectPwaStandalone();
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', setAppHeightVar);
+  }
+  // Фолбэк на обычный resize/orientationchange — на случай браузеров без
+  // Visual Viewport API, и как подстраховка на iOS при повороте экрана.
+  window.addEventListener('resize', setAppHeightVar);
+  window.addEventListener('orientationchange', () => {
+    // Небольшая задержка: сразу после orientationchange iOS ещё отдаёт
+    // старые размеры окна на протяжении одного-двух кадров.
+    setTimeout(setAppHeightVar, 100);
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initViewportHeightFix);
+} else {
+  initViewportHeightFix();
+}
+
 // FIX v3.0 п.4 ("на карте не показывается спутниковый снимок / фон карты
 // серый"): crossOrigin:'anonymous' раньше стоял в общих TILE_OPTS и попадал
 // во ВСЕ базовые слои карты (спутник ArcGIS, OSM, EOX). Он нужен только там,
