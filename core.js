@@ -103,10 +103,24 @@ function initDebugOverlay() {
     const tabBar = document.getElementById('tab-bar');
     const wrapperRect = appWrapper ? appWrapper.getBoundingClientRect() : null;
     const tabRect = tabBar ? tabBar.getBoundingClientRect() : null;
+    // Пробуем прочитать env(safe-area-inset-bottom) напрямую, а не через
+    // переменную --safe-bottom (которая объявлена в :root — хотим убедиться,
+    // что сам браузер вообще отдаёт ненулевое значение в этом контексте).
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;bottom:0;height:0;padding-bottom:env(safe-area-inset-bottom, -999px);visibility:hidden;';
+    document.body.appendChild(probe);
+    const rawSafeBottom = getComputedStyle(probe).paddingBottom;
+    probe.remove();
+
     const lines = [
       'innerHeight=' + window.innerHeight,
       'visualViewport.h=' + (window.visualViewport ? Math.round(window.visualViewport.height) : 'n/a'),
+      'visualViewport.offsetTop=' + (window.visualViewport ? window.visualViewport.offsetTop : 'n/a'),
+      'screen.height=' + window.screen.height,
+      'devicePixelRatio=' + window.devicePixelRatio,
       'app-height var=' + getComputedStyle(html).getPropertyValue('--app-height'),
+      'raw env(safe-area-inset-bottom)=' + rawSafeBottom,
+      '--safe-bottom var=' + getComputedStyle(html).getPropertyValue('--safe-bottom'),
       'standalone(matchMedia)=' + window.matchMedia('(display-mode: standalone)').matches,
       'standalone(navigator)=' + window.navigator.standalone,
       'pwa-standalone class=' + html.classList.contains('pwa-standalone'),
