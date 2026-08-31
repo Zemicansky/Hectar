@@ -40,42 +40,35 @@ const BRAND = {
 // пространство под нижним таб-баром именно в standalone-режиме, а не в
 // обычном Safari.
 //
-// FIX 2 (полоса под #tab-bar не исчезала после первого фикса — толком не
-// хватало ~59px, а safe-area-inset-bottom всего 34px): на iOS в
-// standalone-режиме window.innerHeight/visualViewport.height САМИ ПО СЕБЕ
-// уже исключают safe-area И сверху, И снизу (в обычной вкладке Safari
-// этого не происходит — там browser chrome компенсирует иначе, поэтому в
-// Safari бага не было). Но вёрстка при этом ОТДЕЛЬНО резервирует место под
-// --safe-top (padding-top в .screen-header) и --safe-bottom (padding-bottom
-// в #tab-bar) ВНУТРИ #app-wrapper. Если #app-wrapper при этом получает
-// высоту, из которой safe-area уже вычтена браузером, safe-area оказывается
-// учтена дважды — и низ #app-wrapper не дотягивается до физического края
-// экрана ровно на величину этого двойного вычета.
+// FIX 2 — ОТКАЧЕН (диагностика показала, что гипотеза была неверной).
+// Предыдущая версия подменяла innerHeight/visualViewport.height на
+// window.screen.height в standalone-режиме, предполагая, что safe-area
+// вычитается дважды. Реальные цифры с устройства опровергли это:
+// innerHeight=793, screen.height=852, разница = 59px — это высота зоны
+// notch/Dynamic Island СВЕРХУ экрана (типичное значение safe-area-inset-top
+// для таких моделей), а не "safe-area сверху и снизу вместе".
+// innerHeight/visualViewport.height УЖЕ являются корректным layout
+// viewport — тем, что реально видно пользователю. screen.height —
+// физический размер экрана, включающий зону под notch, которую браузер
+// никогда не отдаёт под контент напрямую.
 //
-// В standalone-режиме используем window.screen.height (физическая высота
-// экрана) вместо innerHeight/visualViewport, чтобы #app-wrapper занимал
-// весь физический экран, а внутренние safe-area отступы расходовали именно
-// эту полную высоту, а не урезанную. В обычном Safari (не standalone)
-// поведение не меняем — там innerHeight и так корректен.
+// Подмена на screen.height растягивала #app-wrapper на 59px больше, чем
+// видимая область экрана — контейнер физически вылезал за верхнюю границу
+// viewport. #tab-bar при этом зафиксирован (position: fixed; bottom: 0)
+// относительно viewport, а не относительно #app-wrapper, поэтому он
+// оставался на своём месте, но расчёты/каскад вокруг возросшего
+// #app-wrapper сбились — отсюда и новые аномальные цифры
+// (tabbar bottom=0, gap under tabbar=793px) на втором прогоне.
+//
+// Возвращаемся к visualViewport.height/innerHeight для ВСЕХ режимов,
+// включая standalone — CSS-инфраструктура (--safe-top, --safe-bottom через
+// env(safe-area-inset-*), padding в .screen-header и #tab-bar) как раз и
+// предназначена для резервирования места под notch/home indicator ВНУТРИ
+// этой корректной высоты, а не для растягивания контейнера сверх неё.
 function setAppHeightVar() {
-  const isStandalone =
-    window.matchMedia('(display-mode: standalone)').matches ||
-    window.navigator.standalone === true;
-
-  let vh;
-  if (isStandalone && window.screen && window.screen.height) {
-    // screen.height не учитывает поворот экрана сам по себе (всегда
-    // "портретное" физическое измерение на iOS) — подстраховываемся через
-    // screen.width для альбомной ориентации.
-    const isLandscape = window.innerWidth > window.innerHeight;
-    vh = isLandscape
-      ? Math.min(window.screen.width, window.screen.height)
-      : Math.max(window.screen.width, window.screen.height);
-  } else {
-    vh = (window.visualViewport && window.visualViewport.height)
-      ? window.visualViewport.height
-      : window.innerHeight;
-  }
+  const vh = (window.visualViewport && window.visualViewport.height)
+    ? window.visualViewport.height
+    : window.innerHeight;
   document.documentElement.style.setProperty('--app-height', vh + 'px');
 }
 
@@ -137,6 +130,10 @@ function initDebugOverlay() {
     const rawSafeBottom = getComputedStyle(probe).paddingBottom;
     probe.remove();
 
+    const viewportMeta = document.querySelector('meta[name="viewport"]');
+    const tabBarStyle = tabBar ? getComputedStyle(tabBar) : null;
+    const appWrapperStyle = appWrapper ? getComputedStyle(appWrapper) : null;
+
     const lines = [
       'innerHeight=' + window.innerHeight,
       'visualViewport.h=' + (window.visualViewport ? Math.round(window.visualViewport.height) : 'n/a'),
@@ -149,8 +146,12 @@ function initDebugOverlay() {
       'standalone(matchMedia)=' + window.matchMedia('(display-mode: standalone)').matches,
       'standalone(navigator)=' + window.navigator.standalone,
       'pwa-standalone class=' + html.classList.contains('pwa-standalone'),
+      'viewport-fit=cover in meta=' + (viewportMeta ? viewportMeta.content.includes('viewport-fit=cover') : 'NO META TAG'),
       'wrapper bottom=' + (wrapperRect ? Math.round(wrapperRect.bottom) : 'n/a') + ' / screenH=' + window.innerHeight,
+      'wrapper position=' + (appWrapperStyle ? appWrapperStyle.position : 'n/a') + ' / wrapper height=' + (appWrapperStyle ? appWrapperStyle.height : 'n/a'),
       'tabbar bottom=' + (tabRect ? Math.round(tabRect.bottom) : 'n/a'),
+      'tabbar position=' + (tabBarStyle ? tabBarStyle.position : 'n/a') + ' / tabbar computed bottom=' + (tabBarStyle ? tabBarStyle.bottom : 'n/a'),
+      'tabbar padding-bottom=' + (tabBarStyle ? tabBarStyle.paddingBottom : 'n/a'),
       'gap under tabbar=' + (tabRect ? Math.round(window.innerHeight - tabRect.bottom) : 'n/a') + 'px'
     ];
     box.textContent = lines.join(' | ');

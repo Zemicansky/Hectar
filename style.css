@@ -317,11 +317,27 @@
   /* ══════════════════════════════════════
      НИЖНЯЯ НАВИГАЦИЯ
   ══════════════════════════════════════ */
+  /* FIX 3 (пустая полоса под #tab-bar в iOS PWA standalone — НАЙДЕНА
+     РЕАЛЬНАЯ ПРИЧИНА): #tab-bar был position: fixed; bottom: 0 —
+     позиционируется относительно viewport БРАУЗЕРА, а не относительно
+     #app-wrapper, даже несмотря на то что #app-wrapper имеет
+     position: relative (fixed игнорирует relative-родителей без
+     transform/filter/will-change). Поэтому вся работа с --app-height на
+     #app-wrapper не влияла на #tab-bar вообще — он не "слушал" эту
+     переменную. Проблема была не в измерении высоты (JS/переменные были
+     в итоге верны), а в том, что fixed+bottom:0 в iOS PWA standalone
+     режиме — известный баг WebKit: элемент не всегда позиционируется
+     корректно относительно реального нижнего края экрана.
+     Решение: #tab-bar теперь position: absolute, что заставляет его
+     позиционироваться относительно #app-wrapper (ближайший relative
+     предок) — тот самый контейнер, чья высота уже надёжно управляется
+     через --app-height (см. core.js). #app-wrapper также имеет
+     overflow: hidden, поэтому absolute-дочерний элемент корректно
+     обрежется по его границам, как и раньше вёл себя fixed. */
   #tab-bar {
-    position: fixed;
+    position: absolute;
     bottom: 0;
     left: 50%;
-    /* Use translateZ(0) for GPU compositing — keeps bar pinned on iOS Safari */
     -webkit-transform: translateX(-50%) translateZ(0);
     transform: translateX(-50%) translateZ(0);
     width: 100%;
