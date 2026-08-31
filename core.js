@@ -81,9 +81,54 @@ function detectPwaStandalone() {
   document.documentElement.classList.toggle('pwa-standalone', isStandalone);
 }
 
+// FIX 4 (--safe-bottom var=0px несмотря на raw env(safe-area-inset-bottom)=34px):
+// известный баг WebKit (issue #274773) — мост "CSS custom property = env(...)"
+// в :root может возвращать устаревшее или нулевое значение, даже когда сам
+// env() в других контекстах отдаёт корректное число. Это не баг вёрстки и не
+// баг наших предыдущих фиксов — это баг самого механизма CSS-переменных на
+// WebKit, воспроизводится нестабильно между запусками/навигациями внутри PWA.
+//
+// Решение: перестаём полагаться на то, что --safe-bottom/--safe-top корректно
+// наследуют env() через :root. Вместо этого измеряем реальное значение через
+// physical DOM-probe элемент (padding-bottom: env(...) + чтение offsetHeight —
+// это работает надёжно, в отличие от чтения переменной), и принудительно
+// перезаписываем --safe-bottom/--safe-top на <html> этим измеренным числом.
+// Это гарантирует, что #tab-bar (padding-bottom: max(var(--safe-bottom), 10px))
+// и все остальные места, использующие эти переменные, получат правильное
+// значение независимо от того, сработал ли встроенный env()-мост браузера.
+function measureSafeAreaInset(side) {
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;'
+    + 'padding-' + side + ':env(safe-area-inset-' + side + ', 0px);'
+    + 'visibility:hidden;pointer-events:none;';
+  document.body.appendChild(probe);
+  const val = side === 'top' || side === 'bottom'
+    ? probe.offsetHeight
+    : probe.offsetWidth;
+  probe.remove();
+  return val;
+}
+
+function setSafeAreaVars() {
+  const html = document.documentElement;
+  const top = measureSafeAreaInset('top');
+  const bottom = measureSafeAreaInset('bottom');
+  const left = measureSafeAreaInset('left');
+  const right = measureSafeAreaInset('right');
+  // Перезаписываем только если измеренное значение больше 0 — на устройствах
+  // без notch/home indicator (или в обычном Safari, не standalone) 0px и так
+  // корректен, а перезапись защищает именно от случая "env() в :root сломан,
+  // но сам env() как CSS-значение работает".
+  if (top > 0) html.style.setProperty('--safe-top', top + 'px');
+  if (bottom > 0) html.style.setProperty('--safe-bottom', bottom + 'px');
+  if (left > 0) html.style.setProperty('--safe-left', left + 'px');
+  if (right > 0) html.style.setProperty('--safe-right', right + 'px');
+}
+
 function initViewportHeightFix() {
   setAppHeightVar();
   detectPwaStandalone();
+  setSafeAreaVars();
 
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', setAppHeightVar);
@@ -94,7 +139,10 @@ function initViewportHeightFix() {
   window.addEventListener('orientationchange', () => {
     // Небольшая задержка: сразу после orientationchange iOS ещё отдаёт
     // старые размеры окна на протяжении одного-двух кадров.
-    setTimeout(setAppHeightVar, 100);
+    setTimeout(() => {
+      setAppHeightVar();
+      setSafeAreaVars();
+    }, 100);
   });
 }
 
@@ -143,6 +191,7 @@ function initDebugOverlay() {
       'app-height var=' + getComputedStyle(html).getPropertyValue('--app-height'),
       'raw env(safe-area-inset-bottom)=' + rawSafeBottom,
       '--safe-bottom var=' + getComputedStyle(html).getPropertyValue('--safe-bottom'),
+      'measured safe-bottom (probe)=' + (typeof measureSafeAreaInset === 'function' ? measureSafeAreaInset('bottom') : 'n/a') + 'px',
       'standalone(matchMedia)=' + window.matchMedia('(display-mode: standalone)').matches,
       'standalone(navigator)=' + window.navigator.standalone,
       'pwa-standalone class=' + html.classList.contains('pwa-standalone'),

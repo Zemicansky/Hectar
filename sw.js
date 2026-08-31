@@ -25,7 +25,7 @@
 // Смена имени кэша — единственный надёжный триггер для activate-хендлера,
 // который удаляет все кэши с другим именем и заставляет клиент забрать
 // свежие файлы по сети.
-const CACHE_NAME = 'hectar-v3.1';
+const CACHE_NAME = 'hectar-v3.2';
 
 // On install: cache the page itself
 self.addEventListener('install', function (event) {
