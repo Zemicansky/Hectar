@@ -86,6 +86,47 @@ if (document.readyState === 'loading') {
   initViewportHeightFix();
 }
 
+// ВРЕМЕННЫЙ ДИАГНОСТИЧЕСКИЙ ОВЕРЛЕЙ — открыть страницу с ?debug=1 в адресе,
+// чтобы увидеть на экране реальные измерения высоты. Уберите этот блок,
+// когда проблема с пустой полосой под #tab-bar будет полностью решена.
+function initDebugOverlay() {
+  if (!location.search.includes('debug=1')) return;
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;'
+    + 'background:rgba(255,0,0,0.9);color:#fff;font:11px monospace;'
+    + 'padding:6px 8px;white-space:pre-wrap;pointer-events:none;';
+  document.body.appendChild(box);
+
+  function render() {
+    const html = document.documentElement;
+    const appWrapper = document.getElementById('app-wrapper');
+    const tabBar = document.getElementById('tab-bar');
+    const wrapperRect = appWrapper ? appWrapper.getBoundingClientRect() : null;
+    const tabRect = tabBar ? tabBar.getBoundingClientRect() : null;
+    const lines = [
+      'innerHeight=' + window.innerHeight,
+      'visualViewport.h=' + (window.visualViewport ? Math.round(window.visualViewport.height) : 'n/a'),
+      'app-height var=' + getComputedStyle(html).getPropertyValue('--app-height'),
+      'standalone(matchMedia)=' + window.matchMedia('(display-mode: standalone)').matches,
+      'standalone(navigator)=' + window.navigator.standalone,
+      'pwa-standalone class=' + html.classList.contains('pwa-standalone'),
+      'wrapper bottom=' + (wrapperRect ? Math.round(wrapperRect.bottom) : 'n/a') + ' / screenH=' + window.innerHeight,
+      'tabbar bottom=' + (tabRect ? Math.round(tabRect.bottom) : 'n/a'),
+      'gap under tabbar=' + (tabRect ? Math.round(window.innerHeight - tabRect.bottom) : 'n/a') + 'px'
+    ];
+    box.textContent = lines.join(' | ');
+  }
+  render();
+  window.addEventListener('resize', render);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', render);
+  setInterval(render, 1000);
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initDebugOverlay);
+} else {
+  initDebugOverlay();
+}
+
 // FIX v3.0 п.4 ("на карте не показывается спутниковый снимок / фон карты
 // серый"): crossOrigin:'anonymous' раньше стоял в общих TILE_OPTS и попадал
 // во ВСЕ базовые слои карты (спутник ArcGIS, OSM, EOX). Он нужен только там,
