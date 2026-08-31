@@ -81,54 +81,9 @@ function detectPwaStandalone() {
   document.documentElement.classList.toggle('pwa-standalone', isStandalone);
 }
 
-// FIX 4 (--safe-bottom var=0px несмотря на raw env(safe-area-inset-bottom)=34px):
-// известный баг WebKit (issue #274773) — мост "CSS custom property = env(...)"
-// в :root может возвращать устаревшее или нулевое значение, даже когда сам
-// env() в других контекстах отдаёт корректное число. Это не баг вёрстки и не
-// баг наших предыдущих фиксов — это баг самого механизма CSS-переменных на
-// WebKit, воспроизводится нестабильно между запусками/навигациями внутри PWA.
-//
-// Решение: перестаём полагаться на то, что --safe-bottom/--safe-top корректно
-// наследуют env() через :root. Вместо этого измеряем реальное значение через
-// physical DOM-probe элемент (padding-bottom: env(...) + чтение offsetHeight —
-// это работает надёжно, в отличие от чтения переменной), и принудительно
-// перезаписываем --safe-bottom/--safe-top на <html> этим измеренным числом.
-// Это гарантирует, что #tab-bar (padding-bottom: max(var(--safe-bottom), 10px))
-// и все остальные места, использующие эти переменные, получат правильное
-// значение независимо от того, сработал ли встроенный env()-мост браузера.
-function measureSafeAreaInset(side) {
-  const probe = document.createElement('div');
-  probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;'
-    + 'padding-' + side + ':env(safe-area-inset-' + side + ', 0px);'
-    + 'visibility:hidden;pointer-events:none;';
-  document.body.appendChild(probe);
-  const val = side === 'top' || side === 'bottom'
-    ? probe.offsetHeight
-    : probe.offsetWidth;
-  probe.remove();
-  return val;
-}
-
-function setSafeAreaVars() {
-  const html = document.documentElement;
-  const top = measureSafeAreaInset('top');
-  const bottom = measureSafeAreaInset('bottom');
-  const left = measureSafeAreaInset('left');
-  const right = measureSafeAreaInset('right');
-  // Перезаписываем только если измеренное значение больше 0 — на устройствах
-  // без notch/home indicator (или в обычном Safari, не standalone) 0px и так
-  // корректен, а перезапись защищает именно от случая "env() в :root сломан,
-  // но сам env() как CSS-значение работает".
-  if (top > 0) html.style.setProperty('--safe-top', top + 'px');
-  if (bottom > 0) html.style.setProperty('--safe-bottom', bottom + 'px');
-  if (left > 0) html.style.setProperty('--safe-left', left + 'px');
-  if (right > 0) html.style.setProperty('--safe-right', right + 'px');
-}
-
 function initViewportHeightFix() {
   setAppHeightVar();
   detectPwaStandalone();
-  setSafeAreaVars();
 
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', setAppHeightVar);
@@ -139,10 +94,7 @@ function initViewportHeightFix() {
   window.addEventListener('orientationchange', () => {
     // Небольшая задержка: сразу после orientationchange iOS ещё отдаёт
     // старые размеры окна на протяжении одного-двух кадров.
-    setTimeout(() => {
-      setAppHeightVar();
-      setSafeAreaVars();
-    }, 100);
+    setTimeout(setAppHeightVar, 100);
   });
 }
 
@@ -152,78 +104,7 @@ if (document.readyState === 'loading') {
   initViewportHeightFix();
 }
 
-// ВРЕМЕННЫЙ ДИАГНОСТИЧЕСКИЙ ОВЕРЛЕЙ — открыть страницу с ?debug=1 в адресе,
-// чтобы увидеть на экране реальные измерения высоты. Уберите этот блок,
-// когда проблема с пустой полосой под #tab-bar будет полностью решена.
-function initDebugOverlay() {
-  if (!location.search.includes('debug=1')) return;
-  const box = document.createElement('div');
-  box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;'
-    + 'background:rgba(255,0,0,0.9);color:#fff;font:11px monospace;'
-    + 'padding:6px 8px;white-space:pre-wrap;pointer-events:none;';
-  document.body.appendChild(box);
 
-  function render() {
-    const html = document.documentElement;
-    const appWrapper = document.getElementById('app-wrapper');
-    const tabBar = document.getElementById('tab-bar');
-    const wrapperRect = appWrapper ? appWrapper.getBoundingClientRect() : null;
-    const tabRect = tabBar ? tabBar.getBoundingClientRect() : null;
-    const mainApp = document.getElementById('main-app');
-    const activeScreen = document.querySelector('.screen.active');
-    const mainAppRect = mainApp ? mainApp.getBoundingClientRect() : null;
-    const activeScreenRect = activeScreen ? activeScreen.getBoundingClientRect() : null;
-    const mapEl = document.getElementById('map');
-    const mapRect = mapEl ? mapEl.getBoundingClientRect() : null;
-    // Пробуем прочитать env(safe-area-inset-bottom) напрямую, а не через
-    // переменную --safe-bottom (которая объявлена в :root — хотим убедиться,
-    // что сам браузер вообще отдаёт ненулевое значение в этом контексте).
-    const probe = document.createElement('div');
-    probe.style.cssText = 'position:fixed;bottom:0;height:0;padding-bottom:env(safe-area-inset-bottom, -999px);visibility:hidden;';
-    document.body.appendChild(probe);
-    const rawSafeBottom = getComputedStyle(probe).paddingBottom;
-    probe.remove();
-
-    const viewportMeta = document.querySelector('meta[name="viewport"]');
-    const tabBarStyle = tabBar ? getComputedStyle(tabBar) : null;
-    const appWrapperStyle = appWrapper ? getComputedStyle(appWrapper) : null;
-
-    const lines = [
-      'innerHeight=' + window.innerHeight,
-      'visualViewport.h=' + (window.visualViewport ? Math.round(window.visualViewport.height) : 'n/a'),
-      'visualViewport.offsetTop=' + (window.visualViewport ? window.visualViewport.offsetTop : 'n/a'),
-      'screen.height=' + window.screen.height,
-      'devicePixelRatio=' + window.devicePixelRatio,
-      'app-height var=' + getComputedStyle(html).getPropertyValue('--app-height'),
-      'raw env(safe-area-inset-bottom)=' + rawSafeBottom,
-      '--safe-bottom var=' + getComputedStyle(html).getPropertyValue('--safe-bottom'),
-      'measured safe-bottom (probe)=' + (typeof measureSafeAreaInset === 'function' ? measureSafeAreaInset('bottom') : 'n/a') + 'px',
-      'standalone(matchMedia)=' + window.matchMedia('(display-mode: standalone)').matches,
-      'standalone(navigator)=' + window.navigator.standalone,
-      'pwa-standalone class=' + html.classList.contains('pwa-standalone'),
-      'viewport-fit=cover in meta=' + (viewportMeta ? viewportMeta.content.includes('viewport-fit=cover') : 'NO META TAG'),
-      'wrapper bottom=' + (wrapperRect ? Math.round(wrapperRect.bottom) : 'n/a') + ' / screenH=' + window.innerHeight,
-      'wrapper position=' + (appWrapperStyle ? appWrapperStyle.position : 'n/a') + ' / wrapper height=' + (appWrapperStyle ? appWrapperStyle.height : 'n/a'),
-      'tabbar bottom=' + (tabRect ? Math.round(tabRect.bottom) : 'n/a'),
-      'tabbar position=' + (tabBarStyle ? tabBarStyle.position : 'n/a') + ' / tabbar computed bottom=' + (tabBarStyle ? tabBarStyle.bottom : 'n/a'),
-      'tabbar padding-bottom=' + (tabBarStyle ? tabBarStyle.paddingBottom : 'n/a'),
-      'gap under tabbar=' + (tabRect ? Math.round(window.innerHeight - tabRect.bottom) : 'n/a') + 'px',
-      'main-app height=' + (mainAppRect ? Math.round(mainAppRect.height) : 'n/a') + ' / bottom=' + (mainAppRect ? Math.round(mainAppRect.bottom) : 'n/a'),
-      'active screen id=' + (activeScreen ? activeScreen.id : 'n/a') + ' / height=' + (activeScreenRect ? Math.round(activeScreenRect.height) : 'n/a') + ' / bottom=' + (activeScreenRect ? Math.round(activeScreenRect.bottom) : 'n/a'),
-      '#map height=' + (mapRect ? Math.round(mapRect.height) : 'n/a') + ' / bottom=' + (mapRect ? Math.round(mapRect.bottom) : 'n/a')
-    ];
-    box.textContent = lines.join(' | ');
-  }
-  render();
-  window.addEventListener('resize', render);
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', render);
-  setInterval(render, 1000);
-}
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initDebugOverlay);
-} else {
-  initDebugOverlay();
-}
 
 // FIX v3.0 п.4 ("на карте не показывается спутниковый снимок / фон карты
 // серый"): crossOrigin:'anonymous' раньше стоял в общих TILE_OPTS и попадал
