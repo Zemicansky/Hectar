@@ -642,13 +642,82 @@ function openFieldDetail(fieldId) {
 
   document.getElementById('screen-field-detail').classList.add('open');
 }
+// FIX: getVegetationStage() был удалён в v1.8 ("removed fake getVegetationStage"),
+// но вызовы функции остались в renderFieldDetailHTML() и updateFieldSowingDate().
+// Из-за этого при рендере карточки поля падала ошибка "getVegetationStage is not defined",
+// весь innerHTML не обновлялся — отсюда "дата посева не сохраняется" (на самом деле
+// сохранялась, просто карточка не перерисовывалась) и "стадия вегетации не работает".
+// Ниже — простой расчёт стадии по числу дней с даты посева и культуре.
+const CROP_GROWTH_STAGES = {
+  // [дней_с_посева_до, ключ_стадии] — берём первую подходящую по возрастанию
+  default: [
+    [10, 'germination'],
+    [30, 'seedling'],
+    [60, 'vegetative'],
+    [90, 'flowering'],
+    [120, 'fruiting'],
+    [Infinity, 'maturity']
+  ],
+  wheat:    [[10, 'germination'], [25, 'seedling'], [55, 'vegetative'], [75, 'flowering'], [110, 'fruiting'], [Infinity, 'maturity']],
+  barley:   [[8, 'germination'],  [22, 'seedling'], [50, 'vegetative'], [70, 'flowering'], [100, 'fruiting'], [Infinity, 'maturity']],
+  corn:     [[10, 'germination'], [30, 'seedling'], [65, 'vegetative'], [85, 'flowering'], [130, 'fruiting'], [Infinity, 'maturity']],
+  sunflower:[[10, 'germination'], [28, 'seedling'], [60, 'vegetative'], [85, 'flowering'], [115, 'fruiting'], [Infinity, 'maturity']],
+  soybean:  [[8, 'germination'],  [25, 'seedling'], [55, 'vegetative'], [80, 'flowering'], [115, 'fruiting'], [Infinity, 'maturity']],
+  potato:   [[15, 'germination'], [35, 'seedling'], [60, 'vegetative'], [80, 'flowering'], [110, 'fruiting'], [Infinity, 'maturity']],
+  rapeseed: [[10, 'germination'], [30, 'seedling'], [60, 'vegetative'], [90, 'flowering'], [120, 'fruiting'], [Infinity, 'maturity']]
+};
+
+const VEGETATION_STAGE_LABELS = {
+  germination: { ru: '🌱 Прорастание', en: '🌱 Germination' },
+  seedling:    { ru: '🌿 Всходы',      en: '🌿 Seedling' },
+  vegetative:  { ru: '🌾 Вегетация',   en: '🌾 Vegetative' },
+  flowering:   { ru: '🌸 Цветение',    en: '🌸 Flowering' },
+  fruiting:    { ru: '🌽 Налив/плодоношение', en: '🌽 Fruiting' },
+  maturity:    { ru: '🌾 Созревание',  en: '🌾 Maturity' },
+  none:        { ru: '— нет данных',  en: '— no data' },
+  harvested:   { ru: '✅ Убрано',      en: '✅ Harvested' }
+};
+
+function getVegetationStage(field) {
+  const isRu = lang === 'ru';
+  if (!field || !field.sowingDate) {
+    return VEGETATION_STAGE_LABELS.none[isRu ? 'ru' : 'en'];
+  }
+
+  // Если после посева было событие уборки — считаем убранным
+  const harvestEvents = (field.season || []).filter(ev => ev.type === 'harvest' && ev.date >= field.sowingDate);
+  if (harvestEvents.length > 0) {
+    return VEGETATION_STAGE_LABELS.harvested[isRu ? 'ru' : 'en'];
+  }
+
+  const sowDate = new Date(field.sowingDate + 'T00:00:00');
+  if (isNaN(sowDate.getTime())) {
+    return VEGETATION_STAGE_LABELS.none[isRu ? 'ru' : 'en'];
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysSince = Math.floor((today - sowDate) / (1000 * 60 * 60 * 24));
+
+  if (daysSince < 0) {
+    // Дата посева в будущем
+    return VEGETATION_STAGE_LABELS.none[isRu ? 'ru' : 'en'];
+  }
+
+  const cropId = resolveCropId(field.crop);
+  const table = CROP_GROWTH_STAGES[cropId] || CROP_GROWTH_STAGES.default;
+  const stageEntry = table.find(([maxDays]) => daysSince <= maxDays);
+  const stageKey = stageEntry ? stageEntry[1] : 'maturity';
+
+  return VEGETATION_STAGE_LABELS[stageKey][isRu ? 'ru' : 'en'];
+}
+
 function renderFieldDetailHTML(field) {
   const fieldCropId = resolveCropId(field.crop);
   const eventTypeLabel = { sowing: t('sowing'), harvest: t('harvest'), watering: t('watering'), spraying: t('spraying'), cultivation: t('cultivation'), disking: t('disking') };
 
   const ndvi = estimateFieldNdvi(field);
   const health = getHealthStatus(ndvi);
-  // FIX v1.8: removed fake getVegetationStage() and getYieldForecast() — user-editable instead
   const ndviColor = getNdviColor(ndvi);
   const sowDate = field.sowingDate || '—';
   // FIX v1.8: removed auto-computed nextTreatDate (was +14 days fake calc)
