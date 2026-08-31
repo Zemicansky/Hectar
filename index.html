@@ -48,7 +48,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="style.css">
+<!-- FIX: добавлен ?v=3.1 как cache-busting параметр — до этого style.css
+     подключался без версии в URL, и обычный HTTP-кэш браузера (отдельно
+     от Service Worker Cache) мог отдавать старую версию файла под тем же
+     именем даже после правок. Поднимайте это число вместе с CACHE_NAME
+     в sw.js при каждом изменении style.css/core.js. -->
+<link rel="stylesheet" href="style.css?v=3.1">
 <body>
 <div id="app-wrapper">
 
@@ -1117,7 +1122,7 @@
      Порядок важен — более поздние файлы используют функции
      и переменные из более ранних. См. PROJECT-MAP.md.
 ══════════════════════════════════════ -->
-<script src="core.js"></script>
+<script src="core.js?v=3.1"></script>
 <script src="map.js"></script>
 <script src="fields.js"></script>
 <script src="ndvi.js"></script>
