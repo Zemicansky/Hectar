@@ -52,6 +52,9 @@ function setWeatherMode(mode) {
   if (fieldInfoBar && mode === 'city') fieldInfoBar.style.display = 'none';
   // FIX v1.9: render favourites when city mode becomes active
   if (mode === 'city') renderFavouriteCities();
+  // Скрыть/показать ленту карточек полей сразу при переключении режима,
+  // не дожидаясь завершения loadWeather()
+  renderWeatherFieldCards();
   loadWeather();
 }
 let weatherCitySearchController = null;
@@ -231,6 +234,81 @@ const WMO_LABELS_EN = {
 
 let selectedWeatherFieldId = null;
 
+// ════════════════════════════════════════════════════
+// КАРТОЧКИ ПОЛЕЙ В ПОГОДЕ — по образцу списка полей (fields.js:renderFieldsList)
+// Переиспользует drawFieldThumb/estimateFieldNdvi/getHealthStatus/cropDisplayName
+// ════════════════════════════════════════════════════
+function renderWeatherFieldCards() {
+  const strip = document.getElementById('weather-fields-strip');
+  if (!strip) return;
+  const fields = loadFields();
+
+  if (weatherMode !== 'field' || !fields.length) {
+    strip.style.display = 'none';
+    strip.innerHTML = '';
+    return;
+  }
+  strip.style.display = 'flex';
+
+  // Автовыбор, как раньше в select: сохранённое поле или единственное поле
+  if (selectedWeatherFieldId) {
+    if (!fields.find(f => f.id === selectedWeatherFieldId)) selectedWeatherFieldId = null;
+  }
+  if (!selectedWeatherFieldId && fields.length === 1) {
+    selectedWeatherFieldId = fields[0].id;
+  }
+
+  strip.innerHTML = fields.map(f => `
+    <div class="weather-field-card${f.id === selectedWeatherFieldId ? ' selected' : ''}"
+         data-field-id="${escapeHtml(f.id)}"
+         onclick="onWeatherFieldChange('${escapeHtml(f.id)}')">
+      <canvas width="52" height="52" id="wfc-thumb-${escapeHtml(f.id)}"></canvas>
+      <div class="wfc-name">${escapeHtml(f.name)}</div>
+      <div class="wfc-crop">${f.crop ? escapeHtml(cropDisplayName(f.crop)) : (lang === 'ru' ? 'Без культуры' : 'No crop')}</div>
+    </div>
+  `).join('');
+
+  // Миниатюры рисуем после вставки в DOM, как в fields.js
+  fields.forEach(f => setTimeout(() => drawWeatherFieldThumb(f), 30));
+
+  // Держим select синхронизированным для обратной совместимости
+  const sel = document.getElementById('weather-field-select');
+  if (sel && selectedWeatherFieldId) sel.value = selectedWeatherFieldId;
+}
+
+// То же самое, что drawFieldThumb() в fields.js, но рисует в канвасы карточек
+// погоды (свои id, чтобы не конфликтовать с канвасами вкладки "Поля").
+function drawWeatherFieldThumb(field) {
+  const canvas = document.getElementById(`wfc-thumb-${field.id}`);
+  if (!canvas || !field.coordinates || field.coordinates.length < 3) return;
+  const ctx = canvas.getContext('2d');
+  const W = 52, H = 52;
+  ctx.clearRect(0, 0, W, H);
+
+  const lats = field.coordinates.map(c => c[0]);
+  const lngs = field.coordinates.map(c => c[1]);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  const pad = 6;
+  const scaleX = (W - pad * 2) / ((maxLng - minLng) || 1);
+  const scaleY = (H - pad * 2) / ((maxLat - minLat) || 1);
+  const scale = Math.min(scaleX, scaleY);
+
+  ctx.beginPath();
+  field.coordinates.forEach((c, i) => {
+    const x = pad + (c[1] - minLng) * scale;
+    const y = H - pad - (c[0] - minLat) * scale;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = field.color + '40';
+  ctx.fill();
+  ctx.strokeStyle = field.color;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
 function populateWeatherFieldSelect() {
   const sel = document.getElementById('weather-field-select');
   if (!sel) return;
@@ -401,8 +479,10 @@ async function loadWeather() {
 
   // ── FIELD MODE (original logic) ────────────────────
 
-  // Populate the select
+  // Populate the select (оставлен для узких экранов/множества полей)
   populateWeatherFieldSelect();
+  // Карточки полей — основной способ выбора поля, по образцу вкладки "Поля"
+  renderWeatherFieldCards();
 
   if (!fields.length) {
     if (fieldInfoBar) fieldInfoBar.style.display = 'none';

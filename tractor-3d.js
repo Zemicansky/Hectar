@@ -80,6 +80,22 @@ let tractorSimInterval = null;
 // FIX v3.0 п.Б3: нумерация гонов от точки старта, а не от центра поля (x=0).
 // Устанавливается при первом движении вперёд; сбрасывается при stopTractorTracking.
 let tractor3DBaseTrackX = null;
+// FIX (баг): опорная Z-координата точки старта гона — раньше сохранялась
+// только X, из-за чего HUD guidance (updateGuidanceLightbar) не мог
+// корректно перейти в повёрнутую систему координат гонов при развёрнутом
+// поле (см. tractorTrackHeadingDeg ниже). Устанавливается синхронно с
+// tractor3DBaseTrackX в тех же местах.
+let tractor3DBaseTrackZ = null;
+// Курс гонов (градусы) — курс первой стороны контура выбранного поля,
+// тот же угол, на который повёрнута группа направляющих линий trackGroup
+// в update3DFieldBounds(). Раньше существовал только как локальная
+// переменная trackHeadingDeg внутри update3DFieldBounds() и нигде не
+// сохранялся — из-за этого updateGuidanceLightbar() считал отклонение от
+// гона по абсолютной мировой оси X, а не по перпендикуляру к реально
+// нарисованным (повёрнутым) направляющим линиям. На развёрнутом поле HUD
+// "В ПОЛОСЕ / РУЛИ ВЛЕВО/ВПРАВО" мог полностью расходиться с тем, что
+// водитель видел на экране.
+let tractorTrackHeadingDeg = 0;
 
 // FIX v3.0 п.Б4: непрерывное плавное управление D-pad.
 // _3dGasActive: +1 вперёд / -1 назад / 0 стоп.
@@ -556,7 +572,7 @@ function vehicleApplyGpsFix(lat, lng, tsMs) {
     vehicleState.z = newZ;
     tractor3DRenderPos.x = vehicleState.x;
     tractor3DRenderPos.z = vehicleState.z;
-    if (tractor3DBaseTrackX === null) tractor3DBaseTrackX = vehicleState.x;
+    if (tractor3DBaseTrackX === null) { tractor3DBaseTrackX = vehicleState.x; tractor3DBaseTrackZ = vehicleState.z; }
     return;
   }
 
@@ -1390,6 +1406,10 @@ function update3DFieldBounds(field) {
   } else if (typeof tractor3DRenderHeading === 'number') {
     trackHeadingDeg = tractor3DRenderHeading;
   }
+  // FIX (баг): сохраняем в глобальную переменную, чтобы updateGuidanceLightbar()
+  // мог считать отклонение от гона в ТОЙ ЖЕ повёрнутой системе координат,
+  // что и визуальные направляющие линии ниже (trackGroup.rotation.y).
+  tractorTrackHeadingDeg = trackHeadingDeg;
   const trackGroup = new THREE.Group();
   trackGroup.rotation.y = -trackHeadingDeg * (Math.PI / 180);
   field3DOutline.add(trackGroup);
@@ -1507,15 +1527,35 @@ function update3DFieldBounds(field) {
   scene3D.add(field3DOutline);
 }
 /** Расчет и обновление HUD светодиодного курсоуказателя (Ag Lightbar) */
+// FIX (баг): раньше отклонение от гона считалось по абсолютной мировой оси X
+// (x - baseX), а визуальные направляющие линии в update3DFieldBounds() при
+// этом рисуются повёрнутыми на курс поля (trackGroup.rotation.y). На поле,
+// развёрнутом не строго по мировой оси Z (обычный случай), HUD "В ПОЛОСЕ /
+// РУЛИ ВЛЕВО/ВПРАВО" мог полностью расходиться с тем, что водитель видел на
+// экране. Теперь координаты трактора сначала переводятся в ту же повёрнутую
+// систему координат гонов (обратный поворот на tractorTrackHeadingDeg), что
+// и линии на сцене — отклонение считается вдоль локальной оси X этой
+// системы, перпендикулярно направлению гонов, как и должно быть.
 function updateGuidanceLightbar(heading, x, z) {
   const spacing = Math.max(6, tractorWidth || 12);
   // FIX v3.0 п.Б3: гон #1 = точка старта, а не центр поля (x=0).
-  // tractor3DBaseTrackX фиксируется при первом движении вперёд.
+  // tractor3DBaseTrackX/Z фиксируется при первом движении вперёд.
   const baseX = (tractor3DBaseTrackX !== null) ? tractor3DBaseTrackX : x;
-  const relX = x - baseX;
+  const baseZ = (tractor3DBaseTrackZ !== null) ? tractor3DBaseTrackZ : z;
+
+  // Поворачиваем текущую позицию и опорную точку в локальную систему
+  // координат гонов (та же ротация, что trackGroup.rotation.y в
+  // update3DFieldBounds: группа повёрнута на -trackHeadingDeg, значит
+  // мир -> локаль это поворот на +trackHeadingDeg).
+  const rad = tractorTrackHeadingDeg * (Math.PI / 180);
+  const cosT = Math.cos(rad), sinT = Math.sin(rad);
+  const localX    = x * cosT - z * sinT;
+  const baseLocalX = baseX * cosT - baseZ * sinT;
+
+  const relX = localX - baseLocalX;
   const trackIndex = Math.round(relX / spacing);
-  const targetX  = baseX + trackIndex * spacing;
-  const deviation = x - targetX; // отклонение от центра текущего гона (м)
+  const targetLocalX = baseLocalX + trackIndex * spacing;
+  const deviation = localX - targetLocalX; // отклонение от центра текущего гона (м), поперёк направления гонов
 
   const offsetEl = document.getElementById('tractor-guidance-offset');
   const pillEl = document.getElementById('guidance-center-pill');
@@ -1580,7 +1620,10 @@ function updateGuidanceLightbar(heading, x, z) {
     // Трактор смещен влево -> рули ВПРАВО
     if (offsetEl) offsetEl.textContent = absDev.toFixed(2);
     setArrow('right');
-    if (pillEl) pillEl.className = absDev > 0.6 ? 'guidance-center-pill deviate-hard' : 'guidance-center-pill deviate-left';
+    // FIX (баг): класс был скопирован из ветки "смещён вправо" (deviate-left)
+    // и не заменён — пилюля показывала "влево", пока стрелка и текст статуса
+    // уже говорили "рули вправо". Противоречивая подсказка водителю.
+    if (pillEl) pillEl.className = absDev > 0.6 ? 'guidance-center-pill deviate-hard' : 'guidance-center-pill deviate-right';
     if (statusEl) {
       statusEl.textContent = absDev > 0.6 ? 'СИЛЬНО ВЛЕВО! РУЛИ ВПРАВО →' : 'РУЛИ ВПРАВО →';
       statusEl.style.color = absDev > 0.6 ? '#ff5252' : '#ffd600';
@@ -1630,7 +1673,11 @@ function _overlayMapTick() {
     if (overlayTractorMarker) {
       overlayTractorMarker.setLatLng(ll);
       const el = overlayTractorMarker.getElement();
-      if (el) el.style.transform += ` rotate(${tractor3DRenderHeading.toFixed(0)}deg)`;
+      // FIX (баг): += конкатенировал новый rotate() на каждый кадр
+      // requestAnimationFrame (~60/сек), пока оверлей открыт — transform
+      // рос неограниченно. Заменяем старое значение поворота, как это уже
+      // сделано для основного 2D-маркера в vehicleApplyGpsFix().
+      if (el) el.style.transform = `${el.style.transform.replace(/rotate\([^)]+\)/g, '')} rotate(${tractor3DRenderHeading.toFixed(0)}deg)`;
     }
     // Карта следует за трактором, но не дёргает зум/центр если пользователь
     // сам подвинул карту руками — проверяем, не задан ли флаг ручной панорамы.
@@ -2159,12 +2206,30 @@ function on3DWindowResize() {
 }
 function toggleTractorSimulation() {
   if (!tractorActive) return;
-  if (tractorSimInterval) {
+  // FIX (баг): tractorSimInterval — флаг с ТРЕМЯ состояниями (true = едет,
+  // false = на паузе, null = не запускалось/остановлено), но раньше
+  // проверялось только `if (tractorSimInterval)`, что истинно лишь для
+  // true. При состоянии false (пауза) выполнение проваливалось в блок
+  // "первый запуск" ниже и сбрасывало весь прогресс демо (путь, площадь,
+  // 3D-след) плюс телепортировало трактор обратно на старт — то есть
+  // "продолжить после паузы" на деле начинало заезд заново. Три состояния
+  // явно разделены ниже.
+  if (tractorSimInterval === true) {
     tractorSimInterval = false;
     showToast(lang === 'ru' ? '<i data-lucide="pause" class="icon-sm"></i> Демо на паузе' : '<i data-lucide="pause" class="icon-sm"></i> Simulation paused');
     return;
   }
+  if (tractorSimInterval === false) {
+    // Возобновление после паузы — просто продолжаем с текущей позиции,
+    // без сброса пути/площади/следа и без телепорта на старт.
+    tractorSimInterval = true;
+    const accEl = document.getElementById('tractor-3d-stat-accuracy');
+    if (accEl) { accEl.textContent = lang === 'ru' ? 'демо' : 'demo'; accEl.style.color = '#90a4ae'; }
+    showToast(lang === 'ru' ? '<i data-lucide="arrow-right" class="icon-sm"></i> Демо продолжено' : '<i data-lucide="arrow-right" class="icon-sm"></i> Demo resumed');
+    return;
+  }
 
+  // tractorSimInterval === null: первый запуск демо в этом заезде.
   showToast(lang === 'ru' ? '<i data-lucide="arrow-right" class="icon-sm"></i> Демо заезд запущен' : '<i data-lucide="arrow-right" class="icon-sm"></i> Demo running');
 
   // ДОБАВЛЕНО: в демо-режиме реального GPS нет — показывать последнюю
@@ -2180,6 +2245,7 @@ function toggleTractorSimulation() {
     tractorCoverageUnion = null;
     lastSoilPaintPos = null;
     tractor3DBaseTrackX = null;
+    tractor3DBaseTrackZ = null;
     if (tractor3DTrailGroup) {
       tractor3DTrailGroup.clear();
       tractor3DTrailGroup.userData = {};
@@ -2286,6 +2352,7 @@ function vehiclePhysicsTick(dt) {
 
   if (tractor3DBaseTrackX === null && dist > 0) {
     tractor3DBaseTrackX = vehicleState.x;
+    tractor3DBaseTrackZ = vehicleState.z;
   }
 
   const distMeters = Math.abs(dist);
@@ -2388,8 +2455,9 @@ function stopTractorTracking() {
   if (_overlayMapAnimId) { cancelAnimationFrame(_overlayMapAnimId); _overlayMapAnimId = null; }
   tractor3DPos = { x: 0, z: 0 };
   tractor3DHeading = 0;
-  // FIX v3.0 п.Б3/Б4: сброс базовой X гона и состояния D-pad при завершении заезда.
+  // FIX v3.0 п.Б3/Б4: сброс базовой X/Z гона и состояния D-pad при завершении заезда.
   tractor3DBaseTrackX = null;
+  tractor3DBaseTrackZ = null;
   _3dGasActive = 0; _3dSteerActive = 0; _lastFrameTime = 0;
   _manualCurSpeed = 0; _manualCurSteerRate = 0; _manualLastSyncAt = 0;
   tractorLastFixAt = null;

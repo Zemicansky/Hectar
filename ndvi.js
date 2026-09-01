@@ -28,81 +28,6 @@ function toggleNdviLayer() {
     ndviVisible = true;
   }
 }
-// ════════════════════════════════════════════════════
-// ЗАДАЧА 2.1: конфигурируемый источник данных NDVI
-// ════════════════════════════════════════════════════
-// Сейчас единственный реализованный канал — NASA GIBS WMTS (растровые
-// PNG-тайлы с декодированием цвета обратно в NDVI). Это fallback-канал
-// по определению: WMTS отдаёт готовую картинку, а не числовые значения,
-// поэтому декодирование цвета — приближение, а не измерение.
-//
-// Чтобы заменить канал на числовой источник (WCS у NASA GIBS, либо
-// Sentinel Hub Statistics API — Sentinel-2, 10 м/пкс, отдаёт готовое
-// среднее/медиану NDVI по GeoJSON-полигону поля без сэмплирования
-// пикселей на клиенте) — нужен API-ключ/регистрация, которую сейчас
-// добавить нельзя. Поэтому источник вынесен в конфиг с явным списком
-// провайдеров: включить числовой канал в будущем — значит прописать
-// сюда ключ и endpoint, не переписывая остальную логику приложения.
-const NDVI_DATA_SOURCE = {
-  // 'gibs-wmts-color' — текущий рабочий канал (PNG-тайл + декодирование цвета).
-  // 'sentinel-hub-stats' — числовой канал (Sentinel-2 Statistics API, 10 м/пкс).
-  //   Требует NDVI_DATA_SOURCE.sentinelHub.clientId/clientSecret — пока не заданы.
-  active: 'gibs-wmts-color',
-  sentinelHub: {
-    statsUrl: 'https://services.sentinel-hub.com/api/v1/statistics',
-    tokenUrl: 'https://services.sentinel-hub.com/auth/realms/main/protocol/openid-connect/token',
-    clientId: null,
-    clientSecret: null
-  }
-};
-
-function ndviSourceIsNumeric() {
-  return NDVI_DATA_SOURCE.active === 'sentinel-hub-stats'
-    && !!NDVI_DATA_SOURCE.sentinelHub.clientId
-    && !!NDVI_DATA_SOURCE.sentinelHub.clientSecret;
-}
-// Числовой канал: Sentinel Hub Statistics API принимает GeoJSON-полигон поля
-// и возвращает готовое среднее NDVI по площади — без ручного сэмплирования
-// пикселей. Активируется только если заданы ключи в NDVI_DATA_SOURCE.sentinelHub.
-async function sampleNdviFromSentinelHub(field) {
-  const cfg = NDVI_DATA_SOURCE.sentinelHub;
-  if (!cfg.clientId || !cfg.clientSecret || !field.coordinates || field.coordinates.length < 3) return null;
-  try {
-    const tokenRes = await fetch(cfg.tokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=client_credentials&client_id=${encodeURIComponent(cfg.clientId)}&client_secret=${encodeURIComponent(cfg.clientSecret)}`
-    });
-    const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) return null;
-
-    const ring = [...field.coordinates, field.coordinates[0]].map(c => [c[1], c[0]]); // [lng, lat]
-    const today = new Date();
-    const from = new Date(today); from.setDate(from.getDate() - 20);
-    const body = {
-      input: {
-        bounds: { geometry: { type: 'Polygon', coordinates: [ring] } },
-        data: [{ type: 'sentinel-2-l2a' }]
-      },
-      aggregation: {
-        timeRange: { from: from.toISOString(), to: today.toISOString() },
-        aggregationInterval: { of: 'P20D' },
-        evalscript: `//VERSION=3\nfunction setup(){return{input:[{bands:["B04","B08","dataMask"]}],output:[{id:"ndvi",bands:1},{id:"dataMask",bands:1}]};}\nfunction evaluatePixel(s){let ndvi=(s.B08-s.B04)/(s.B08+s.B04);return{ndvi:[ndvi],dataMask:[s.dataMask]};}`
-      }
-    };
-    const statsRes = await fetch(cfg.statsUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenData.access_token}` },
-      body: JSON.stringify(body)
-    });
-    const statsData = await statsRes.json();
-    const stats = statsData?.data?.[0]?.outputs?.ndvi?.bands?.B0?.stats;
-    if (!stats || typeof stats.mean !== 'number') return null;
-    return parseFloat(Math.max(-0.2, Math.min(0.95, stats.mean)).toFixed(2));
-  } catch (e) {
-    return null; // сеть/ключи недоступны — вызывающий код уйдёт на fallback-канал
-  }
-}
 function addNdviLayer() {
   if (ndviLayer) ndviLayer.removeFrom(map);
 
@@ -157,36 +82,25 @@ function addNdviLayer() {
 }
 /**
  * NDVI ACCURACY SUMMARY:
- * 1. Sentinel Hub (API): Высокая точность (~10м/пкс), актуальность высокая. Использует Sentinel-2, отдаёт сразу числовое среднее.
- * 2. NASA MODIS (WMTS): Средняя точность (~250м/пкс, Level 9), актуальность 16-дней. Сэмплируется по пикселям на холсте.
- * 3. Расчётная модель (Fallback): Эмуляция данных на основе культуры, сезона и координат, если нет интернета/ключей.
+ * 1. NASA MODIS (WMTS): Средняя точность (~250м/пкс, Level 9), актуальность 16-дней. Сэмплируется по пикселям на холсте.
+ * 2. Расчётная модель (Fallback): Эмуляция данных на основе культуры, сезона и координат, если нет интернета/поле слишком маленькое.
  *
  * Определяет NDVI для поля.
  * Возвращает {value, estimated, source}:
  *  - estimated: true, если значение — расчётная модель (estimateFieldNdvi),
- *    а не измерение по спутниковым данным (ЗАДАЧА 2.3 — честная маркировка).
- *  - source: 'sentinel-hub-stats' | 'gibs-wmts-color' | 'model'.
+ *    а не измерение по спутниковым данным (честная маркировка в UI).
+ *  - source: 'gibs-wmts-color' | 'model'.
  *
- * Порядок источников (ЗАДАЧА 2.1):
- *  1. Числовой канал (Sentinel Hub Statistics API), если сконфигурирован —
- *     отдаёт готовое среднее NDVI по полигону поля, без сэмплирования пикселей.
- *  2. WMTS-тайл NASA GIBS + декодирование цвета — окно сэмплирования теперь
- *     ограничено пикселями, реально попадающими внутрь полигона поля (ЗАДАЧА 2.2,
- *     через turf.booleanPointInPolygon), а не фиксированным 15×15 окном вокруг центра.
- *  3. estimateFieldNdvi() — синтетическая модель, помечается estimated:true.
+ * Источник данных:
+ *  1. WMTS-тайл NASA GIBS + декодирование цвета — сэмплирование ограничено
+ *     пикселями, реально попадающими внутрь полигона поля (через
+ *     turf.booleanPointInPolygon), а не фиксированным окном вокруг центра.
+ *  2. estimateFieldNdvi() — синтетическая модель (fallback, если GIBS
+ *     недоступен или пикселей поля не нашлось), помечается estimated:true.
  */
 async function sampleNdviForField(field) {
   if (!field.coordinates || field.coordinates.length < 3) {
     return { value: estimateFieldNdvi(field), estimated: true, source: 'model' };
-  }
-
-  // 1. Числовой источник (Sentinel Hub), если сконфигурирован ключами
-  if (ndviSourceIsNumeric()) {
-    const numeric = await sampleNdviFromSentinelHub(field);
-    if (numeric !== null) {
-      return { value: numeric, estimated: false, source: 'sentinel-hub-stats' };
-    }
-    // ключи заданы, но запрос не удался — идём на WMTS-fallback ниже
   }
 
   if (!map || !ndviLayer) {
@@ -373,8 +287,8 @@ async function renderNdviFieldsPanel() {
   loadingEl.innerHTML = `<span class="ndvi-loading-spinner"></span> ${lang === 'ru' ? 'Анализ полей...' : 'Analysing fields...'}`;
   container.appendChild(loadingEl);
 
-  // Задача 3: трекинг источников для обновления глобального source badge
-  const sourceCounts = { 'sentinel-hub-stats': 0, 'gibs-wmts-color': 0, 'model': 0 };
+  // Трекинг источников для обновления глобального source badge
+  const sourceCounts = { 'gibs-wmts-color': 0, 'model': 0 };
 
   for (const field of fields) {
     const result = await sampleNdviForField(field);
@@ -394,13 +308,9 @@ async function renderNdviFieldsPanel() {
     const card = document.createElement('div');
     card.className = 'ndvi-field-card';
 
-    // Задача 3: формируем rich badge источника данных для карточки поля
+    // Формируем rich badge источника данных для карточки поля
     let srcBadgeClass, srcIcon, srcLabel;
-    if (result.source === 'sentinel-hub-stats') {
-      srcBadgeClass = 'ndvi-src-sentinel';
-      srcIcon = '🛰';
-      srcLabel = lang === 'ru' ? 'Sentinel-2 ~10м' : 'Sentinel-2 ~10m';
-    } else if (result.source === 'gibs-wmts-color') {
+    if (result.source === 'gibs-wmts-color') {
       srcBadgeClass = 'ndvi-src-modis';
       srcIcon = '🛰';
       srcLabel = lang === 'ru' ? 'MODIS 500м' : 'MODIS 500m';
@@ -410,11 +320,9 @@ async function renderNdviFieldsPanel() {
       srcLabel = lang === 'ru' ? 'смоделировано' : 'modeled';
     }
     const sourceBadgeHtml = `<span class="ndvi-src-badge ${srcBadgeClass}" style="margin-left:4px;font-size:10px;" title="${
-      result.source === 'sentinel-hub-stats'
-        ? (lang === 'ru' ? 'Реальные спутниковые данные Sentinel-2 (~10м/пкс)' : 'Real Sentinel-2 satellite data (~10m/px)')
-        : result.source === 'gibs-wmts-color'
-          ? (lang === 'ru' ? 'NASA MODIS WMTS — 500м/пкс, 16-дневный композит' : 'NASA MODIS WMTS — 500m/px, 16-day composite')
-          : (lang === 'ru' ? 'Расчётная модель — реальных спутниковых данных нет' : 'Modeled estimate — no real satellite data')
+      result.source === 'gibs-wmts-color'
+        ? (lang === 'ru' ? 'NASA MODIS WMTS — 500м/пкс, 16-дневный композит' : 'NASA MODIS WMTS — 500m/px, 16-day composite')
+        : (lang === 'ru' ? 'Расчётная модель — реальных спутниковых данных нет' : 'Modeled estimate — no real satellite data')
     }">${srcIcon} ${srcLabel}</span>`;
 
     card.innerHTML = `
@@ -448,19 +356,15 @@ async function renderNdviFieldsPanel() {
   }
   loadingEl.remove();
 
-  // Задача 3: Обновление глобального бейджа источника в шапке панели
+  // Обновление глобального бейджа источника в шапке панели
   const globalBadge = document.getElementById('ndvi-active-source-badge');
   if (globalBadge) {
     let domSource = 'model';
-    if (sourceCounts['sentinel-hub-stats'] > 0) domSource = 'sentinel-hub-stats';
-    else if (sourceCounts['gibs-wmts-color'] > 0) domSource = 'gibs-wmts-color';
+    if (sourceCounts['gibs-wmts-color'] > 0) domSource = 'gibs-wmts-color';
 
     globalBadge.className = 'ndvi-src-badge'; // reset
     let srcIcon = '⚠️', srcLabel = lang === 'ru' ? 'Смоделировано' : 'Modeled';
-    if (domSource === 'sentinel-hub-stats') {
-      globalBadge.classList.add('ndvi-src-sentinel');
-      srcIcon = '🛰'; srcLabel = lang === 'ru' ? 'Sentinel-2 ~10м' : 'Sentinel-2 ~10m';
-    } else if (domSource === 'gibs-wmts-color') {
+    if (domSource === 'gibs-wmts-color') {
       globalBadge.classList.add('ndvi-src-modis');
       srcIcon = '🛰'; srcLabel = lang === 'ru' ? 'MODIS 250м · не реальное время' : 'MODIS 250m · not real-time';
     } else {

@@ -54,6 +54,54 @@
      именем даже после правок. Поднимайте это число вместе с CACHE_NAME
      в sw.js при каждом изменении style.css/core.js. -->
 <link rel="stylesheet" href="style.css?v=3.2">
+<!-- Карточки полей во вкладке "Погода" — вынесено отдельно, чтобы не трогать
+     основной style.css вслепую. Можно перенести туда же строки ниже позже. -->
+<style>
+.weather-fields-strip { scrollbar-width: none; }
+.weather-fields-strip::-webkit-scrollbar { display: none; }
+.weather-field-card {
+  flex: 0 0 auto;
+  width: 108px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 8px 10px;
+  border-radius: var(--radius-sm, 10px);
+  background: var(--bg2);
+  border: 1.5px solid var(--border);
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.weather-field-card:active { transform: scale(0.97); }
+.weather-field-card.selected {
+  border-color: var(--accent);
+  background: var(--bg3);
+}
+.weather-field-card canvas {
+  width: 52px; height: 52px;
+  border-radius: 8px;
+}
+.weather-field-card .wfc-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  max-width: 96px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+.weather-field-card .wfc-crop {
+  font-size: 10px;
+  color: var(--text3);
+  max-width: 96px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+</style>
 <body>
 <div id="app-wrapper">
 
@@ -727,6 +775,11 @@
           </div>
         </div>
       </div>
+      <!-- Карточки полей для режима "По полю" — горизонтальная лента, как в списке полей -->
+      <div class="weather-fields-strip" id="weather-fields-strip" style="display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;">
+        <!-- Заполняется renderWeatherFieldCards() -->
+      </div>
+
       <div class="weather-list" id="weather-list-container">
         <div class="weather-no-field" id="weather-no-field">
           <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24" style="opacity:0.3;"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
