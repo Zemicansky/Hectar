@@ -1725,16 +1725,22 @@
     opacity: 0;
     background: var(--bg3);
     border: 1px solid var(--border);
-    border-radius: 100px;
+    border-radius: 20px;
     padding: 10px 20px;
     font-size: 14px;
     font-weight: 500;
     z-index: var(--z-toast);
     transition: transform 0.3s ease, opacity 0.3s ease;
-    white-space: nowrap;
-    max-width: calc(100% - 32px);
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* FIX: было white-space: nowrap + overflow: hidden + text-overflow: ellipsis —
+       длинный текст обрезался/вылезал за пределы капсулы вместо переноса.
+       Теперь текст переносится на несколько строк, а капсула растягивается
+       по высоте (border-radius уменьшен, чтобы не выглядеть странно на
+       многострочном тексте — было 100px, подходило только для одной строки). */
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    max-width: min(calc(100% - 32px), 420px);
+    text-align: center;
     pointer-events: none;
     box-shadow: var(--shadow);
   }
