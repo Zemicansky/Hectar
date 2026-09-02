@@ -667,7 +667,23 @@ function init3DScene() {
   renderer3D = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
   renderer3D.setSize(w, h, false);
   renderer3D.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer3D.shadowMap.enabled = true;
+  // FIX (мерцание — НАСТОЯЩАЯ ПРИЧИНА): shadowMap был включён, но
+  // DirectionalLight.shadow (shadow.camera, shadow.mapSize, shadow.bias)
+  // никогда не настраивался — использовалась дефолтная ортографическая
+  // shadow-камера Three.js с зоной покрытия всего ±5м вокруг точки (0,0,0)
+  // и разрешением карты теней 512×512. Трактор же ездит по полю на
+  // десятки-сотни метров и почти сразу покидает эту крошечную зону —
+  // тени на тракторе/земле становились неверными/шумными (classic shadow
+  // acne) ИМЕННО пока трактор в движении и далеко от центра сцены, что и
+  // выглядело как постоянное мерцание. У этого приложения нет задачи
+  // фотореалистичной графики (агроинструмент, не игра) — вместо того чтобы
+  // тащить за собой движущуюся shadow-камеру (сложнее, дороже по GPU на
+  // телефоне, и это та же система, которая уже дала баг), тени от солнца
+  // убраны полностью. Под трактором/оборудованием — простое декоративное
+  // пятно (см. build3DTractorModel(), tractorShadowBlob), которое просто
+  // следует за моделью в animate() — визуально даёт ощущение контакта с
+  // землёй, но не требует shadow map и не может мерцать в принципе.
+  renderer3D.shadowMap.enabled = false;
 
   scene3D = new THREE.Scene();
   // FIX v3.0 п.Б1: фон = горизонтальный цвет купола неба.
@@ -709,7 +725,9 @@ function init3DScene() {
 
   const dirLight = new THREE.DirectionalLight(0xfff5e6, 1.3);
   dirLight.position.set(80, 180, 80);
-  dirLight.castShadow = true;
+  // FIX: castShadow убран вместе с shadowMap.enabled=false выше — свет
+  // по-прежнему освещает сцену (цвет/интенсивность), просто больше не
+  // считает тени.
   scene3D.add(dirLight);
 
   create3DGround();
@@ -755,7 +773,7 @@ function create3DGround() {
   const groundMat = new THREE.MeshLambertMaterial({ map: coverage3DTexture, roughness: 0.9 });
   ground3D = new THREE.Mesh(groundGeo, groundMat);
   ground3D.rotation.x = -Math.PI / 2;
-  ground3D.receiveShadow = true;
+  ground3D.receiveShadow = false; // теней больше нет (см. init3DScene) — receiveShadow оставлен явно false, а не удалён, для ясности
   scene3D.add(ground3D);
 
   // FIX v3.0 п.Б1: 500000x500000 закрывает горизонт; y=0 убирает щель
@@ -770,6 +788,24 @@ function create3DGround() {
 /** Детализированная 3D-модель агро-трактора с динамическим лазерным курсоуказателем */
 function build3DTractorModel() {
   tractor3DModel = new THREE.Group();
+
+  // Декоративное пятно-подложка вместо настоящей тени (см. init3DScene —
+  // тени от солнца убраны полностью как источник мерцания). Простой плоский
+  // полупрозрачный эллипс под корпусом трактора — не требует shadow map,
+  // не может мерцать, дёшево по производительности на телефоне. Двигается
+  // вместе с моделью автоматически, так как он её дочерний объект.
+  const shadowBlobGeo = new THREE.CircleGeometry(1, 24);
+  shadowBlobGeo.scale(1.35, 1, 1); // овал вытянут по ширине трактора
+  const shadowBlobMat = new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.22,
+    depthWrite: false
+  });
+  const tractorShadowBlob = new THREE.Mesh(shadowBlobGeo, shadowBlobMat);
+  tractorShadowBlob.rotation.x = -Math.PI / 2;
+  tractorShadowBlob.position.set(0, 0.03, 0.2); // чуть приподнято над землёй — избегаем z-fighting с ground3D/gridHelper
+  tractor3DModel.add(tractorShadowBlob);
 
   const greenBodyMat = new THREE.MeshStandardMaterial({
     color: 0x2e7d32,
@@ -811,21 +847,18 @@ function build3DTractorModel() {
   const chassisGeo = new THREE.BoxGeometry(1.3, 0.4, 3.8);
   const chassis = new THREE.Mesh(chassisGeo, chassisMat);
   chassis.position.set(0, 0.7, 0.5);
-  chassis.castShadow = true;
   tractor3DModel.add(chassis);
 
   // 2. КАПОТ
   const hoodMainGeo = new THREE.BoxGeometry(1.4, 0.9, 2.3);
   const hoodMain = new THREE.Mesh(hoodMainGeo, greenBodyMat);
   hoodMain.position.set(0, 1.35, 1.45);
-  hoodMain.castShadow = true;
   tractor3DModel.add(hoodMain);
 
   const hoodFrontGeo = new THREE.BoxGeometry(1.36, 0.65, 0.7);
   const hoodFront = new THREE.Mesh(hoodFrontGeo, greenBodyMat);
   hoodFront.position.set(0, 1.15, 2.75);
   hoodFront.rotation.x = -Math.PI / 16;
-  hoodFront.castShadow = true;
   tractor3DModel.add(hoodFront);
 
   const grilleGeo = new THREE.BoxGeometry(1.2, 0.7, 0.08);
@@ -990,13 +1023,11 @@ function build3DTractorModel() {
   rearWheelL.add(new THREE.Mesh(rearRimGeo, rimMat));
   addTireTread(rearWheelL, 1.06, 0.68, 20);
   rearWheelL.position.set(-1.22, 1.05, -0.85);
-  rearWheelL.castShadow = true;
 
   const rearWheelR = new THREE.Mesh(rearTireGeo, tireMat);
   rearWheelR.add(new THREE.Mesh(rearRimGeo, rimMat));
   addTireTread(rearWheelR, 1.06, 0.68, 20);
   rearWheelR.position.set(1.22, 1.05, -0.85);
-  rearWheelR.castShadow = true;
   tractor3DModel.add(rearWheelL, rearWheelR);
 
   const fenderGeo = new THREE.BoxGeometry(0.72, 0.12, 1.4);
@@ -1007,7 +1038,6 @@ function build3DTractorModel() {
   frontLeftWheelMesh = new THREE.Group();
   const fTireL = new THREE.Mesh(frontTireGeo, tireMat);
   fTireL.add(new THREE.Mesh(frontRimGeo, rimMat));
-  fTireL.castShadow = true;
   addTireTread(fTireL, 0.69, 0.48, 16);
   frontLeftWheelMesh.add(fTireL);
   frontLeftWheelMesh.position.set(-1.08, 0.68, 1.75);
@@ -1015,7 +1045,6 @@ function build3DTractorModel() {
   frontRightWheelMesh = new THREE.Group();
   const fTireR = new THREE.Mesh(frontTireGeo, tireMat);
   fTireR.add(new THREE.Mesh(frontRimGeo, rimMat));
-  fTireR.castShadow = true;
   addTireTread(fTireR, 0.69, 0.48, 16);
   frontRightWheelMesh.add(fTireR);
   frontRightWheelMesh.position.set(1.08, 0.68, 1.75);
@@ -1113,7 +1142,6 @@ function build3DImplement(opType, width, chassisMat) {
     const frameGeo = new THREE.BoxGeometry(width, 0.22, 0.3);
     const frame = new THREE.Mesh(frameGeo, frameMat);
     frame.position.set(0, 0.75, -2.2);
-    frame.castShadow = true;
     group.add(frame);
 
     // FIX v3.0 п.2 (дизайн): диагональные тяги-подкосы от рамы к сцепке —
@@ -1178,7 +1206,6 @@ function build3DImplement(opType, width, chassisMat) {
     const boomGeo = new THREE.BoxGeometry(width, 0.12, 0.12);
     const boom = new THREE.Mesh(boomGeo, boomMat);
     boom.position.set(0, 1.1, -2.2);
-    boom.castShadow = true;
     group.add(boom);
 
     // FIX v3.0 п.2 (дизайн): диагональные тросы-растяжки от вершины
@@ -1223,7 +1250,6 @@ function build3DImplement(opType, width, chassisMat) {
     tankGeo.rotateZ(Math.PI / 2);
     const tank = new THREE.Mesh(tankGeo, tankMat);
     tank.position.set(0, 1.3, -1.5);
-    tank.castShadow = true;
     group.add(tank);
 
     const tankCapMat = new THREE.MeshStandardMaterial({ color: 0x263238, roughness: 0.5, metalness: 0.3 });
@@ -1240,7 +1266,6 @@ function build3DImplement(opType, width, chassisMat) {
     const headerGeo = new THREE.BoxGeometry(width, 0.5, 0.9);
     const header = new THREE.Mesh(headerGeo, headerMat);
     header.position.set(0, 0.55, -2.3);
-    header.castShadow = true;
     group.add(header);
 
     // FIX v3.0 п.2 (дизайн): режущий нож-полоса вдоль передней кромки
@@ -1299,7 +1324,6 @@ function build3DImplement(opType, width, chassisMat) {
   const boomGeo = new THREE.BoxGeometry(width, 0.35, 0.35);
   const boom = new THREE.Mesh(boomGeo, boomMat);
   boom.position.set(0, 0.75, -2.3);
-  boom.castShadow = true;
   group.add(boom);
 
   // FIX v3.0 п.2 (дизайн): вторая продольная балка рамы + опорные колёса —
