@@ -1368,7 +1368,35 @@ function makeThickGroundLine(points, color, widthMeters, opacity) {
   return new THREE.Mesh(geo, mat);
 }
 /** 3D Границы поля с яркими неоновыми стенами, маяками и лазерными гонами параллельного вождения */
-function update3DFieldBounds(field) {
+// FIX v3.0 п.4 (трактор спавнился в центре поля вместо края/GPS-точки —
+// РЕАЛЬНАЯ ПРИЧИНА): startTractorTracking() правильно ставит tractor3DPos/
+// tractor3DRenderPos у края поля ОТНОСИТЕЛЬНО fieldCenter3D, вычисленного
+// там же по формуле `field.center || coords[0]` (см. строку ~289). Сразу
+// следом она вызывает toggleTractor3DView(true) → update3DFieldBounds(),
+// которая раньше ВСЕГДА пересчитывала fieldCenter3D заново по своей копии
+// той же формулы (`field.center ? ... : coords[0]`, см. ниже). Формулы
+// совпадают — то есть в типичном случае баг был "спящим" (результат
+// одинаковый), но это была случайность двух независимо продублированных
+// кусков логики, а не гарантия: если update3DFieldBounds() вызвать не из
+// startTractorTracking() (например — фикс п.3, onImplementChanged(),
+// вызывающий её повторно во время заезда), либо если `field.center` в
+// данных поля станет доступен/недоступен по-разному между двумя вызовами
+// (гонка загрузки данных, разные копии объекта field) — fieldCenter3D
+// МЕНЯЕТСЯ, а уже выставленный tractor3DPos/tractor3DRenderPos остаётся
+// прежним (вычислен относительно старого центра) — трактор визуально
+// "прыгает" от края к случайному смещению между старым и новым центром.
+//
+// Исправление — самый надёжный вариант из трёх, предложенных в промпте:
+// fieldCenter3D больше не пересчитывается внутри этой функции "втихую".
+// Если вызывающий код уже знает актуальный центр (startTractorTracking()
+// и onImplementChanged() передают его явным вторым параметром) — используем
+// именно его, единственный источник истины. Если центр не передан (вызов
+// не из этих мест, обратная совместимость) — функция вычисляет его сама,
+// но ТЕПЕРЬ дополнительно проверяет, не сдвинулся ли центр относительно
+// уже сохранённого fieldCenter3D, и если сдвинулся — пропорционально
+// переносит tractor3DPos/tractor3DRenderPos/tractorSpawnPoint, чтобы
+// реальная географическая точка трактора не съехала при пересчёте центра.
+function update3DFieldBounds(field, precomputedCenter) {
   if (!scene3D) return;
 
   if (field3DOutline) {
@@ -1415,8 +1443,29 @@ function update3DFieldBounds(field) {
   field3DOutline.add(trackGroup);
 
   if (coords && coords.length >= 3) {
-    const centerLat = field.center ? field.center[0] : coords[0][0];
-    const centerLng = field.center ? field.center[1] : coords[0][1];
+    // FIX v3.0 п.4: используем уже готовый центр от вызывающего кода, если
+    // он передан (startTractorTracking(), onImplementChanged()) — это
+    // ГАРАНТИРУЕТ, что здесь используется та же самая точка отсчёта (0,0)
+    // 3D-мира, относительно которой уже был выставлен tractor3DPos, вместо
+    // того чтобы пересчитывать её заново по потенциально другой формуле/
+    // копии данных поля.
+    const centerLat = precomputedCenter ? precomputedCenter.lat : (field.center ? field.center[0] : coords[0][0]);
+    const centerLng = precomputedCenter ? precomputedCenter.lng : (field.center ? field.center[1] : coords[0][1]);
+
+    // Если центр всё же пришлось пересчитать самостоятельно (без
+    // precomputedCenter) и он ОТЛИЧАЕТСЯ от уже сохранённого fieldCenter3D —
+    // трактор был спозиционирован относительно старого центра. Переносим
+    // tractor3DPos/RenderPos/spawnPoint на ту же дельту, чтобы их реальная
+    // географическая позиция не изменилась, только точка отсчёта.
+    if (!precomputedCenter && fieldCenter3D &&
+        (Math.abs(fieldCenter3D.lat - centerLat) > 1e-9 || Math.abs(fieldCenter3D.lng - centerLng) > 1e-9)) {
+      const dLatShift = (centerLat - fieldCenter3D.lat) * 111320;
+      const dLngShift = (centerLng - fieldCenter3D.lng) * (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
+      tractor3DPos.x -= dLngShift; tractor3DPos.z += dLatShift;
+      tractor3DRenderPos.x -= dLngShift; tractor3DRenderPos.z += dLatShift;
+      if (vehicleState) { vehicleState.x -= dLngShift; vehicleState.z += dLatShift; }
+    }
+
     fieldCenter3D = { lat: centerLat, lng: centerLng };
 
     const points3D = [];
@@ -1755,6 +1804,12 @@ function close3DFieldMapOverlay() {
       try { overlayMap.invalidateSize(false); } catch (_) {}
     });
   }
+  // FIX v3.0 п.1: тот же класс мерцания, что и в toggleTractor3DView(true) —
+  // #tractor-3d-view только что вернулся в display:block поверх скрытой
+  // мини-карты, а его canvas всё ещё держит старый backing-buffer размер.
+  // Явно синхронизируем, вместо того чтобы полагаться на событие resize,
+  // которого тут не происходит (окно браузера не меняло размер).
+  requestAnimationFrame(sync3DCanvasSize);
 }
 // ── ЗАДАЧА 5: Кнопка геолокации ─────────────────────────────────────────
 function locate3DGPS() {
@@ -2010,6 +2065,41 @@ function refresh3DImplement() {
   implement.name = 'tractorImplement';
   tractor3DModel.add(implement);
 }
+// FIX v3.0 п.3 (направляющие линии не пересчитывались при смене
+// оборудования во время заезда): refresh3DImplement() пересобирает только
+// 3D-МОДЕЛЬ орудия (визуал на самом тракторе), но НЕ трогает
+// update3DFieldBounds() — а именно update3DFieldBounds() строит гоны
+// (параллельные направляющие линии вождения) с шагом
+// spacingMeters = Math.max(6, tractorWidth || 12), то есть под ШИРИНУ
+// оборудования. Раньше update3DFieldBounds() вызывался только один раз —
+// из toggleTractor3DView(true) при входе в 3D-режим — поэтому смена
+// ширины/типа орудия ПОСЛЕ входа в 3D (что бы её ни вызывало: слайдер
+// ширины в UI заезда, смена культуры/операции на лету и т.п.) обновляла
+// только визуальную модель, а разметка на земле оставалась со старым
+// шагом гонов.
+//
+// Единая точка входа для ЛЮБОГО изменения tractorWidth/tractorOpType,
+// пока 3D-режим активен: пересобирает и модель орудия, и разметку поля
+// синхронно, чтобы они никогда не могли разойтись между собой.
+//
+// Дебаунс на пересчёт границ: update3DFieldBounds() каждый раз пересоздаёт
+// THREE.Group с нуля (контур, стены, гоны, сетка — десятки/сотни
+// THREE.Mesh) — это не проблема при редких вызовах (одно нажатие кнопки),
+// но может стать проблемой при частых (например, "живой" слайдер ширины,
+// который шлёт event на каждый пиксель перетаскивания). rebuild откладывается
+// на IMPLEMENT_CHANGE_DEBOUNCE_MS после последнего вызова, чтобы серия
+// быстрых изменений пересобрала геометрию один раз, а не на каждый тик.
+let _implementChangeDebounceId = null;
+const IMPLEMENT_CHANGE_DEBOUNCE_MS = 150;
+function onImplementChanged() {
+  if (!tractor3DActive) return; // 3D-режим не открыт — нечего пересобирать
+  refresh3DImplement(); // модель орудия — обновляем сразу, это дёшево и должно откликаться мгновенно на глаз
+  if (_implementChangeDebounceId) clearTimeout(_implementChangeDebounceId);
+  _implementChangeDebounceId = setTimeout(() => {
+    _implementChangeDebounceId = null;
+    if (tractor3DActive) update3DFieldBounds(tractorActiveField, fieldCenter3D);
+  }, IMPLEMENT_CHANGE_DEBOUNCE_MS);
+}
 function toggleTractor3DView(show) {
   tractor3DActive = show;
   const container = document.getElementById('tractor-3d-view');
@@ -2021,7 +2111,24 @@ function toggleTractor3DView(show) {
     if (tabBar) tabBar.style.display = 'none';
     if (init3DScene()) {
       refresh3DImplement();
-      update3DFieldBounds(tractorActiveField);
+      // FIX v3.0 п.4: если fieldCenter3D уже был выставлен вызывающим кодом
+      // (startTractorTracking() задаёт его непосредственно перед вызовом
+      // toggleTractor3DView(true), синхронно с уже спозиционированным
+      // tractor3DPos у края поля) — передаём его явно, чтобы
+      // update3DFieldBounds() не пересчитывала центр самостоятельно и не
+      // могла разойтись с точкой, относительно которой уже стоит трактор.
+      // Если fieldCenter3D ещё не установлен (первый заход в 3D без
+      // предварительного startTractorTracking()) — передаём null, и функция
+      // посчитает центр сама обычным способом.
+      update3DFieldBounds(tractorActiveField, fieldCenter3D || null);
+      // FIX v3.0 п.1: контейнер только что стал видимым (display:none→block)
+      // — его clientWidth/clientHeight мог отличаться от того, что было при
+      // предыдущем показе (например, tabBar скрылся строчкой выше и высота
+      // контейнера увеличилась на его высоту). Синхронизируем canvas/камеру
+      // с реальным размером ДО первого кадра рендера, а не полагаемся на
+      // случайное событие window resize. requestAnimationFrame — потому что
+      // сразу после смены display браузер ещё не пересчитал layout.
+      requestAnimationFrame(sync3DCanvasSize);
       start3DAnimationLoop();
     }
   } else {
@@ -2039,50 +2146,76 @@ function toggleTractor3DView(show) {
 function start3DAnimationLoop() {
   if (tractor3DAnimId) cancelAnimationFrame(tractor3DAnimId);
 
-  // FIX (навесное оборудование не влезало в кадр): раньше CAM_DISTANCE/
-  // CAM_HEIGHT были фиксированными константами, не учитывающими реальный
-  // размер текущего навесного оборудования (tractorWidth/tractorOpType).
-  // На широких сеялках/опрыскивателях/жатках (basicWidth иногда >12м)
-  // камера стояла слишком близко и низко — оборудование сзади трактора
-  // просто не помещалось в кадр. Теперь дистанция/высота камеры зависят
-  // от ширины и "глубины" текущего орудия: чем шире/крупнее навеска, тем
-  // дальше и выше отъезжает камера, чтобы вся техника была видна целиком.
+  // FIX v3.0 п.2 (широкое оборудование не помещалось в камеру — ПЕРЕСЧИТАНО
+  // ГЕОМЕТРИЧЕСКИ, владелец проекта дал разрешение пересмотреть константы,
+  // см. промпт фикса): предыдущая версия считала дистанцию камеры по чисто
+  // ЛИНЕЙНОЙ формуле (BASE_DISTANCE + extraWidth*0.45) с жёстким потолком
+  // Math.min(43, ...) — коэффициент 0.45 м/м был подобран "на глаз" и не
+  // опирался на реальный угол обзора камеры (FOV), а потолок 43м обрезал
+  // нужную дистанцию уже на средних значениях ширины. Хуже того: FOV камеры
+  // (camera3D.fov=60) — это ВЕРТИКАЛЬНЫЙ угол обзора в Three.js
+  // PerspectiveCamera, а на телефоне в портретной ориентации (основной
+  // сценарий использования этого PWA — см. PROJECT-MAP.md про установку на
+  // iPhone) ГОРИЗОНТАЛЬНЫЙ угол обзора значительно уже вертикального
+  // (например при aspect≈0.56 горизонтальный полу-FOV ≈18° против
+  // вертикальных 30°) — именно горизонтальный FOV ограничивает, влезает ли
+  // ШИРОКОЕ орудие в кадр. Старая линейная формула это игнорировала и на
+  // портретном экране требуемая дистанция уже при базовой ширине 12м
+  // (~26м) была больше, чем формула вообще давала (17.8м) — то есть
+  // ширина отсекалась даже на "нормальной" технике, а на максимальных 100м
+  // требуемая дистанция (~215м на портретном экране) была на порядок
+  // больше жёсткого потолка в 43м.
+  //
+  // Теперь дистанция считается из строгой тригонометрии: зная реальную
+  // ширину объекта (орудие + трактор) и половину горизонтального угла
+  // обзора камеры (который сам зависит от aspect ratio канваса), находим
+  // минимальную дистанцию, на которой объект укладывается в кадр по
+  // горизонтали, и берём её с запасом (margin). Высота камеры по-прежнему
+  // растёт вместе с дистанцией (сохраняем прежний "вид сверху-сзади"), но
+  // без искусственного потолка — на очень широкой технике камера
+  // действительно должна быть высоко и далеко, это ожидаемо для обзора
+  // всего гона целиком.
   function computeCam3DFraming() {
     const width = Math.max(6, tractorWidth || 12);
     // Каждый build3DImplement (см. функцию) крепит орудие на hitch ~2.2–2.8м
-    // позади центра модели трактора — это фиксированная "глубина" навески,
-    // которую тоже нужно учитывать, иначе камера "видит" ширину орудия, но
-    // обрезает его дальний (по глубине) край на очень широких агрегатах.
+    // позади центра модели трактора — фиксированная "глубина" навески,
+    // добавляем как запас по ширине объекта в кадре (при развороте/малом
+    // курсовом угле камеры глубина тоже частично проецируется в кадр).
     const implementDepth = 2.8;
-    // Базовые значения — раньше были 9.5/4.6, но при стандартной ширине
-    // навесное оборудование (сеялка/опрыскиватель) всё равно частично
-    // обрезалось нижним/дальним краем кадра. Пункт 1: камера отодвинута
-    // дальше и выше примерно на 25-30% по сравнению со старыми базовыми
-    // значениями, чтобы весь трактор + орудие уверенно помещались в кадр
-    // с запасом, а не впритык.
-    // ============================================================
-    // ВНИМАНИЕ: параметры камеры ниже настроены вручную по запросу
-    // владельца проекта (отдаление ~40-50% от прежних значений, чтобы
-    // в кадре было видно больше пространства вокруг трактора).
-    // НЕ МЕНЯТЬ BASE_DISTANCE / BASE_HEIGHT / коэффициенты extraWidth
-    // без явного разрешения и отдельного запроса владельца проекта.
-    // ============================================================
-    const BASE_WIDTH = 12;
-    const BASE_DISTANCE = 17.8;  // было 12.3 (+~45%) — камера отдалена по запросу владельца
-    const BASE_HEIGHT = 8.4;     // было 5.9  (+~42%) — камера приподнята соразмерно
-    const extraWidth = Math.max(0, width - BASE_WIDTH);
-    // ~0.45м доп. дистанции и ~0.16м доп. высоты на каждый метр ширины
-    // сверх базовой — подобрано так, чтобы орудие с запасом помещалось в
-    // угол обзора камеры (FOV) даже на максимальной ширине захвата.
-    const distance = BASE_DISTANCE + implementDepth * 0.35 + extraWidth * 0.45;
-    const height = BASE_HEIGHT + extraWidth * 0.16;
-    // Потолки подняты пропорционально новым BASE_DISTANCE/BASE_HEIGHT
-    // (см. предупреждение выше), чтобы отдаление реально применялось и
-    // на широких навесных орудиях, а не срезалось старым лимитом.
-    return {
-      distance: Math.min(43, distance),
-      height: Math.min(19, height)
-    };
+    // Реальная ширина объекта, который должен целиком влезть в кадр:
+    // ширина орудия + небольшой запас на корпус трактора по бокам.
+    const objectHalfWidth = width / 2 + 1.2;
+
+    // Горизонтальный половинный угол обзора камеры. camera3D.fov — это
+    // ВЕРТИКАЛЬНЫЙ FOV в градусах (см. init3DScene()); переводим его в
+    // горизонтальный через aspect ratio текущего канваса — та же формула,
+    // которую использует сам Three.js внутри PerspectiveCamera.
+    const container = document.getElementById('tractor-3d-view');
+    const aspect = (container && container.clientWidth && container.clientHeight)
+      ? container.clientWidth / container.clientHeight
+      : (camera3D ? camera3D.aspect : 16 / 9);
+    const vFovRad = ((camera3D ? camera3D.fov : 60) / 2) * (Math.PI / 180);
+    const hFovRad = Math.atan(Math.tan(vFovRad) * Math.max(aspect, 0.01));
+
+    // Дистанция, при которой полуширина объекта укладывается точно в
+    // горизонтальный полу-FOV, плюс запас (MARGIN) — чтобы техника не
+    // упиралась впритык в край кадра, а имела отступ с обеих сторон.
+    const MARGIN = 1.22;
+    const rawDistance = (objectHalfWidth * MARGIN) / Math.tan(hFovRad);
+
+    // Дистанция не должна быть меньше минимума, нужного для читаемости
+    // управления на узкой технике (иначе камера "влипает" в кабину), и не
+    // должна быть меньше глубины орудия с запасом.
+    const MIN_DISTANCE = 14;
+    const distance = Math.max(MIN_DISTANCE, rawDistance, implementDepth * 3);
+
+    // Высота камеры масштабируется вместе с дистанцией, сохраняя тот же
+    // угол наклона обзора "сверху-сзади", что был у прежних базовых
+    // значений (BASE_HEIGHT/BASE_DISTANCE ≈ 8.4/17.8 ≈ 0.47).
+    const HEIGHT_RATIO = 0.47;
+    const height = distance * HEIGHT_RATIO;
+
+    return { distance, height };
   }
 
   let CAM_DISTANCE = 17.8;  // м позади трактора — пересчитывается по ширине орудия (см. computeCam3DFraming)
@@ -2195,14 +2328,35 @@ function start3DAnimationLoop() {
 
   animate();
 }
-function on3DWindowResize() {
+// FIX v3.0 п.1 (мерцание при возврате в 3D-вид): раньше on3DWindowResize()
+// вызывался ТОЛЬКО автоматически браузером на событие window 'resize' —
+// то есть когда меняется размер самого окна/вьюпорта. Но контейнер
+// #tractor-3d-view может поменять реальный видимый размер и БЕЗ события
+// resize: например, когда toggleTractor3DView(true) показывает контейнер
+// (`display:none` → `block`) после того как он был скрыт с другим
+// размером, или когда close3DFieldMapOverlay() возвращает видимость 3D-виду
+// после мини-карты поверх него. WebGL-канвас (`renderer3D`) при этом
+// продолжает рисовать в СТАРЫЙ backing-buffer размер, который не совпадает
+// с новым CSS-размером контейнера — получается растянутый/смещённый кадр
+// на один или несколько кадров рендера, что визуально читается как
+// мерцание/рябь именно в моменты входа в 3D-режим и возврата из наложенных
+// экранов, а не во время самого движения трактора. Вынесено в отдельную
+// функцию, вызываемую явно из всех мест, где контейнер 3D-вида меняет
+// видимость/размер — а не только из window-обработчика resize.
+function sync3DCanvasSize() {
   if (!camera3D || !renderer3D) return;
   const container = document.getElementById('tractor-3d-view');
   const w = container ? container.clientWidth : window.innerWidth;
   const h = container ? container.clientHeight : window.innerHeight;
+  if (!w || !h) return; // контейнер ещё не имеет размера (display:none в момент вызова) — пропускаем, дождёмся следующего явного вызова
   camera3D.aspect = w / h;
   camera3D.updateProjectionMatrix();
   renderer3D.setSize(w, h, false);
+}
+// Сохранено под старым именем для совместимости (window resize listener
+// регистрируется на это имя в init3DScene()).
+function on3DWindowResize() {
+  sync3DCanvasSize();
 }
 function toggleTractorSimulation() {
   if (!tractorActive) return;
