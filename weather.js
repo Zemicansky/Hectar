@@ -15,22 +15,17 @@ let weatherCityDebounceTimer = null;
 
 function setWeatherMode(mode) {
   weatherMode = mode;
-  // Задача 4: новая разметка — управляем классами чипов-контейнеров
+  // Чипы теперь просто переключатели режима (inline select/search убраны
+  // из шапки — карточки полей и панель поиска города вынесены ниже).
   const fieldChip = document.getElementById('weather-chip-field');
   const cityChip = document.getElementById('weather-chip-city');
-  const fieldContent = document.getElementById('weather-mode-field');  // inline select
-  const cityContent = document.getElementById('weather-mode-city');    // inline search
-  const cityExtras = document.getElementById('weather-city-extras');   // results + favourites
+  const cityExtras = document.getElementById('weather-city-extras');   // поиск + результаты + избранное
 
   // Переключаем active-чип
   if (fieldChip) fieldChip.classList.toggle('weather-mode-chip--active', mode === 'field');
   if (cityChip) cityChip.classList.toggle('weather-mode-chip--active', mode === 'city');
 
-  // Показываем inline-контент только активного чипа
-  if (fieldContent) fieldContent.style.display = mode === 'field' ? 'flex' : 'none';
-  if (cityContent) cityContent.style.display = mode === 'city' ? 'flex' : 'none';
-
-  // City extras (results dropdown + favourites) — только в city-режиме
+  // Панель города (поиск, результаты, избранное) — только в city-режиме
   if (cityExtras) cityExtras.style.display = mode === 'city' ? 'block' : 'none';
 
   // Обновляем стили кнопок для обратной совместимости с JS, который напрямую обращается к fieldBtn/cityBtn
@@ -270,10 +265,6 @@ function renderWeatherFieldCards() {
 
   // Миниатюры рисуем после вставки в DOM, как в fields.js
   fields.forEach(f => setTimeout(() => drawWeatherFieldThumb(f), 30));
-
-  // Держим select синхронизированным для обратной совместимости
-  const sel = document.getElementById('weather-field-select');
-  if (sel && selectedWeatherFieldId) sel.value = selectedWeatherFieldId;
 }
 
 // То же самое, что drawFieldThumb() в fields.js, но рисует в канвасы карточек
@@ -309,24 +300,12 @@ function drawWeatherFieldThumb(field) {
   ctx.stroke();
 }
 
+// Задача: dropdown-select был убран из шапки (дублировал выбор поля через
+// карточки weather-fields-strip) — эта функция теперь только держит
+// автовыбор единственного поля, вызывается из core.js/switchTab().
 function populateWeatherFieldSelect() {
-  const sel = document.getElementById('weather-field-select');
-  if (!sel) return;
   const fields = loadFields();
-  // Clear options except the placeholder
-  while (sel.options.length > 1) sel.remove(1);
-  fields.forEach(f => {
-    const opt = document.createElement('option');
-    opt.value = f.id;
-    opt.textContent = `${f.name} (${f.area} га)`;
-    sel.appendChild(opt);
-  });
-  // Auto-select previously selected or first field
-  if (selectedWeatherFieldId) {
-    const exists = fields.find(f => f.id === selectedWeatherFieldId);
-    if (exists) sel.value = selectedWeatherFieldId;
-  } else if (fields.length === 1) {
-    sel.value = fields[0].id;
+  if (!selectedWeatherFieldId && fields.length === 1) {
     selectedWeatherFieldId = fields[0].id;
   }
 }
@@ -347,8 +326,8 @@ async function loadWeather() {
     // FIX v1.9: hide field meta pill in city mode
     const metaElCity = document.getElementById('weather-field-meta');
     if (metaElCity) metaElCity.style.display = 'none';
-    const fieldModeSection = document.getElementById('weather-mode-field');
-    if (fieldModeSection) fieldModeSection.style.display = 'none';
+    // Лента карточек полей скрывается через renderWeatherFieldCards()
+    // (вызывается из setWeatherMode() при переключении режима).
 
     if (!weatherCityLat || !weatherCityLng) {
       container.innerHTML = `

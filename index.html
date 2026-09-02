@@ -714,70 +714,63 @@
           </button>
         </div>
 
-        <!-- Задача 4 (Вариант C): Weather mode controls redesign —
-             вместо 2 строк (toggle + select/input) теперь 1 компактная строка:
-             два чипа-сегмента, активный расширяется inline с дропдауном/инпутом.
-             Все ID сохранены, setWeatherMode() работает без изменений.
-        -->
+        <!-- Переключатель режима погоды: два равных чипа "По полю" / "По городу".
+             Больше не содержат inline select/поиск — это просто тумблер.
+             Выбор поля: карточки ниже (weather-fields-strip).
+             Поиск города: отдельная панель ниже (weather-city-extras). -->
         <div class="weather-header-controls">
-          <!-- Сегмент "По полю": при активации показывает inline-select -->
+          <!-- Сегмент "По полю": теперь просто переключатель режима.
+               Выбор конкретного поля происходит ниже через карточки
+               weather-fields-strip — там уже был полноценный выбор поля,
+               дублирующий select был лишним. -->
           <div class="weather-mode-chip weather-mode-chip--active" id="weather-chip-field">
             <button id="weather-mode-field-btn" onclick="setWeatherMode('field')" class="weather-chip-btn">
               <i data-lucide="wheat" class="icon-sm"></i>
               <span id="weather-mode-field-label">By Field</span>
             </button>
-            <!-- Inline field select — виден только когда активен этот чип -->
-            <div id="weather-mode-field" class="weather-chip-content">
-              <div class="weather-chip-sep"></div>
-              <div class="weather-field-selector" id="weather-field-selector">
-                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                <select id="weather-field-select" onchange="onWeatherFieldChange(this.value)">
-                  <option value="" id="weather-field-placeholder">— Выберите поле —</option>
-                </select>
-              </div>
-            </div>
           </div>
 
-          <!-- Сегмент "По городу": при активации показывает inline-search -->
+          <!-- Сегмент "По городу": переключатель режима. Поле поиска
+               вынесено в weather-city-extras ниже — на всю ширину экрана,
+               удобнее вводить текст и просматривать результаты. -->
           <div class="weather-mode-chip" id="weather-chip-city">
             <button id="weather-mode-city-btn" onclick="setWeatherMode('city')" class="weather-chip-btn">
               🏙 <span id="weather-mode-city-label">By City</span>
             </button>
-            <!-- Inline city search — виден только когда активен этот чип -->
-            <div id="weather-mode-city" class="weather-chip-content" style="display:none;">
-              <div class="weather-chip-sep"></div>
-              <div class="weather-city-inline">
-                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input id="weather-city-input" type="text" placeholder="Search city or location..."
-                  oninput="onWeatherCityInput(this.value)"
-                  onkeydown="if(event.key==='Enter'){searchWeatherCity(this.value);}"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- City results и избранное — вне строки чипов, полная ширина -->
-        <div id="weather-city-extras" style="display:none;">
-          <!-- Currently showing city name -->
-          <div id="weather-city-current" style="display:none;font-size:13px;color:var(--text2);padding:4px 2px 2px;"></div>
-          <!-- City search results dropdown -->
-          <div id="weather-city-results" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-top:4px;margin-bottom:4px;overflow:hidden;max-height:180px;overflow-y:auto;-webkit-overflow-scrolling:touch;"></div>
-          <!-- FIX v1.9: Favorite cities section -->
-          <div class="weather-fav-section" id="weather-fav-section">
-            <div class="weather-fav-label">
-              <span>⭐ Favourite places</span>
-              <button class="weather-fav-add-btn" id="weather-fav-add-btn" onclick="addCurrentCityToFavourites()" title="Add current city to favourites">+ <span id="weather-fav-add-label">Add current city</span></button>
-            </div>
-            <div class="weather-fav-list" id="weather-fav-list">
-              <span class="weather-fav-empty" id="weather-fav-empty">Add your first favourite city</span>
-            </div>
           </div>
         </div>
       </div>
+
       <!-- Карточки полей для режима "По полю" — горизонтальная лента, как в списке полей -->
       <div class="weather-fields-strip" id="weather-fields-strip" style="display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;">
         <!-- Заполняется renderWeatherFieldCards() -->
+      </div>
+
+      <!-- Поиск города и избранное для режима "По городу" — единый блок
+           на всю ширину экрана, сразу под шапкой. Раньше инпут поиска был
+           тесно встроен в узкий чип в шапке; теперь у него достаточно места. -->
+      <div id="weather-city-extras" class="weather-city-extras-panel" style="display:none;">
+        <div class="weather-city-inline weather-city-inline--panel">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="weather-city-input" type="text" placeholder="Search city or location..."
+            oninput="onWeatherCityInput(this.value)"
+            onkeydown="if(event.key==='Enter'){searchWeatherCity(this.value);}"
+          />
+        </div>
+        <!-- Currently showing city name -->
+        <div id="weather-city-current" style="display:none;font-size:13px;color:var(--text2);padding:4px 2px 2px;"></div>
+        <!-- City search results dropdown -->
+        <div id="weather-city-results" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-top:4px;margin-bottom:4px;overflow:hidden;max-height:180px;overflow-y:auto;-webkit-overflow-scrolling:touch;"></div>
+        <!-- FIX v1.9: Favorite cities section -->
+        <div class="weather-fav-section" id="weather-fav-section">
+          <div class="weather-fav-label">
+            <span>⭐ Favourite places</span>
+            <button class="weather-fav-add-btn" id="weather-fav-add-btn" onclick="addCurrentCityToFavourites()" title="Add current city to favourites">+ <span id="weather-fav-add-label">Add current city</span></button>
+          </div>
+          <div class="weather-fav-list" id="weather-fav-list">
+            <span class="weather-fav-empty" id="weather-fav-empty">Add your first favourite city</span>
+          </div>
+        </div>
       </div>
 
       <div class="weather-list" id="weather-list-container">

@@ -2486,40 +2486,39 @@
   }
 
   /* ==============================================
-     WEATHER SCREEN -- Zadacha 4 new design
-     Single-row chip layout instead of 2 rows.
+     WEATHER SCREEN -- переработанная шапка (в 2 равных чипа-переключателя,
+     без inline select/search внутри). Выбор поля вынесен в карточки
+     weather-fields-strip, поиск города — в отдельную панель ниже,
+     .weather-city-extras-panel. Обе занимают всю ширину экрана — удобнее
+     для тапа и чтения, чем тесная строка в шапке.
      .weather-header-controls -- flex container.
-     .weather-mode-chip -- each segment (field/city).
-     Active chip (.weather-mode-chip--active) expands
-     to show inline select/input next to the label.
+     .weather-mode-chip -- каждый сегмент (по полю / по городу), равной ширины.
   ============================================== */
   .weather-header-controls {
     display: flex;
-    gap: 6px;
-    margin-bottom: 8px;
+    gap: 8px;
+    margin-bottom: 4px;
     align-items: stretch;
   }
   .weather-mode-chip {
-    display: flex;
-    align-items: center;
-    background: var(--bg3);
-    border-radius: var(--radius-sm);
-    padding: 2px;
-    transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
-    flex-shrink: 0;
-    min-width: 0;
-  }
-  /* Active chip expands to fill available space */
-  .weather-mode-chip--active {
     flex: 1;
+    display: flex;
+    background: var(--bg3);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+  }
+  .weather-mode-chip--active {
     background: rgba(76,175,80,0.12);
-    border: 1px solid rgba(76,175,80,0.3);
+    border-color: rgba(76,175,80,0.3);
   }
   .weather-chip-btn {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 8px 12px;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px 12px;
     border: none;
     background: transparent;
     color: var(--text2);
@@ -2530,65 +2529,29 @@
     white-space: nowrap;
     transition: all 0.18s;
     font-family: inherit;
-    flex-shrink: 0;
   }
   .weather-mode-chip--active .weather-chip-btn { color: var(--accent); }
   .weather-chip-btn:active { opacity: 0.7; }
 
-  /* Divider between button and inline content */
-  .weather-chip-sep {
-    width: 1px;
-    height: 20px;
-    background: var(--border);
-    flex-shrink: 0;
-    margin: 0 2px;
+  /* ── Панель поиска города — на всю ширину, под лентой карточек полей ── */
+  .weather-city-extras-panel {
+    padding: 0 14px 12px;
   }
-
-  /* Inline content of the chip (visible only for active chip) */
-  .weather-chip-content {
+  .weather-city-inline--panel {
     display: flex;
     align-items: center;
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
+    gap: 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 4px 12px;
+    transition: border-color 0.18s;
   }
-
-  /* Field selector adapted for chip style */
-  .weather-field-selector {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex: 1;
-    min-width: 0;
-    padding: 0 8px 0 4px;
+  .weather-city-inline--panel:focus-within {
+    border-color: rgba(76,175,80,0.4);
   }
-  .weather-field-selector select {
-    flex: 1;
-    min-width: 0;
-    background: transparent;
-    border: none;
-    color: var(--text);
-    /* FIX (iOS zoom-on-focus): <16px триггерит авто-зум Safari на тапе. */
-    font-size: 16px;
-    font-family: inherit;
-    padding: 8px 0;
-    outline: none;
-    cursor: pointer;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .weather-field-selector select option { background: var(--bg2); }
-
-  /* Inline city input inside city chip */
-  .weather-city-inline {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex: 1;
-    min-width: 0;
-    padding: 0 8px 0 4px;
-  }
-  .weather-city-inline input {
+  .weather-city-inline--panel svg { flex-shrink: 0; color: var(--text3); }
+  .weather-city-inline--panel input {
     flex: 1;
     min-width: 0;
     background: transparent;
@@ -2598,10 +2561,10 @@
        набор текста при постоянно прыгающем масштабе экрана был неудобен. */
     font-size: 16px;
     font-family: inherit;
-    padding: 8px 0;
+    padding: 10px 0;
     outline: none;
   }
-  .weather-city-inline input::placeholder { color: var(--text3); }
+  .weather-city-inline--panel input::placeholder { color: var(--text3); }
   .weather-field-info {
     display: flex;
     gap: 8px;
@@ -3714,12 +3677,12 @@
     border-color: rgba(0,0,0,0.14); 
   }
 
-  /* FIX v1.8: weather field selector in light mode */
-  .light-theme .weather-field-selector {
+  /* Панель поиска города (вкладка Погода) в светлой теме */
+  .light-theme .weather-city-inline--panel {
     background: #ffffff;
     border: 1px solid rgba(0,0,0,0.14);
   }
-  .light-theme .weather-field-selector select { color: #1a2332; }
+  .light-theme .weather-city-inline--panel input { color: #1a2332; }
 
 
 

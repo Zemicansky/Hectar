@@ -330,10 +330,6 @@ function applyTranslations() {
     ? '💡 Для точности ~10м подключите Sentinel Hub API в настройках (бесплатно до 30 000 пикселей/мес)'
     : '💡 For ~10m accuracy, connect Sentinel Hub API in settings (free up to 30,000 pixels/month)';
 
-  // Задача 4: placeholder поля в Погоде
-  const weatherFieldPlaceholder = document.getElementById('weather-field-placeholder');
-  if (weatherFieldPlaceholder) weatherFieldPlaceholder.textContent = lang === 'ru' ? '— Выберите поле —' : '— Select a field —';
-
   // Модалка итогов заезда трактора (Задача 2: разделение сохранения/удаления)
   const sumTitleEl = document.querySelector('[data-i18n-summary-title]');
   if (sumTitleEl) sumTitleEl.textContent = lang === 'ru' ? 'Заезд завершён' : 'Run complete';
