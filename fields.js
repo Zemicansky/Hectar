@@ -714,7 +714,22 @@ function getVegetationStage(field) {
 
 function renderFieldDetailHTML(field) {
   const fieldCropId = resolveCropId(field.crop);
-  const eventTypeLabel = { sowing: t('sowing'), harvest: t('harvest'), watering: t('watering'), spraying: t('spraying'), cultivation: t('cultivation'), disking: t('disking') };
+  const eventTypeLabel = { sowing: t('sowing'), harvest: t('harvest'), watering: t('watering'), spraying: t('spraying'), cultivation: t('cultivation'), disking: t('disking'),
+    // FIX v3.0 п.7 (карточка поля не показывает заезды трактора): раньше
+    // здесь были только "обычные" типы работ (sowing/harvest/watering/
+    // spraying/cultivation/disking). Заезд на 3D-тракторе сохраняется через
+    // saveTractorSummary() в tractor-3d.js с type, равным выбранной в кабине
+    // операции — а там список операций шире: fertilizing/tillage/other тоже
+    // возможны (см. opTitle{} в tractor-3d.js). Для фермера это означало, что
+    // такое событие в карточке поля подписывалось "как есть" (сырым английским
+    // словом вроде "fertilizing"), потому что eventTypeLabel[ev.type] не
+    // находил перевод. Добавляем недостающие переводы, чтобы подпись всегда
+    // была на выбранном языке независимо от того, из какой операции создано
+    // событие.
+    fertilizing: lang === 'ru' ? 'Внесение удобрений' : 'Fertilizing',
+    tillage: lang === 'ru' ? 'Вспашка' : 'Tillage',
+    other: lang === 'ru' ? 'Обработка' : 'Operation'
+  };
 
   const ndvi = estimateFieldNdvi(field);
   const health = getHealthStatus(ndvi);
@@ -723,13 +738,43 @@ function renderFieldDetailHTML(field) {
   // FIX v1.8: removed auto-computed nextTreatDate (was +14 days fake calc)
 
   // FIX v1.8 R2: season events with edit/delete buttons
-  const seasonHTML = (field.season || []).map((ev, idx) => `
+  // FIX v3.0 п.7 (заезд трактора выглядел как безликая заметка): раньше
+  // карточка события рендерила только тип/дату/заметку для ЛЮБОГО события
+  // сезона — площадь, дистанция, ширина захвата и сама пометка "это заезд
+  // трактора" (isTractorRun/areaHa/distKm/widthMeters), которые
+  // saveTractorSummary() в tractor-3d.js кладёт в запись, никак не
+  // отображались. Фермер открывал историю поля и видел заезд на тракторе
+  // такой же строчкой, как обычная текстовая заметка — без цифр, которые он
+  // явно проехал и ради которых нажимал "Сохранить в историю поля". Плюс
+  // css-класс `event-dot ${ev.type}` для новых типов (fertilizing/tillage/
+  // other) не имеет стиля в style.css, поэтому точка-маркер события была бы
+  // пустой/невидимой. Добавлена отдельная ветка рендера: для isTractorRun
+  // используется эмодзи 🚜 вместо цветной точки и отдельная строка со
+  // статистикой "2.40 га · 3.10 км · захват 6м" под текстом заметки — в той
+  // же палитре HUD 3D-режима (#00e676 акцент), которая уже используется в
+  // остальном интерфейсе заезда (см. spawnTractorMarkerAt() в tractor-3d.js).
+  const seasonHTML = (field.season || []).map((ev, idx) => {
+    const isTractorRun = ev.isTractorRun === true;
+    const dotOrIcon = isTractorRun
+      ? `<div class="event-dot" style="display:flex;align-items:center;justify-content:center;background:#162231;border:1px solid #00e676;font-size:11px;line-height:1;">🚜</div>`
+      : `<div class="event-dot ${ev.type}"></div>`;
+    const statsLine = isTractorRun
+      ? `<div class="event-note" style="color:#00e676;">${
+          [
+            (typeof ev.areaHa === 'number') ? `${ev.areaHa.toFixed(2)} ${lang==='ru'?'га':'ha'}` : null,
+            (typeof ev.distKm === 'number') ? `${ev.distKm.toFixed(2)} ${lang==='ru'?'км':'km'}` : null,
+            ev.widthMeters ? `${lang==='ru'?'захват':'width'} ${ev.widthMeters}${lang==='ru'?'м':'m'}` : null
+          ].filter(Boolean).join(' · ')
+        }</div>`
+      : '';
+    return `
     <div class="event-item" data-event-index="${idx}">
-      <div class="event-dot ${ev.type}"></div>
+      ${dotOrIcon}
       <div class="event-info">
-        <div class="event-type">${eventTypeLabel[ev.type] || ev.type}</div>
+        <div class="event-type">${isTractorRun ? (lang==='ru'?'🚜 Заезд трактора':'🚜 Tractor run') + ' — ' + (eventTypeLabel[ev.type] || ev.type) : (eventTypeLabel[ev.type] || ev.type)}</div>
         <div class="event-date">${ev.date}</div>
         ${ev.note ? `<div class="event-note">${escapeHtml(ev.note)}</div>` : ''}
+        ${statsLine}
       </div>
       <div class="event-actions">
         <button class="event-edit-btn" onclick="openEditEventModal('${escapeHtml(field.id)}', ${idx})" title="${lang==='ru'?'Редактировать':'Edit'}">
@@ -740,7 +785,8 @@ function renderFieldDetailHTML(field) {
         </button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   const photosHTML = (field.photos || []).map(src => `
     <div class="photo-item"><img src="${src}" alt="photo"/></div>
@@ -1182,6 +1228,29 @@ function saveEvent() {
     event.crop = f.crop;
   }
   f.season = f.season || [];
+
+  // FIX v3.0 п.7 (редактирование стирало данные заезда трактора): раньше
+  // "Сохранить" в модалке события ВСЕГДА пересоздавало объект события заново
+  // только с полями type/date/note (плюс crop для посева) — если фермер
+  // открывал на редактирование заезд трактора (у него тоже есть кнопка-
+  // карандаш в общем списке событий) и просто менял дату или текст заметки,
+  // из записи бесследно пропадали areaHa/distKm/durationMin/durationFormatted/
+  // widthMeters/title и сам флаг isTractorRun — заезд, который фермер реально
+  // проехал и сохранил из 3D-режима, превращался в обычную пустую заметку без
+  // возможности восстановить площадь/дистанцию. Исправлено: если
+  // редактируемая запись была заездом трактора (проверяем по исходному
+  // объекту f.season[editingEventIndex], а не по event, который мы только
+  // что создали заново), переносим эти поля в обновлённый объект.
+  if (editingEventIndex !== null && editingEventIndex >= 0 && editingEventIndex < f.season.length && f.season[editingEventIndex].isTractorRun) {
+    const prevRun = f.season[editingEventIndex];
+    event.isTractorRun = true;
+    event.areaHa = prevRun.areaHa;
+    event.distKm = prevRun.distKm;
+    event.durationMin = prevRun.durationMin;
+    event.durationFormatted = prevRun.durationFormatted;
+    event.widthMeters = prevRun.widthMeters;
+    event.title = prevRun.title;
+  }
 
   // FIX v1.8 R2: handle edit vs add
   if (editingEventIndex !== null && editingEventIndex >= 0 && editingEventIndex < f.season.length) {

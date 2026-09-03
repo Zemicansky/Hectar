@@ -38,7 +38,18 @@ function renderNotesList() {
   }
   emptyEl.style.display = 'none';
 
-  const eventTypeLabel = { sowing: t('sowing'), harvest: t('harvest'), watering: t('watering'), spraying: t('spraying'), cultivation: t('cultivation'), disking: t('disking') };
+  // FIX v3.0 п.7 (заезды трактора без перевода подписи в списке заметок):
+  // та же проблема, что была в fields.js renderFieldDetailHTML — заезд
+  // трактора сохраняется через saveTractorSummary() (tractor-3d.js) с type,
+  // равным операции (sowing/spraying/fertilizing/tillage/harvest/other), но
+  // этот список знал только про "обычные" типы работ. Для fertilizing/
+  // tillage/other фермер видел в общем списке заметок сырое английское слово
+  // вместо перевода. Добавлены недостающие ключи.
+  const eventTypeLabel = { sowing: t('sowing'), harvest: t('harvest'), watering: t('watering'), spraying: t('spraying'), cultivation: t('cultivation'), disking: t('disking'),
+    fertilizing: lang === 'ru' ? 'Внесение удобрений' : 'Fertilizing',
+    tillage: lang === 'ru' ? 'Вспашка' : 'Tillage',
+    other: lang === 'ru' ? 'Обработка' : 'Operation'
+  };
 
   allEvents.forEach(ev => {
     const card = document.createElement('div');
@@ -52,6 +63,27 @@ function renderNotesList() {
     const d = new Date(ev.date);
     const dateStr = d.toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US', { month: 'short', day: 'numeric' });
 
+    // FIX v3.0 п.7 (заезд трактора в общем списке заметок выглядел как
+    // обычная заметка без цифр): проверено по заданию — попадают ли заезды
+    // трактора в общий список (да, currentNoteFilter по умолчанию 'all', так
+    // что они не теряются), но карточка заметки не показывала
+    // площадь/дистанцию/захват, которые есть в записи (см. isTractorRun в
+    // saveTractorSummary(), tractor-3d.js), и заголовок не отличал заезд
+    // трактора от обычной ручной заметки. Добавлена короткая строка со
+    // статистикой и пометка 🚜 в заголовке типа события — в цвете акцента HUD
+    // 3D-режима (#00e676), той же палитрой, что и в остальном интерфейсе
+    // заезда.
+    const isTractorRun = ev.isTractorRun === true;
+    const statsLine = isTractorRun
+      ? `<div class="note-meta" style="margin-top:2px;color:#00e676;">${
+          [
+            (typeof ev.areaHa === 'number') ? `${ev.areaHa.toFixed(2)} ${lang==='ru'?'га':'ha'}` : null,
+            (typeof ev.distKm === 'number') ? `${ev.distKm.toFixed(2)} ${lang==='ru'?'км':'km'}` : null,
+            ev.widthMeters ? `${lang==='ru'?'захват':'width'} ${ev.widthMeters}${lang==='ru'?'м':'m'}` : null
+          ].filter(Boolean).join(' · ')
+        }</div>`
+      : '';
+
     // FIX: add edit and delete action buttons to each note card
     card.innerHTML = `
       <div class="note-field-thumb">
@@ -59,8 +91,9 @@ function renderNotesList() {
       </div>
       <div class="note-info">
         <div class="note-field-name">${escapeHtml(ev.fieldName)}</div>
-        <div class="note-meta">${escapeHtml(eventTypeLabel[ev.type] || ev.type)}${ev.fieldCrop ? ' — ' + escapeHtml(cropDisplayName(ev.fieldCrop)) : ''} · ${ev.fieldArea} ${t('ha')}</div>
+        <div class="note-meta">${isTractorRun ? '🚜 ' : ''}${escapeHtml(eventTypeLabel[ev.type] || ev.type)}${ev.fieldCrop ? ' — ' + escapeHtml(cropDisplayName(ev.fieldCrop)) : ''} · ${ev.fieldArea} ${t('ha')}</div>
         ${ev.note ? `<div class="note-meta" style="margin-top:2px;color:var(--text3)">${escapeHtml(ev.note)}</div>` : ''}
+        ${statsLine}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
         <div class="note-date">${dateStr}</div>
@@ -217,6 +250,27 @@ function saveNote() {
     date: document.getElementById('note-date').value,
     note: document.getElementById('note-text').value.trim()
   };
+
+  // FIX v3.0 п.7 (редактирование заметки стирало данные заезда трактора):
+  // та же проблема, что была в fields.js saveEvent() — "Сохранить" здесь
+  // тоже всегда пересоздавало объект заметки заново только с type/date/note.
+  // Если фермер редактировал заезд трактора через вкладку "Заметки" (карандаш
+  // есть и здесь, editNoteFromList() открывает ту же модалку для любой
+  // записи из field.season, включая заезды), из записи пропадали
+  // areaHa/distKm/durationMin/durationFormatted/widthMeters/title и флаг
+  // isTractorRun — заезд необратимо превращался в пустую заметку. Переносим
+  // эти поля из исходной записи (f.season[_editingNoteSeasonIndex] до
+  // перезаписи), если она была заездом трактора.
+  if (_editingNoteFieldId !== null && _editingNoteSeasonIndex !== null && f.season[_editingNoteSeasonIndex] && f.season[_editingNoteSeasonIndex].isTractorRun) {
+    const prevRun = f.season[_editingNoteSeasonIndex];
+    updatedNote.isTractorRun = true;
+    updatedNote.areaHa = prevRun.areaHa;
+    updatedNote.distKm = prevRun.distKm;
+    updatedNote.durationMin = prevRun.durationMin;
+    updatedNote.durationFormatted = prevRun.durationFormatted;
+    updatedNote.widthMeters = prevRun.widthMeters;
+    updatedNote.title = prevRun.title;
+  }
 
   // FIX: handle edit vs add mode
   if (_editingNoteFieldId !== null && _editingNoteSeasonIndex !== null) {

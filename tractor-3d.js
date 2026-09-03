@@ -134,6 +134,12 @@ let tractorABMode = 'idle';
 // _3dSteerActive: +1 вправо / -1 влево / 0 прямо.
 // _lastFrameTime: метка времени последнего кадра для расчёта dt (с).
 let _3dGasActive = 0, _3dSteerActive = 0, _lastFrameTime = 0;
+// FIX v3.0 п.8 (закраска на спавне, до реального начала движения): позиция
+// трактора на ПРЕДЫДУЩЕМ кадре animate() — нужна, чтобы решать "красить или
+// нет" по факту реального смещения модели, а не по признаку "источник
+// позиции вообще активен" (см. использование ниже, в animate()).
+// null = ещё не было ни одного кадра в текущем заезде.
+let _lastPaintCheckPos = null;
 
 // FIX v3.0 п.Б1: пороги качества рисования следа.
 // MIN_PAINT_STEP — минимальное смещение (м) перед добавлением новой точки ribbon,
@@ -294,6 +300,11 @@ function startTractorTracking() {
   // завершил предыдущий не отпустив кнопку D-pad.
   _3dGasActive = 0; _3dSteerActive = 0;
   _manualCurSpeed = 0; _manualCurSteerRate = 0; _manualLastSyncAt = 0;
+  // FIX v3.0 п.8: сброс "предыдущей позиции для решения красить/не красить"
+  // от прошлого заезда — иначе первый кадр нового заезда мог бы посчитать
+  // расстояние от точки, где трактор был в КОНЦЕ предыдущего заезда, и
+  // ошибочно нарисовать мазок через всё поле между старым и новым спавном.
+  _lastPaintCheckPos = null;
 
   if (tractor3DTrailGroup) {
     tractor3DTrailGroup.clear();
@@ -2822,8 +2833,40 @@ function start3DAnimationLoop() {
       tractor3DPos.z = tractor3DRenderPos.z;
       tractor3DHeading = tractor3DRenderHeading;
 
-      if (tractorActive && (tractorSimInterval || tractorWatchId || _3dGasActive !== 0 || Math.abs(vehicleState.speed) > 0)) {
+      // FIX v3.0 п.8 (закрашенный мазок земли сразу при спавне, до начала
+      // движения): раньше решение "красить ли этот кадр" принималось по
+      // признаку "источник позиции вообще активен" — tractorWatchId истинен
+      // сразу после старта GPS-слежения (watchPosition подписан), ЕЩЁ ДО
+      // того, как трактор физически сдвинулся хоть на сантиметр. Реальный
+      // GPS почти всегда даёт шум/дрожание в несколько метров даже стоя на
+      // месте (обычная погрешность датчика телефона), а внутренний порог
+      // "прыжка" в vehicleApplyGpsFix() (0.5м) — заметно ниже типичного GPS-
+      // шума. В результате: фермер жал "Старт", трактор ещё стоял на месте
+      // спавна, а первые же шумовые GPS-фиксы уже интерпретировались как
+      // микро-движение и закрашивали площадь и ленту следа прямо в точке
+      // спавна — то есть "закрашенный участок" появлялся до реального
+      // начала заезда.
+      //
+      // Исправлено: красим только если модель РЕАЛЬНО сместилась за этот
+      // кадр (по факту, а не по тому, какой источник данных сейчас активен)
+      // — сравниваем текущую tractor3DRenderPos с позицией на предыдущем
+      // кадре и используем тот же порог MIN_PAINT_STEP, что и внутри самой
+      // paint3DSoilCoverage() (единый источник истины для решения "было ли
+      // движение", вместо рассинхрона между двумя разными порогами в двух
+      // разных местах — история подобных багов с расхождением значений в
+      // этом файле уже была, см. FIX v3.0 п.3/п.5 про ширину захвата).
+      // Работает одинаково для всех трёх источников движения (демо,
+      // ручное D-pad, реальный GPS), потому что все они в итоге просто
+      // двигают tractor3DRenderPos — не нужно отдельно перечислять
+      // tractorSimInterval/_3dGasActive/vehicleState.speed/tractorWatchId.
+      const paintDist = _lastPaintCheckPos
+        ? Math.hypot(tractor3DRenderPos.x - _lastPaintCheckPos.x, tractor3DRenderPos.z - _lastPaintCheckPos.z)
+        : 0;
+      if (tractorActive && _lastPaintCheckPos && paintDist >= MIN_PAINT_STEP) {
         paint3DSoilCoverage(tractor3DRenderPos.x, tractor3DRenderPos.z, tractorWidth || 12, tractor3DRenderHeading);
+      }
+      if (tractorActive) {
+        _lastPaintCheckPos = { x: tractor3DRenderPos.x, z: tractor3DRenderPos.z };
       }
 
       updateGuidanceLightbar(tractor3DRenderHeading, tractor3DRenderPos.x, tractor3DRenderPos.z);
@@ -3149,6 +3192,11 @@ function stopTractorTracking() {
   tractor3DBaseTrackX = null;
   tractor3DBaseTrackZ = null;
   _3dGasActive = 0; _3dSteerActive = 0; _lastFrameTime = 0;
+  // FIX v3.0 п.8: тот же сброс, что и в startTractorTracking() — делаем его
+  // и здесь тоже, на случай что следующий заезд запустится через путь кода,
+  // который почему-то не пройдёт через полный сброс startTractorTracking()
+  // (защита "на обоих концах", как принято для остального state в этом файле).
+  _lastPaintCheckPos = null;
   _manualCurSpeed = 0; _manualCurSteerRate = 0; _manualLastSyncAt = 0;
   tractorLastFixAt = null;
   tractorTeleportPending = false;
