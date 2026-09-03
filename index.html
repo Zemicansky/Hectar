@@ -513,28 +513,15 @@
         <div class="guidance-status-label" id="tractor-guidance-status">В ПОЛОСЕ (ON TRACK)</div>
       </div>
 
-      <!-- FIX v3.0 п.Б4: D-pad — hold-to-drive через onpointerdown/up/cancel. -->
-      <div class="tractor-3d-dpad" id="tractor-3d-dpad">
-        <button type="button" class="btn-3d-dpad up"
-                onpointerdown="start3DGas(1)"  onpointerup="stop3DGas()"   onpointercancel="stop3DGas()"
-                aria-label="Вперёд" style="touch-action:none;">
-          <i data-lucide="chevron-up" class="icon-sm"></i>
-        </button>
-        <button type="button" class="btn-3d-dpad left"
-                onpointerdown="start3DSteer(-1)" onpointerup="stop3DSteer()" onpointercancel="stop3DSteer()"
-                aria-label="Влево" style="touch-action:none;">
-          <i data-lucide="chevron-left" class="icon-sm"></i>
-        </button>
-        <button type="button" class="btn-3d-dpad down"
-                onpointerdown="start3DGas(-1)" onpointerup="stop3DGas()"   onpointercancel="stop3DGas()"
-                aria-label="Назад" style="touch-action:none;">
-          <i data-lucide="chevron-down" class="icon-sm"></i>
-        </button>
-        <button type="button" class="btn-3d-dpad right"
-                onpointerdown="start3DSteer(1)"  onpointerup="stop3DSteer()" onpointercancel="stop3DSteer()"
-                aria-label="Вправо" style="touch-action:none;">
-          <i data-lucide="chevron-right" class="icon-sm"></i>
-        </button>
+      <!-- Джойстик одним пальцем: тянуть вверх/вниз = газ вперёд/назад,
+           влево/вправо = руль, диагональ — газ и руль одновременно (как в
+           играх с виртуальным стиком). Заменяет прежний крест из 4 кнопок,
+           который требовал прыгать пальцем между несмежными кнопками. -->
+      <div class="tractor-3d-joystick" id="tractor-3d-joystick">
+        <div class="joystick-base">
+          <div class="joystick-ring"></div>
+          <div class="joystick-stick" id="joystick-stick"></div>
+        </div>
       </div>
 
       <!-- FIX v3.0 п.Б5: кнопка геолокации. -->

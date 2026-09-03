@@ -4781,56 +4781,92 @@
   border-color: rgba(255, 107, 107, 0.45);
   color: #ff6b6b;
 }
-/* FIX v3.0 п.3: D-pad ручного тестового управления трактором.
-   Компактный крест из 4 кнопок над нижней панелью действий, справа —
-   не мешает основным кнопкам "Демо заезд"/"Завершить" по центру и не
-   перекрывает GPS-радар/HUD сверху. */
-.tractor-3d-dpad {
+/* Джойстик одним пальцем — заменяет прежний крест из 4 кнопок. Одна
+   круглая зона внизу справа: тянешь стик от центра — газ и руль меняются
+   плавно и пропорционально смещению, а не резким шагом -1/0/1 как раньше.
+   Не требует прыгать пальцем между несмежными кнопками. */
+.tractor-3d-joystick {
   position: absolute;
   bottom: calc(var(--safe-bottom) + 92px);
   right: 16px;
-  width: 132px;
-  height: 132px;
+  width: 140px;
+  height: 140px;
   z-index: 860;
   pointer-events: auto;
-  display: grid;
-  grid-template-columns: 44px 44px 44px;
-  grid-template-rows: 44px 44px 44px;
-  gap: 4px;
+  touch-action: none;
 }
-.btn-3d-dpad {
-  background: rgba(15, 25, 35, 0.85);
+.joystick-base {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(15, 25, 35, 0.72);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--radius-sm, 10px);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
-  transition: transform 0.1s ease, background 0.15s ease;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255,255,255,0.03);
 }
-.btn-3d-dpad:active {
-  transform: scale(0.92);
-  background: rgba(0, 230, 118, 0.25);
-  border-color: rgba(0, 230, 118, 0.5);
+.joystick-ring {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  border: 1px dashed rgba(0, 230, 118, 0.35);
+  pointer-events: none;
 }
-.btn-3d-dpad.up    { grid-column: 2; grid-row: 1; }
-.btn-3d-dpad.left  { grid-column: 1; grid-row: 2; }
-.btn-3d-dpad.down  { grid-column: 2; grid-row: 3; }
-.btn-3d-dpad.right { grid-column: 3; grid-row: 2; }
+.joystick-stick {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(0,255,140,0.95), rgba(0,180,100,0.9));
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  transition: transform 0.12s ease, background 0.15s ease;
+  will-change: transform;
+}
+.tractor-3d-joystick.active .joystick-stick {
+  transition: none; /* без задержки во время активного перетаскивания */
+  box-shadow: 0 4px 18px rgba(0, 230, 118, 0.55);
+}
 
-/* FIX v3.0 п.Б4: визуальная обратная связь при удержании D-pad */
-.btn-3d-dpad:active,
-.btn-3d-dpad.pressed {
-  background: rgba(0, 230, 118, 0.28);
-  transform: scale(0.92);
-  border-color: #00e676;
+/* Пульсирующая метка "куда ехать дальше" на карте поля (полноэкранный
+   оверлей tractor-field-map-overlay) — расширяющееся кольцо, тот же
+   узнаваемый паттерн, что в Google Maps/Uber для точки интереса. Не
+   требует объяснения пользователю: круг "дышит" в сторону, куда ехать. */
+.overlay-target-marker {
+  position: relative;
+  width: 28px;
+  height: 28px;
+}
+.overlay-target-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 50%;
+  background: rgba(255, 179, 0, 0.35);
+  animation: overlayTargetPulse 1.6s ease-out infinite;
+}
+.overlay-target-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: #ffb300;
+  border: 2px solid #fff;
+  box-shadow: 0 0 8px rgba(255, 179, 0, 0.8);
+}
+@keyframes overlayTargetPulse {
+  0%   { transform: scale(0.4); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
 }
 
 /* FIX v3.0 п.Б5: кнопка GPS геолокации — спиннер при загрузке */

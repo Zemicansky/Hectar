@@ -59,6 +59,14 @@ const SOIL_TRAIL_STROKE_CSS = '#4e3620';
 let coverage3DTexture = null, coverage3DCanvas = null, coverage3DCtx = null;
 let radarCanvas = null, radarCtx = null;
 
+// История центральных точек пройденного пути (локальные метры x/z
+// относительно fieldCenter3D), используется ТОЛЬКО для отрисовки закраски
+// на радаре/полноэкранной карте (draw3DRadar, _overlayMapTick) — не путать
+// с tractor3DTrailGroup (3D-меши следа на самой сцене) или tractorPath
+// (гео-координаты для Leaflet). Отдельный лёгкий массив, потому что радару
+// не нужна геометрия ленты в 3D, только "где уже проехал" в 2D.
+let tractorRadarTrail = [];
+
 let tractorWatchId = null;
 let tractorActive = false;
 let tractorStartTime = null;
@@ -247,6 +255,7 @@ function startTractorTracking() {
   tractorPath = [];
   tractorAreaHa = 0;
   tractorCoverageUnion = null; // сброс union-полигона покрытия для нового заезда
+  tractorRadarTrail = []; // сброс истории следа для радара/карты нового заезда
   tractorDistKm = 0;
   tractorCurrentSpeed = 0;
   tractor3DPos = { x: 0, z: 0 };
@@ -1771,6 +1780,7 @@ let overlayPolyline = null;
 // актуальную позицию/след трактора, используя ту же живую
 // tractor3DRenderPos/RenderHeading, что и 3D-модель и радар.
 let overlayTractorMarker = null;
+let overlayTargetMarker = null; // стрелка-подсказка "куда ехать" (см. findNextUncoveredTarget)
 let _overlayMapAnimId = null;
 let _overlayMapOpen = false;
 
@@ -1780,12 +1790,35 @@ function _overlayMapTractorLatLng() {
   const lngOffset = tractor3DRenderPos.x / (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
   return [fieldCenter3D.lat - latOffset, fieldCenter3D.lng + lngOffset];
 }
+// Локальные метры (x/z) любой точки поля -> lat/lng, той же формулой, что
+// использует остальной 3D-мир (fieldCenter3D как точка отсчёта).
+function _local3DToLatLng(x, z) {
+  if (!fieldCenter3D) return null;
+  const latOffset = z / 111320;
+  const lngOffset = x / (111320 * Math.cos(fieldCenter3D.lat * Math.PI / 180));
+  return [fieldCenter3D.lat - latOffset, fieldCenter3D.lng + lngOffset];
+}
 
 function _overlayMapTick() {
   if (!_overlayMapOpen || !overlayMap) { _overlayMapAnimId = null; return; }
 
   if (typeof tractorPath !== 'undefined' && tractorPath.length > 0 && overlayPolyline) {
     overlayPolyline.setLatLngs(tractorPath);
+  }
+
+  // Стрелка-подсказка "куда ехать" — тот же принцип, что на радаре: одна
+  // явная цель к ближайшему незакрашенному участку, без разметки полосами.
+  const target = findNextUncoveredTarget();
+  if (target && overlayTargetMarker) {
+    const tll = _local3DToLatLng(target.x, target.z);
+    if (tll) {
+      overlayTargetMarker.setLatLng(tll);
+      const el = overlayTargetMarker.getElement();
+      if (el) el.style.display = '';
+    }
+  } else if (overlayTargetMarker) {
+    const el = overlayTargetMarker.getElement();
+    if (el) el.style.display = 'none'; // поле полностью обработано — прятать нечего показывать
   }
 
   const ll = _overlayMapTractorLatLng();
@@ -1826,7 +1859,7 @@ function open3DFieldMapOverlay() {
         maxZoom: 22
       }).addTo(overlayMap);
 
-      overlayPolyline = L.polyline([], {color: '#8D6E63', weight: 4}).addTo(overlayMap);
+      overlayPolyline = L.polyline([], {color: SOIL_TRAIL_FILL_CSS, weight: 7, opacity: 0.85, lineCap: 'round'}).addTo(overlayMap);
 
       // Пользователь начал сам двигать карту руками — перестаём
       // авто-центрировать, чтобы не выдёргивать её у него из-под пальца.
@@ -1839,6 +1872,19 @@ function open3DFieldMapOverlay() {
           iconSize: [14, 14],
           iconAnchor: [7, 7]
         })
+      }).addTo(overlayMap);
+
+      // Одна крупная пульсирующая метка на ближайший незакрашенный участок
+      // поля — та же логика подсказки, что на маленьком радаре
+      // (findNextUncoveredTarget), но на весь экран для наглядности.
+      overlayTargetMarker = L.marker([0, 0], {
+        icon: L.divIcon({
+          className: 'overlay-target-marker',
+          html: '<div class="overlay-target-pulse"></div><div class="overlay-target-dot"></div>',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        }),
+        zIndexOffset: -100 // под маркером трактора, чтобы трактор всегда был виден поверх
       }).addTo(overlayMap);
     }
 
@@ -1916,6 +1962,95 @@ function locate3DGPS() {
     { timeout: 10000, maximumAge: 5000, enableHighAccuracy: true }
   );
 }
+// ════════════════════════════════════════════════════
+// ПОДСКАЗКА "КУДА ЕХАТЬ" ДЛЯ КАРТЫ
+// Вместо разметки поля терминами вроде "гон №4" (непонятно новому
+// пользователю без агрономического опыта) — простая и интуитивно понятная
+// логика "закрашено/не закрашено" плюс одна стрелка к ближайшему
+// незакрашенному месту. Это тот же паттерн, что люди уже знают по играм
+// ("туман войны") и по трекерам доставки/уборки — не требует обучения.
+// ════════════════════════════════════════════════════
+let _nextTargetCache = null;
+let _nextTargetCacheAt = 0;
+
+// Находит ближайшую к трактору точку внутри контура поля, которая ещё не
+// была покрыта следом (tractorRadarTrail). Строит редкую сетку точек
+// внутри полигона поля и считает расстояние каждой точки до ближайшего
+// сегмента следа — если оно больше половины ширины орудия, точка "не
+// обработана". Возвращает {x, z} в локальных метрах или null, если
+// подходящей точки не нашлось (например, поле ещё не выбрано).
+// Кэшируется на ~600мс — пересчёт на каждый кадр избыточен, подсказка
+// не обязана быть суб-кадровой точности, а полигон/сетка — не бесплатны.
+function findNextUncoveredTarget() {
+  const now = performance.now();
+  if (_nextTargetCache && (now - _nextTargetCacheAt) < 600) return _nextTargetCache;
+  _nextTargetCacheAt = now;
+
+  if (!tractorActiveField || !tractorActiveField.coordinates || !fieldCenter3D) {
+    _nextTargetCache = null;
+    return null;
+  }
+
+  const coords = tractorActiveField.coordinates;
+  const centerLat = fieldCenter3D.lat, centerLng = fieldCenter3D.lng;
+  const localPts = coords.map(pt => {
+    const dLat = (pt[0] - centerLat) * 111320;
+    const dLng = (pt[1] - centerLng) * (111320 * Math.cos(centerLat * Math.PI / 180));
+    return { x: dLng, z: -dLat };
+  });
+
+  // Точка-в-полигоне (ray casting) — достаточно для выпуклых и большинства
+  // невыпуклых полей, которые рисуются в редакторе карты этого приложения.
+  function pointInPolygon(px, pz) {
+    let inside = false;
+    for (let i = 0, j = localPts.length - 1; i < localPts.length; j = i++) {
+      const xi = localPts[i].x, zi = localPts[i].z;
+      const xj = localPts[j].x, zj = localPts[j].z;
+      const intersect = ((zi > pz) !== (zj > pz)) &&
+        (px < (xj - xi) * (pz - zi) / (zj - zi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  localPts.forEach(p => {
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
+  });
+
+  const halfWidth = (tractorWidth || 12) / 2;
+  const GRID_STEP = Math.max(4, halfWidth); // не мельче половины ширины орудия
+  const tx = tractor3DRenderPos.x, tz = tractor3DRenderPos.z;
+
+  let best = null;
+  let bestDist = Infinity;
+  for (let gx = minX; gx <= maxX; gx += GRID_STEP) {
+    for (let gz = minZ; gz <= maxZ; gz += GRID_STEP) {
+      if (!pointInPolygon(gx, gz)) continue;
+
+      // Расстояние до ближайшей точки следа — O(n) по следу за каждую
+      // точку сетки; и сетка, и след достаточно небольшие (сетка — по полю
+      // делёному на шаг ширины орудия, след — до MAX_RADAR_TRAIL_POINTS),
+      // а вся функция и так кэшируется на 600мс.
+      let coveredByTrail = false;
+      for (let i = 0; i < tractorRadarTrail.length; i++) {
+        const p = tractorRadarTrail[i];
+        const dx = gx - p.x, dz = gz - p.z;
+        if ((dx * dx + dz * dz) < (halfWidth * halfWidth)) { coveredByTrail = true; break; }
+      }
+      if (coveredByTrail) continue;
+
+      const ddx = gx - tx, ddz = gz - tz;
+      const d = ddx * ddx + ddz * ddz;
+      if (d < bestDist) { bestDist = d; best = { x: gx, z: gz }; }
+    }
+  }
+
+  _nextTargetCache = best;
+  return best;
+}
+
 function draw3DRadar() {
   if (!radarCtx || !radarCanvas) return;
   const W = radarCanvas.width, H = radarCanvas.height;
@@ -1968,6 +2103,52 @@ function draw3DRadar() {
     radarCtx.strokeStyle = '#00e676';
     radarCtx.lineWidth = 1.5;
     radarCtx.stroke();
+  }
+
+  // Закраска пройденного пути — тот же понятный принцип "обработано/нет",
+  // что и в 3D-сцене (см. SOIL_TRAIL_FILL_CSS): пользователю не нужно
+  // понимать термины вроде "гон", достаточно видеть закрашенный след за
+  // трактором, как в игре с открытием тумана войны или в трекере доставки.
+  if (tractorRadarTrail.length > 1) {
+    radarCtx.strokeStyle = SOIL_TRAIL_FILL_CSS;
+    radarCtx.lineCap = 'round';
+    radarCtx.lineJoin = 'round';
+    radarCtx.lineWidth = Math.max(2, (tractorWidth || 12) * RADAR_SCALE);
+    radarCtx.beginPath();
+    tractorRadarTrail.forEach((p, i) => {
+      const rx = cx + p.x * RADAR_SCALE;
+      const ry = cy + p.z * RADAR_SCALE;
+      if (i === 0) radarCtx.moveTo(rx, ry);
+      else radarCtx.lineTo(rx, ry);
+    });
+    radarCtx.stroke();
+  }
+
+  // Одна крупная пульсирующая стрелка к ближайшему незакрашенному месту —
+  // единственная подсказка "куда ехать", без разметки на десятки линий.
+  const nextTarget = findNextUncoveredTarget();
+  if (nextTarget) {
+    const ndx = nextTarget.x - tractor3DRenderPos.x;
+    const ndz = nextTarget.z - tractor3DRenderPos.z;
+    const targetAngle = Math.atan2(ndx, ndz);
+    const pulse = 0.75 + 0.25 * Math.sin(performance.now() / 260);
+
+    const tX0 = cx + (tractor3DRenderPos.x * RADAR_SCALE);
+    const tY0 = cy + (tractor3DRenderPos.z * RADAR_SCALE);
+    const arrowScale0 = (W / 140) * pulse;
+
+    radarCtx.save();
+    radarCtx.translate(tX0, tY0);
+    radarCtx.rotate(targetAngle);
+    radarCtx.translate(0, -16 * (W / 140));
+    radarCtx.fillStyle = '#ffb300';
+    radarCtx.beginPath();
+    radarCtx.moveTo(0, -6 * arrowScale0);
+    radarCtx.lineTo(4.5 * arrowScale0, 4 * arrowScale0);
+    radarCtx.lineTo(-4.5 * arrowScale0, 4 * arrowScale0);
+    radarCtx.closePath();
+    radarCtx.fill();
+    radarCtx.restore();
   }
 
   // FIX (радар не двигался): раньше стрелка рисовалась по tractor3DPos/
@@ -2112,6 +2293,12 @@ function paint3DSoilCoverage(x, z, widthMeters, headingDeg) {
 
   tractor3DTrailGroup.userData.lastL = curL;
   tractor3DTrailGroup.userData.lastR = curR;
+
+  // Записываем центр орудия и ширину для радара/полноэкранной карты —
+  // им нужна только линия пройденного пути в 2D, без 3D-геометрии ленты.
+  const MAX_RADAR_TRAIL_POINTS = 20000; // тот же порядок, что MAX_TRAIL_SEGMENTS выше
+  tractorRadarTrail.push({ x: bx, z: bz, w: w });
+  if (tractorRadarTrail.length > MAX_RADAR_TRAIL_POINTS) tractorRadarTrail.shift();
 }
 /**
  * Пересобирает только навесное оборудование на уже существующей модели
@@ -2915,3 +3102,85 @@ window.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowUp' || e.key === 'w' || e.code === 'KeyW' || e.key === 'ArrowDown' || e.key === 's' || e.code === 'KeyS') stop3DGas();
   if (e.key === 'ArrowLeft' || e.key === 'a' || e.code === 'KeyA' || e.key === 'ArrowRight' || e.key === 'd' || e.code === 'KeyD') stop3DSteer();
 });
+
+// ════════════════════════════════════════════════════
+// ДЖОЙСТИК ОДНИМ ПАЛЬЦЕМ (заменяет крест из 4 кнопок)
+// Раньше газ и руль были на разных, физически несмежных кнопках
+// (up/down/left/right по углам креста) — палец должен был "прыгать"
+// между ними при одновременном газе+рулении (обычный манёвр при заезде).
+// Джойстик даёт газ и руль одним стиком: тянешь вверх/вниз — газ, влево/
+// вправо — руль, по диагонали — то и другое сразу, пропорционально
+// смещению от центра, а не резким шагом -1/0/1. _3dGasActive/_3dSteerActive
+// уже используются как коэффициент в vehiclePhysicsTick(), поэтому
+// дробные значения (например 0.6) физика принимает без изменений.
+// ════════════════════════════════════════════════════
+(function setupTractorJoystick() {
+  const zone = document.getElementById('tractor-3d-joystick');
+  const stick = document.getElementById('joystick-stick');
+  if (!zone || !stick) return;
+
+  const MAX_RADIUS = 42; // px — предел смещения стика от центра базы
+  // Небольшая мёртвая зона у центра: иначе дрожание пальца в состоянии
+  // покоя даёт микроскопический ненулевой газ/руль, и трактор еле заметно
+  // "плывёт", хотя палец визуально стоит на месте.
+  const DEAD_ZONE = 0.08;
+
+  let activePointerId = null;
+  let originX = 0, originY = 0;
+
+  function applyStick(dx, dy) {
+    const dist = Math.hypot(dx, dy);
+    const clamped = Math.min(dist, MAX_RADIUS);
+    const angle = Math.atan2(dy, dx);
+    const cx = Math.cos(angle) * clamped;
+    const cy = Math.sin(angle) * clamped;
+    stick.style.transform = `translate(${cx}px, ${cy}px)`;
+
+    let nx = cx / MAX_RADIUS;   // -1..1, вправо положительное
+    let ny = cy / MAX_RADIUS;   // -1..1, вниз положительное
+
+    if (Math.abs(nx) < DEAD_ZONE) nx = 0;
+    if (Math.abs(ny) < DEAD_ZONE) ny = 0;
+
+    // Вверх по экрану = вперёд (тянешь вниз — задний ход), поэтому знак
+    // Y инвертирован.
+    _3dGasActive = -ny;
+    _3dSteerActive = nx;
+
+    if (_3dGasActive !== 0 || nx !== 0) _enterManualControlMode();
+  }
+
+  function resetStick() {
+    stick.style.transform = 'translate(0px, 0px)';
+    _3dGasActive = 0;
+    _3dSteerActive = 0;
+  }
+
+  zone.addEventListener('pointerdown', (e) => {
+    if (!tractorActive) return;
+    activePointerId = e.pointerId;
+    zone.setPointerCapture(e.pointerId);
+    zone.classList.add('active');
+    const rect = zone.getBoundingClientRect();
+    originX = rect.left + rect.width / 2;
+    originY = rect.top + rect.height / 2;
+    applyStick(e.clientX - originX, e.clientY - originY);
+    if (navigator.vibrate) navigator.vibrate(8);
+    e.preventDefault();
+  });
+
+  zone.addEventListener('pointermove', (e) => {
+    if (activePointerId !== e.pointerId) return;
+    applyStick(e.clientX - originX, e.clientY - originY);
+    e.preventDefault();
+  });
+
+  function endDrag(e) {
+    if (activePointerId !== e.pointerId) return;
+    activePointerId = null;
+    zone.classList.remove('active');
+    resetStick();
+  }
+  zone.addEventListener('pointerup', endDrag);
+  zone.addEventListener('pointercancel', endDrag);
+})();
