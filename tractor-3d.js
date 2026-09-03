@@ -114,6 +114,21 @@ let tractor3DBaseTrackZ = null;
 // водитель видел на экране.
 let tractorTrackHeadingDeg = 0;
 
+// FIX v3.0 п.6 (AB-линия вручную): позволяет водителю вручную задать курс
+// гонов по двум реальным точкам (как в настоящих агронавигаторах —
+// "AB-line"), вместо автоматического курса от первой стороны контура
+// поля. Полезно на полях с неровными/скруглёнными границами, где сторона
+// полигона не совпадает с реальным направлением обработки.
+// tractorABPointA/B хранятся в ЛОКАЛЬНЫХ 3D-координатах (x, z относительно
+// fieldCenter3D) — той же системе, в которой уже работает vehicleState и
+// update3DFieldBounds(), чтобы не пересчитывать проекцию туда-обратно.
+// tractorABMode: 'idle' (AB не используется/не задан) -> 'awaiting_b'
+// (точка A уже поставлена, ждём точку B) -> 'set' (линия A-B активна и
+// используется вместо курса от контура поля).
+let tractorABPointA = null; // {x, z} | null
+let tractorABPointB = null; // {x, z} | null
+let tractorABMode = 'idle';
+
 // FIX v3.0 п.Б4: непрерывное плавное управление D-pad.
 // _3dGasActive: +1 вперёд / -1 назад / 0 стоп.
 // _3dSteerActive: +1 вправо / -1 влево / 0 прямо.
@@ -267,7 +282,13 @@ function startTractorTracking() {
   tractorLastFixAt = null;
   tractorTeleportPending = false;
   _gpsRawHistory = []; // сброс сглаживания GPS от предыдущего заезда
+  _lastGpsAccuracyMeters = null; // FIX v3.0 п.2: сброс адаптивного окна сглаживания от предыдущего заезда
   updateGpsAccuracyHud(null); // сброс индикатора точности GPS от предыдущего заезда
+  _radarFieldBBoxCacheKey = null; _radarAdaptiveScale = null; // FIX v3.0 п.5: сброс кэша масштаба радара от предыдущего поля
+  // FIX v3.0 п.6: сброс AB-линии предыдущего заезда — её координаты x/z
+  // привязаны к СТАРОМУ fieldCenter3D, который сейчас будет пересчитан;
+  // если не сбросить, линия окажется в случайной точке нового заезда.
+  tractorABPointA = null; tractorABPointB = null; tractorABMode = 'idle';
   // Сброс инерции ручного управления от предыдущего заезда — иначе новый
   // заезд мог бы "унаследовать" остаточную скорость/руление, если человек
   // завершил предыдущий не отпустив кнопку D-pad.
@@ -487,6 +508,11 @@ function onTractorPosition(pos) {
   // ДОБАВЛЕНО (фермерский аудит): показываем точность сигнала в реальном
   // времени, а не только по кнопке "найти меня".
   updateGpsAccuracyHud(pos.coords.accuracy);
+  // FIX v3.0 п.2: запоминаем последнюю заявленную точность GPS-фикса, чтобы
+  // vehicleApplyGpsFix() мог подстроить силу сглаживания под неё (см.
+  // currentGpsSmoothWindow()).
+  _lastGpsAccuracyMeters = (typeof pos.coords.accuracy === 'number' && isFinite(pos.coords.accuracy))
+    ? pos.coords.accuracy : null;
 
   // FIX: если реальный GPS находится далеко (>2км) от центра 3D-мира,
   // трактор улетает за пределы отрендеренной земли/границ поля — видно
@@ -528,11 +554,33 @@ function onTractorPosition(pos) {
 // соседними фиксами даже когда трактор стоит или едет по прямой — это
 // нормальный шум датчика, не реальное перемещение. Раньше каждая сырая
 // точка сразу шла в vehicleApplyGpsFix(), из-за чего трактор на экране
-// подёргивался туда-обратно. Усредняем последние GPS_SMOOTH_WINDOW точек
-// перед использованием — гасит дрожание, не съедая реальное движение
-// (окно короткое, задержка на глаз незаметна).
-const GPS_SMOOTH_WINDOW = 3;
+// подёргивался туда-обратно. Усредняем последние N точек перед
+// использованием — гасит дрожание, не съедая реальное движение.
+//
+// FIX v3.0 п.2 (точность GPS): окно сглаживания раньше было жёстко = 3,
+// одинаково и для отличного сигнала (±2-3м, открытое поле, хорошая
+// антенна), и для слабого (±15-20м и хуже, кабина/облачность/помехи).
+// На слабом сигнале окно в 3 точки почти не гасит шум — трактор всё ещё
+// дёргается; на отличном сигнале то же окно вносит лишнюю задержку/лаг,
+// хотя дрожание и так минимально. Реальный прирост точности отображения
+// программными средствами (без нового железа) — адаптировать силу
+// сглаживания к заявленной GPS-точности каждого фикса (pos.coords.accuracy):
+// чем хуже сигнал, тем больше точек усредняем; чем лучше — тем меньше
+// лага. Последняя известная точность хранится отдельно и обновляется в
+// onTractorPosition() при каждом GPS-событии.
+const GPS_SMOOTH_WINDOW_MIN = 2;  // отличный сигнал (<=3м) — минимальный лаг
+const GPS_SMOOTH_WINDOW_MAX = 6;  // слабый сигнал (>=15м) — сильное усреднение
 let _gpsRawHistory = [];
+let _lastGpsAccuracyMeters = null;
+function currentGpsSmoothWindow() {
+  const acc = _lastGpsAccuracyMeters;
+  if (typeof acc !== 'number' || !isFinite(acc)) return 3; // точность неизвестна — прежнее поведение по умолчанию
+  if (acc <= 3) return GPS_SMOOTH_WINDOW_MIN;
+  if (acc >= 15) return GPS_SMOOTH_WINDOW_MAX;
+  // Линейная интерполяция между 3м и 15м точности.
+  const t = (acc - 3) / (15 - 3);
+  return Math.round(GPS_SMOOTH_WINDOW_MIN + t * (GPS_SMOOTH_WINDOW_MAX - GPS_SMOOTH_WINDOW_MIN));
+}
 
 // Пересчитывает реально покрытую площадь (с учётом перекрытий) из
 // накопленного union-полигона покрытия и обновляет tractorAreaHa/UI.
@@ -561,7 +609,8 @@ function vehicleApplyGpsFix(lat, lng, tsMs) {
   if (!tractorActive || !tractorMarker) return;
 
   _gpsRawHistory.push([lat, lng]);
-  if (_gpsRawHistory.length > GPS_SMOOTH_WINDOW) _gpsRawHistory.shift();
+  const win = currentGpsSmoothWindow();
+  if (_gpsRawHistory.length > win) _gpsRawHistory.splice(0, _gpsRawHistory.length - win);
   const smoothedLat = _gpsRawHistory.reduce((s, p) => s + p[0], 0) / _gpsRawHistory.length;
   const smoothedLng = _gpsRawHistory.reduce((s, p) => s + p[1], 0) / _gpsRawHistory.length;
   lat = smoothedLat;
@@ -1485,7 +1534,15 @@ function update3DFieldBounds(field, precomputedCenter) {
   }
 
   field3DOutline = new THREE.Group();
-  const spacingMeters = Math.max(6, tractorWidth || 12);
+  // FIX v3.0 п.5 (рассинхрон линий/границ при узкой ширине орудия): здесь
+  // стоял тот же Math.max(6, ...), что уже был убран из модели орудия
+  // (см. build3DImplement/implementWidth, FIX v3.0 п.3) — но забыт именно
+  // тут. Из-за этого при ширине орудия <6м модель на тракторе рисовалась
+  // "по-настоящему" узкой, а шаг параллельных гонов на земле всё равно не
+  // мог быть меньше 6м — линии и корпус орудия визуально расходились.
+  // Единый источник истины — тот же implementWidth, без искусственного
+  // минимума, чтобы разметка ВСЕГДА совпадала с реальной шириной захвата.
+  const spacingMeters = tractorWidth || 12;
   const trackLength = 1600;
 
   // 1. Полноразмерная координатная сетка поля
@@ -1507,8 +1564,19 @@ function update3DFieldBounds(field, precomputedCenter) {
   // теперь равен курсу первой стороны контура поля (тот же spawnHeading,
   // что и стартовое направление трактора в startTractorTracking()), а для
   // свободного заезда без поля — курсу трактора в момент открытия 3D-вида.
+  //
+  // FIX v3.0 п.6 (AB-линия вручную): если водитель явно задал AB-линию
+  // (tractorABMode === 'set', см. setABPointB()) — она ВСЕГДА в приоритете
+  // над автоматическим курсом от контура поля. Ручная линия точнее
+  // отражает реальное направление обработки на неровных/скруглённых полях,
+  // где сторона полигона может отличаться от факта на десятки градусов.
   let trackHeadingDeg = 0;
-  if (coords && coords.length >= 2) {
+  if (tractorABMode === 'set' && tractorABPointA && tractorABPointB) {
+    trackHeadingDeg = Math.atan2(
+      tractorABPointB.x - tractorABPointA.x,
+      tractorABPointB.z - tractorABPointA.z
+    ) * (180 / Math.PI);
+  } else if (coords && coords.length >= 2) {
     const p0 = coords[0], p1 = coords[1];
     trackHeadingDeg = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]) * (180 / Math.PI);
   } else if (typeof tractor3DRenderHeading === 'number') {
@@ -1520,6 +1588,15 @@ function update3DFieldBounds(field, precomputedCenter) {
   tractorTrackHeadingDeg = trackHeadingDeg;
   const trackGroup = new THREE.Group();
   trackGroup.rotation.y = -trackHeadingDeg * (Math.PI / 180);
+  // FIX v3.0 п.6 (AB-линия): без смещения центральный гон (i=0 в цикле
+  // ниже) всегда проходит через геометрический центр поля (0,0), что не
+  // связано с точкой A. Когда AB-линия задана — сдвигаем всю группу гонов
+  // на точку A (в мировых координатах, ДО поворота группы, как и ожидает
+  // THREE.Object3D.position), чтобы гон №1 буквально проходил через
+  // отмеченную водителем точку A, а не просто был параллелен линии A-B.
+  if (tractorABMode === 'set' && tractorABPointA) {
+    trackGroup.position.set(tractorABPointA.x, 0, tractorABPointA.z);
+  }
   field3DOutline.add(trackGroup);
 
   if (coords && coords.length >= 3) {
@@ -1666,11 +1743,25 @@ function update3DFieldBounds(field, precomputedCenter) {
 // и линии на сцене — отклонение считается вдоль локальной оси X этой
 // системы, перпендикулярно направлению гонов, как и должно быть.
 function updateGuidanceLightbar(heading, x, z) {
-  const spacing = Math.max(6, tractorWidth || 12);
+  // FIX v3.0 п.5: тот же spacing, что теперь используется в
+  // update3DFieldBounds() (без Math.max(6, ...)) — иначе при узкой ширине
+  // орудия HUD "В ПОЛОСЕ / РУЛИ ВЛЕВО/ВПРАВО" считал бы отклонение от гона
+  // шириной 6м, пока и линии на земле, и орудие на тракторе уже показывают
+  // реальную (меньшую) ширину — подсказка руления не совпадала бы с тем,
+  // что видно на экране.
+  const spacing = tractorWidth || 12;
   // FIX v3.0 п.Б3: гон #1 = точка старта, а не центр поля (x=0).
   // tractor3DBaseTrackX/Z фиксируется при первом движении вперёд.
-  const baseX = (tractor3DBaseTrackX !== null) ? tractor3DBaseTrackX : x;
-  const baseZ = (tractor3DBaseTrackZ !== null) ? tractor3DBaseTrackZ : z;
+  //
+  // FIX v3.0 п.6 (AB-линия): когда AB-линия задана явно, опорной точкой
+  // гона #1 должна быть именно точка A (та же точка, на которую сдвинута
+  // trackGroup.position в update3DFieldBounds()), а не точка первого
+  // движения — иначе HUD-отклонение считало бы от одной опорной точки,
+  // а видимые на земле линии были бы сдвинуты относительно другой.
+  const baseX = (tractorABMode === 'set' && tractorABPointA) ? tractorABPointA.x
+    : (tractor3DBaseTrackX !== null) ? tractor3DBaseTrackX : x;
+  const baseZ = (tractorABMode === 'set' && tractorABPointA) ? tractorABPointA.z
+    : (tractor3DBaseTrackZ !== null) ? tractor3DBaseTrackZ : z;
 
   // Поворачиваем текущую позицию и опорную точку в локальную систему
   // координат гонов (та же ротация, что trackGroup.rotation.y в
@@ -2051,6 +2142,39 @@ function findNextUncoveredTarget() {
   return best;
 }
 
+// FIX v3.0 п.5 (карта-радар): раньше RADAR_SCALE был фиксированным числом
+// (0.12), подобранным на глаз под одно "среднее" поле. На маленьком поле
+// (десятки метров) контур сжимался в еле заметную точку в центре радара;
+// на большом поле (сотни метров-километр) контур наоборот вылезал далеко
+// за пределы холста и был не виден целиком — в обоих случаях радар не
+// выполнял свою задачу "куда я еду относительно границ поля". Теперь
+// масштаб пересчитывается под фактический размер активного поля (см.
+// computeRadarAdaptiveScale() ниже, с кэшем на смену поля) — вписываем
+// самый длинный габарит поля в ~85% радиуса радара, а не гадаем
+// фиксированным числом. Для свободного заезда (поля нет) оставляем
+// прежний масштаб — подстраивать не подо что.
+let _radarFieldBBoxCacheKey = null;
+let _radarAdaptiveScale = null;
+function computeRadarAdaptiveScale(radarPxRadius) {
+  if (!tractorActiveField || !tractorActiveField.coordinates || !fieldCenter3D) return 0.12;
+  const cacheKey = tractorActiveField.id || tractorActiveField.name;
+  if (_radarFieldBBoxCacheKey === cacheKey && _radarAdaptiveScale !== null) return _radarAdaptiveScale;
+
+  const centerLat = fieldCenter3D.lat, centerLng = fieldCenter3D.lng;
+  let maxDist = 0;
+  tractorActiveField.coordinates.forEach(pt => {
+    const dLat = (pt[0] - centerLat) * 111320;
+    const dLng = (pt[1] - centerLng) * (111320 * Math.cos(centerLat * Math.PI / 180));
+    maxDist = Math.max(maxDist, Math.hypot(dLat, dLng));
+  });
+  // Поле-точка/вырожденная геометрия — не делим на 0, оставляем дефолт.
+  const scale = maxDist > 1 ? (radarPxRadius * 0.85) / maxDist : 0.12;
+  // Не даём масштабу улететь в крайности при совсем крошечных/огромных
+  // полях — иначе линии/иконки на радаре либо исчезают, либо забивают его.
+  _radarAdaptiveScale = Math.min(2, Math.max(0.01, scale));
+  _radarFieldBBoxCacheKey = cacheKey;
+  return _radarAdaptiveScale;
+}
 function draw3DRadar() {
   if (!radarCtx || !radarCanvas) return;
   const W = radarCanvas.width, H = radarCanvas.height;
@@ -2058,7 +2182,11 @@ function draw3DRadar() {
   // REDESIGN: радар уменьшен с 140px до 64px (менее навязчивая миникарта,
   // как в референсных приложениях) — масштаб пересчитан пропорционально,
   // иначе поле/трактор оказались бы почти невидимы на новом холсте.
-  const RADAR_SCALE = 0.12 * (W / 140);
+  // computeRadarAdaptiveScale уже возвращает масштаб под реальный холст
+  // (принимает его радиус в пикселях), поэтому доп. коэффициент (W/140)
+  // здесь больше не нужен — он был нужен только для старого фиксированного
+  // числа 0.12, подобранного под холст 140px.
+  const RADAR_SCALE = computeRadarAdaptiveScale(H * 0.43);
 
   radarCtx.clearRect(0, 0, W, H);
 
@@ -2327,8 +2455,8 @@ function refresh3DImplement() {
 // 3D-МОДЕЛЬ орудия (визуал на самом тракторе), но НЕ трогает
 // update3DFieldBounds() — а именно update3DFieldBounds() строит гоны
 // (параллельные направляющие линии вождения) с шагом
-// spacingMeters = Math.max(6, tractorWidth || 12), то есть под ШИРИНУ
-// оборудования. Раньше update3DFieldBounds() вызывался только один раз —
+// spacingMeters = tractorWidth (см. FIX v3.0 п.5), то есть ровно под
+// ШИРИНУ оборудования. Раньше update3DFieldBounds() вызывался только один раз —
 // из toggleTractor3DView(true) при входе в 3D-режим — поэтому смена
 // ширины/типа орудия ПОСЛЕ входа в 3D (что бы её ни вызывало: слайдер
 // ширины в UI заезда, смена культуры/операции на лету и т.п.) обновляла
@@ -2357,6 +2485,157 @@ function onImplementChanged() {
     if (tractor3DActive) update3DFieldBounds(tractorActiveField, fieldCenter3D);
   }, IMPLEMENT_CHANGE_DEBOUNCE_MS);
 }
+// ============================================================================
+// FIX v3.0 п.6: AB-ЛИНИЯ ВРУЧНУЮ
+// ============================================================================
+// Позволяет водителю вручную задать курс параллельных гонов по двум точкам
+// (стандартная практика в агронавигаторах — "AB-line"), вместо автоматического
+// курса от первой стороны контура выбранного поля. Полезно, когда граница
+// поля неровная/скруглённая и не совпадает с реальным направлением обработки.
+//
+// Панель создаётся один раз (ensureABLineControls, идемпотентна — проверяет
+// наличие DOM-узла) и живёт внутри #tractor-3d-view, то есть полностью под
+// управлением этого файла — не требует правок index.html/style.css.
+// Инлайн-стили намеренно повторяют палитру уже существующего HUD (тёмная
+// подложка #162231, акцент #00e676, скруглённые формы), см. spawnTractorMarkerAt().
+
+function ensureABLineControls() {
+  // FIX v3.0 п.6: панель создаётся один раз за всё время жизни страницы
+  // (идемпотентно), но UI-состояние (какая кнопка A/B/AB показана) должно
+  // обновляться при КАЖДОМ входе в 3D — иначе после второго заезда подряд
+  // кнопка могла бы показывать "AB" от предыдущего поля, хотя состояние
+  // уже сброшено в startTractorTracking().
+  if (document.getElementById('tractor-ab-panel')) { refreshABLineUi(); return; }
+  const host = document.getElementById('tractor-3d-view');
+  if (!host) return;
+
+  const panelHtml = `
+    <div id="tractor-ab-panel" style="position:absolute;left:12px;bottom:calc(12px + env(safe-area-inset-bottom, 0px));z-index:40;display:flex;flex-direction:column;gap:6px;pointer-events:auto;">
+      <div id="tractor-ab-status" style="display:none;font-size:11px;color:#00e676;background:rgba(22,34,49,0.85);border:1px solid rgba(0,230,118,0.4);border-radius:8px;padding:4px 9px;text-align:center;box-shadow:0 3px 10px rgba(0,0,0,0.4);"></div>
+      <div style="display:flex;gap:6px;">
+        <button id="tractor-ab-btn" type="button" style="display:flex;align-items:center;gap:5px;background:#162231;border:2px solid #00e676;color:#00e676;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,0.5);">
+          <i data-lucide="map-pin" class="icon-sm"></i><span id="tractor-ab-btn-label">A</span>
+        </button>
+        <button id="tractor-ab-clear-btn" type="button" style="display:none;align-items:center;gap:5px;background:#162231;border:2px solid rgba(255,255,255,0.25);color:#cfd8dc;border-radius:10px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,0.5);">
+          <i data-lucide="x" class="icon-sm"></i>
+        </button>
+      </div>
+    </div>
+  `;
+  host.insertAdjacentHTML('beforeend', panelHtml);
+
+  const btn = document.getElementById('tractor-ab-btn');
+  const clearBtn = document.getElementById('tractor-ab-clear-btn');
+  if (btn) btn.addEventListener('click', onABButtonClick);
+  if (clearBtn) clearBtn.addEventListener('click', clearABLine);
+
+  refreshABLineUi();
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+// Единая точка входа для нажатия на кнопку "A" / "B" — сама решает, какой
+// шаг сейчас нужен, по текущему tractorABMode.
+function onABButtonClick() {
+  if (!tractorActive) {
+    showToast(lang === 'ru'
+      ? '<i data-lucide="alert-triangle" class="icon-sm"></i> Начните заезд, чтобы задать AB-линию'
+      : '<i data-lucide="alert-triangle" class="icon-sm"></i> Start driving to set an AB-line');
+    return;
+  }
+  if (tractorABMode === 'awaiting_b') {
+    setABPointB();
+  } else {
+    setABPointA();
+  }
+}
+
+// Точка A = текущая позиция трактора (та же локальная система координат
+// x/z, что использует vehicleState/tractor3DRenderPos). Сбрасывает ранее
+// заданную линию, если она была — пользователь явно начинает заново.
+function setABPointA() {
+  tractorABPointA = { x: vehicleState.x, z: vehicleState.z };
+  tractorABPointB = null;
+  tractorABMode = 'awaiting_b';
+  refreshABLineUi();
+  showToast(lang === 'ru'
+    ? '<i data-lucide="map-pin" class="icon-sm"></i> Точка A отмечена. Проедьте вперёд и отметьте B'
+    : '<i data-lucide="map-pin" class="icon-sm"></i> Point A marked. Drive forward and mark B');
+}
+
+// Точка B = текущая позиция. Если трактор почти не сдвинулся с точки A
+// (шум GPS/случайный клик), направление A->B было бы недостоверным —
+// просим водителя отъехать дальше вместо того, чтобы принять шумовой курс.
+const AB_MIN_DISTANCE_M = 5;
+function setABPointB() {
+  const candidate = { x: vehicleState.x, z: vehicleState.z };
+  const dist = tractorABPointA ? Math.hypot(candidate.x - tractorABPointA.x, candidate.z - tractorABPointA.z) : 0;
+  if (!tractorABPointA || dist < AB_MIN_DISTANCE_M) {
+    showToast(lang === 'ru'
+      ? `<i data-lucide="alert-triangle" class="icon-sm"></i> Проедьте ещё минимум ${AB_MIN_DISTANCE_M}м вперёд перед отметкой B`
+      : `<i data-lucide="alert-triangle" class="icon-sm"></i> Drive at least ${AB_MIN_DISTANCE_M}m further before marking B`);
+    return;
+  }
+  tractorABPointB = candidate;
+  tractorABMode = 'set';
+  refreshABLineUi();
+  // Пересобираем гоны/сетку с новым курсом сразу — та же точка входа, что
+  // уже используется при смене ширины/типа орудия во время заезда.
+  if (tractor3DActive) update3DFieldBounds(tractorActiveField, fieldCenter3D);
+  showToast(lang === 'ru'
+    ? '<i data-lucide="check" class="icon-sm"></i> AB-линия задана — гоны выровнены по ней'
+    : '<i data-lucide="check" class="icon-sm"></i> AB-line set — tracks aligned to it');
+}
+
+// Сброс к автоматическому курсу (первая сторона контура поля / курс
+// трактора в момент открытия 3D для свободного заезда).
+function clearABLine() {
+  tractorABPointA = null;
+  tractorABPointB = null;
+  tractorABMode = 'idle';
+  refreshABLineUi();
+  if (tractor3DActive) update3DFieldBounds(tractorActiveField, fieldCenter3D);
+  showToast(lang === 'ru'
+    ? '<i data-lucide="rotate-ccw" class="icon-sm"></i> AB-линия сброшена'
+    : '<i data-lucide="rotate-ccw" class="icon-sm"></i> AB-line cleared');
+}
+
+// Синхронизирует текст/видимость кнопок и статус-плашки с tractorABMode.
+// Вызывается после любого изменения режима, а не пересчитывается на каждый
+// кадр — состояние меняется только по явному действию пользователя.
+function refreshABLineUi() {
+  const btn = document.getElementById('tractor-ab-btn');
+  const labelEl = document.getElementById('tractor-ab-btn-label');
+  const clearBtn = document.getElementById('tractor-ab-clear-btn');
+  const statusEl = document.getElementById('tractor-ab-status');
+  if (!btn || !labelEl || !clearBtn || !statusEl) return;
+
+  if (tractorABMode === 'awaiting_b') {
+    labelEl.textContent = 'B';
+    btn.style.borderColor = '#ffd600';
+    btn.style.color = '#ffd600';
+    clearBtn.style.display = 'flex';
+    statusEl.style.display = 'block';
+    statusEl.textContent = lang === 'ru' ? 'Едем к точке B…' : 'Driving to point B…';
+    statusEl.style.color = '#ffd600';
+    statusEl.style.borderColor = 'rgba(255,214,0,0.4)';
+  } else if (tractorABMode === 'set') {
+    labelEl.textContent = 'AB';
+    btn.style.borderColor = '#00e676';
+    btn.style.color = '#00e676';
+    clearBtn.style.display = 'flex';
+    statusEl.style.display = 'block';
+    statusEl.textContent = lang === 'ru' ? 'AB-линия активна' : 'AB-line active';
+    statusEl.style.color = '#00e676';
+    statusEl.style.borderColor = 'rgba(0,230,118,0.4)';
+  } else {
+    labelEl.textContent = 'A';
+    btn.style.borderColor = '#00e676';
+    btn.style.color = '#00e676';
+    clearBtn.style.display = 'none';
+    statusEl.style.display = 'none';
+  }
+}
+
 function toggleTractor3DView(show) {
   tractor3DActive = show;
   const container = document.getElementById('tractor-3d-view');
@@ -2368,6 +2647,7 @@ function toggleTractor3DView(show) {
     if (tabBar) tabBar.style.display = 'none';
     if (init3DScene()) {
       refresh3DImplement();
+      ensureABLineControls(); // FIX v3.0 п.6: создаём панель AB-линии при первом входе в 3D
       // FIX v3.0 п.4: если fieldCenter3D уже был выставлен вызывающим кодом
       // (startTractorTracking() задаёт его непосредственно перед вызовом
       // toggleTractor3DView(true), синхронно с уже спозиционированным
@@ -2873,6 +3153,11 @@ function stopTractorTracking() {
   tractorLastFixAt = null;
   tractorTeleportPending = false;
   _gpsRawHistory = []; // сброс сглаживания GPS при завершении заезда
+  // FIX v3.0 п.6: сброс AB-линии при завершении заезда — её координаты
+  // привязаны к текущему fieldCenter3D/vehicleState, которые обнуляются
+  // ниже, и не должны "пережить" в следующий заезд.
+  tractorABPointA = null; tractorABPointB = null; tractorABMode = 'idle';
+  refreshABLineUi();
 
   if (tractorWatchId) {
     navigator.geolocation.clearWatch(tractorWatchId);
