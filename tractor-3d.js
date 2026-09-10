@@ -57,6 +57,24 @@ const SOIL_TRAIL_COLOR_OPAQUE_HEX = 0x614f26;
 const SOIL_TRAIL_FILL_CSS = '#6d4c26';
 const SOIL_TRAIL_STROKE_CSS = '#4e3620';
 let coverage3DTexture = null, coverage3DCanvas = null, coverage3DCtx = null;
+
+// FIX (утечка памяти при нескольких заездах подряд): tractor3DTrailGroup.clear()
+// только отсоединяет дочерние меши от сцены, но НЕ освобождает их
+// geometry/material (буферы на стороне GPU) — за один заезд лента может
+// содержать до MAX_TRAIL_SEGMENTS=20000 сегментов (см. paint3DSoilCoverage).
+// Без явного dispose() эти буферы копятся в видеопамяти при каждом новом
+// заезде/демо и со временем деградируют FPS вплоть до падения вкладки на
+// слабых устройствах. Используется во всех местах, где раньше стоял
+// голый tractor3DTrailGroup.clear().
+function disposeTrailGroup(group) {
+  if (!group) return;
+  for (let i = group.children.length - 1; i >= 0; i--) {
+    const child = group.children[i];
+    if (child.geometry) child.geometry.dispose();
+    if (child.material) child.material.dispose();
+  }
+  group.clear();
+}
 let radarCanvas = null, radarCtx = null;
 
 // История центральных точек пройденного пути (локальные метры x/z
@@ -296,7 +314,7 @@ function startTractorTracking() {
   _manualCurSpeed = 0; _manualCurSteerRate = 0; _manualLastSyncAt = 0;
 
   if (tractor3DTrailGroup) {
-    tractor3DTrailGroup.clear();
+    disposeTrailGroup(tractor3DTrailGroup);
     tractor3DTrailGroup.userData = {};
   }
   reset3DGroundCanvas();
@@ -670,11 +688,27 @@ function vehicleApplyGpsFix(lat, lng, tsMs) {
   const dtFixSec = tractorLastFixAt ? Math.max(0.2, (tsMs - tractorLastFixAt) / 1000) : 1;
   tractorLastFixAt = tsMs;
   const impliedSpeedMs = segMetersRaw / dtFixSec;
-  const MAX_PLAUSIBLE_SPEED_MS = 30;
+  // FIX (закраска "коричневым" по местам, где трактор не проезжал):
+  // порог в 30 м/с (108 км/ч) был рассчитан на явный GPS-сбой, но реальный
+  // трактор на обработке поля едет максимум ~8-10 м/с (разъездная скорость
+  // по дороге чуть выше). Любой GPS-скачок с правдоподобной для трактора
+  // скоростью (даже 15-25 м/с) проходил эту проверку и попадал в обычную
+  // ветку покраски ниже — рисовалась прямая лента через непроеханный
+  // участок. Снижаем порог до реалистичного максимума с запасом.
+  const MAX_PLAUSIBLE_SPEED_MS = 12; // ~43 км/ч — с явным запасом над рабочей скоростью трактора
 
   if (impliedSpeedMs > MAX_PLAUSIBLE_SPEED_MS) return;
 
-  if (segKm > 0.3) {
+  // FIX (та же проблема, другая причина): раньше "телепортом" (перенос
+  // пера без закраски, см. tractorTeleportPending) считался только скачок
+  // > 300м. Любой GPS-скачок от MAX_PAINT_JUMP=4м до 300м (обычное дело
+  // при слабом сигнале / помехах от деревьев или построек / восстановлении
+  // сигнала после кратковременной потери) шёл в ветку обычного проезда
+  // ниже — лента/площадь красились по прямой линии между старой и новой
+  // точкой, даже если трактор там физически не проезжал. Порог снижен до
+  // 25м — с явным запасом над шириной одного прохода орудия (обычно
+  // единицы метров), чтобы не путать телепорт с реальным резким поворотом.
+  if (segKm > 0.025) {
     tractorMarker.setLatLng([lat, lng]);
     tractorPath.push([lat, lng]);
     tractorTeleportPending = true;
@@ -2980,7 +3014,7 @@ function toggleTractorSimulation() {
     tractor3DBaseTrackX = null;
     tractor3DBaseTrackZ = null;
     if (tractor3DTrailGroup) {
-      tractor3DTrailGroup.clear();
+      disposeTrailGroup(tractor3DTrailGroup);
       tractor3DTrailGroup.userData = {};
     }
     
@@ -3115,6 +3149,15 @@ function vehiclePhysicsTick(dt) {
     tractorPath.push([lat, lng]);
     if (tractorPath.length > 4000) tractorPath.shift();
 
+    // FIX (пропадающий первый сегмент следа/площади при чисто ручном
+    // старте без GPS): если до этого тика ни разу не было GPS-фикса
+    // (tractorPath был пуст), после push выше в массиве всего 1 точка —
+    // tractorPath[length-2] тогда undefined, и следующий блок ниже упал бы
+    // на prevLL[1] внутри try/catch, молча "съедая" первый сегмент следа.
+    // Пропускаем построение сегмента, если предыдущей точки ещё нет —
+    // она появится на следующем тике.
+    if (tractorPath.length < 2) return;
+
     // FIX (микрорывки в 3D): turf.buffer — сравнительно тяжёлая геометрическая
     // операция. Раньше она выполнялась синхронно прямо внутри vehiclePhysicsTick(),
     // который сам вызывается из animate() каждый кадр — на слабых устройствах это
@@ -3128,6 +3171,7 @@ function vehiclePhysicsTick(dt) {
     const trailGroupRef = tractorTrailGroup;
     setTimeout(() => {
       try {
+        if (!prevLL || !curLL) return;
         const segLine = turf.lineString([[prevLL[1], prevLL[0]], [curLL[1], curLL[0]]]);
         const buffered = turf.buffer(segLine, (widthNow / 2) / 1000, { units: 'kilometers' });
         if (buffered && trailGroupRef) {
@@ -3331,7 +3375,7 @@ function clearTractorRunTraces() {
     tractorTrailGroup.clearLayers();
   }
   if (tractor3DTrailGroup) {
-    tractor3DTrailGroup.clear();
+    disposeTrailGroup(tractor3DTrailGroup);
     tractor3DTrailGroup.userData = {};
   }
   tractorPath = [];
