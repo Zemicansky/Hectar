@@ -532,10 +532,11 @@
       </button>
 
       <!-- Нижняя панель действий в 3D -->
+      <!-- REMOVED: кнопка "Демо заезд" (btn-3d-sim) убрана вместе с
+           демозаездом в tractor-3d.js — ехал только прямо, без поворотов,
+           и создавал риск лишней закраски при старте/паузе. Остаётся
+           только ручное управление (D-pad/джойстик) и реальный GPS. -->
       <div class="tractor-3d-bottom-bar">
-        <button type="button" class="btn-3d-action demo" id="btn-3d-sim" onclick="toggleTractorSimulation()">
-          <i data-lucide="play" class="icon-sm"></i> Демо заезд
-        </button>
         <button type="button" class="btn-3d-action finish" onclick="stopTractorTracking()">
           <i data-lucide="check" class="icon-sm"></i> Завершить
         </button>
@@ -568,7 +569,7 @@
             </div>
             <div style="display:flex;gap:6px;">
               <button class="modal-btn secondary" onclick="toggleTractor3DView(true)" style="width:auto;padding:7px 10px;font-size:12px;font-weight:600;background:rgba(0,230,118,0.18);color:#00e676;border:1px solid rgba(0,230,118,0.4);border-radius:100px;"><i data-lucide="gamepad-2" class="icon-sm"></i> 3D Вид</button>
-              <button class="modal-btn secondary" onclick="toggleTractorSimulation()" title="Включить тест/симуляцию" style="width:auto;padding:7px 10px;font-size:12px;font-weight:600;background:rgba(33,150,243,0.18);color:#64b5f6;border:1px solid rgba(33,150,243,0.4);border-radius:100px;"><i data-lucide="arrow-right" class="icon-sm"></i> Демо</button>
+              <!-- REMOVED: кнопка "Демо" (toggleTractorSimulation) убрана вместе с демозаездом в tractor-3d.js -->
               <button class="modal-btn secondary" onclick="stopTractorTracking()" style="width:auto;padding:7px 14px;font-size:13px;font-weight:700;background:rgba(255,107,107,0.18);color:#ff6b6b;border:1px solid rgba(255,107,107,0.4);border-radius:100px;">Завершить</button>
             </div>
           </div>

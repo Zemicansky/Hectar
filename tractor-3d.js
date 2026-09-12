@@ -110,7 +110,10 @@ let tractorTrailGroup = null;
 let tractorGuidelineGroup = null;
 let tractorActiveField = null;
 let tractorOpType = 'sowing';
-let tractorSimInterval = null;
+// REMOVED: демозаезд (tractorSimInterval) убран по требованию — остаётся
+// только ручное управление (D-pad) и реальный GPS-трекинг. Переменная и всё,
+// что от неё зависело (toggleTractorSimulation, автогазовка в
+// vehiclePhysicsTick), удалены ниже.
 
 // FIX v3.0 п.Б3: нумерация гонов от точки старта, а не от центра поля (x=0).
 // Устанавливается при первом движении вперёд; сбрасывается при stopTractorTracking.
@@ -220,8 +223,39 @@ function closeTractorSetupModal() {
   const m = document.getElementById('modal-tractor-setup');
   if (m) m.classList.remove('open');
 }
+// Пытается получить текущую геопозицию с коротким таймаутом. Не блокирует
+// запуск заезда надолго: если GPS не ответил за TIMEOUT_MS (нет сигнала,
+// пользователь ещё не разрешил доступ, устройство без GPS) — возвращает
+// null, и вызывающий код просто использует прежний способ (край поля).
+// enableHighAccuracy: true — нужна именно точная позиция для точки старта,
+// а не грубая по вышкам/wifi, иначе трактор может "спавниться" за десятки
+// метров от реального места оператора.
+function _getCurrentPositionQuick(timeoutMs) {
+  return new Promise((resolve) => {
+    if (!('geolocation' in navigator)) { resolve(null); return; }
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) { settled = true; resolve(null); }
+    }, timeoutMs);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(pos);
+      },
+      () => { // отказано в доступе / ошибка — тихо считаем, что GPS недоступен
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(null);
+      },
+      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 10000 }
+    );
+  });
+}
 /** Запуск заезда: ИСКЛЮЧИТЕЛЬНО В 3D РЕЖИМЕ */
-function startTractorTracking() {
+async function startTractorTracking() {
   const widthInput = document.getElementById('tractor-width-input');
   if (widthInput && widthInput.value) {
     // FIX v3.0 п.1+п.2: ширина захвата жёстко ограничена диапазоном 1-100 м
@@ -278,11 +312,6 @@ function startTractorTracking() {
     tractorMarker = null;
   }
 
-  // FIX: tractorSimInterval — булев флаг (true/false/null), а не ID
-  // таймера — clearInterval() на нём был мёртвым кодом (no-op). Оставлено
-  // только реальное действие — сброс флага.
-  tractorSimInterval = null;
-
   tractorActive = true;
   tractorStartTime = new Date();
   tractorPath = [];
@@ -310,8 +339,22 @@ function startTractorTracking() {
   // Сброс инерции ручного управления от предыдущего заезда — иначе новый
   // заезд мог бы "унаследовать" остаточную скорость/руление, если человек
   // завершил предыдущий не отпустив кнопку D-pad.
+  // FIX (закраска коричневым сразу при старте, ещё до движения):
+  // _manualCurSpeed/_manualCurSteerRate на деле нигде не читаются в
+  // vehiclePhysicsTick() — реальную текущую скорость/руление хранит
+  // vehicleState.speed/steerRate, а вот их-то здесь и не хватало сбросить.
+  // Если предыдущий заезд завершался, пока трактор ещё двигался (отпустили
+  // газ, но торможение MANUAL_DECEL_MS2 не успело докрутить скорость до
+  // нуля, либо заезд завершили кнопкой прямо во время движения),
+  // vehicleState.speed/steerRate оставались НЕ нулевыми. На новом заезде
+  // animate() видит vehicleState.speed !== 0 уже на первом кадре — ДО того,
+  // как пользователь тронул D-pad или запустил демо — это включает
+  // vehiclePhysicsTick() и сразу проходит порог покраски в самом animate()
+  // (условие Math.abs(vehicleState.speed) > 0), рисуя сегмент ленты от
+  // старой позиции трактора к новой точке спавна ещё до реального проезда.
   _3dGasActive = 0; _3dSteerActive = 0;
   _manualCurSpeed = 0; _manualCurSteerRate = 0; _manualLastSyncAt = 0;
+  vehicleState.speed = 0; vehicleState.steerRate = 0;
 
   if (tractor3DTrailGroup) {
     disposeTrailGroup(tractor3DTrailGroup);
@@ -319,21 +362,48 @@ function startTractorTracking() {
   }
   reset3DGroundCanvas();
 
-  // FIX (спавн трактора): раньше initialPoint сразу ставился в ЦЕНТР поля
-  // (tractorActiveField.center || coords[0]) без какой-либо попытки узнать
-  // реальную GPS-позицию — трактор всегда появлялся посреди поля, даже
-  // если GPS был доступен и водитель стоял у края. Логика ниже правильная:
-  // 1) если поле выбрано — по умолчанию считаем стартовой точкой КРАЙ поля
-  //    (первую вершину контура), а не центр;
-  // 2) если поле не выбрано (свободный заезд) — по умолчанию центр карты;
-  // 3) сразу после этого пытаемся получить текущую GPS-позицию; если она
-  //    придёт вовремя и попадёт в пределы 3D-мира (<2км от поля) — именно
-  //    она станет точкой спавна вместо края/центра.
+  // Точка старта: по умолчанию — край поля (как раньше), но если
+  // геолокация доступна и отвечает быстро — используем её автоматически,
+  // без вопроса пользователю (так и запрошено). Ждём максимум 2.5с: этого
+  // достаточно для тёплого GPS-фикса на большинстве телефонов, но заезд не
+  // подвисает надолго, если сигнала нет/доступ не дан.
   let initialPoint = (typeof DEFAULT_MAP_CENTER !== 'undefined') ? DEFAULT_MAP_CENTER : [55.75, 37.61];
   if (tractorActiveField) {
     const coords = tractorActiveField.coordinates || tractorActiveField.coords;
     if (coords && coords.length > 0) {
-      initialPoint = coords[0]; // край поля, не центр
+      initialPoint = coords[0]; // край поля, не центр — используется как фолбэк, если GPS не ответил
+    }
+  }
+
+  // Короткий тост-индикатор, чтобы пауза перед стартом (пока ждём GPS) не
+  // выглядела зависанием — на быстром фиксе пользователь его почти не
+  // заметит, на медленном/отсутствующем сигнале объясняет задержку.
+  if (typeof showToast === 'function') {
+    showToast(lang === 'ru'
+      ? '<i data-lucide="loader" class="icon-sm"></i> Определяем ваше местоположение…'
+      : '<i data-lucide="loader" class="icon-sm"></i> Getting your location…');
+  }
+  const _quickFix = await _getCurrentPositionQuick(2500);
+  if (_quickFix && _quickFix.coords) {
+    const gpsLat = _quickFix.coords.latitude;
+    const gpsLng = _quickFix.coords.longitude;
+    // Если поле выбрано — используем реальную позицию только в разумных
+    // пределах от него (<5км): иначе, если оператор физически далеко от
+    // поля (тестирует дома, готовит заезд заранее), трактор "спавнился" бы
+    // за много километров от нужного участка — начинать с края поля
+    // надёжнее в этом случае.
+    if (tractorActiveField) {
+      const fCoords = tractorActiveField.coordinates || tractorActiveField.coords;
+      const refPoint = (fCoords && fCoords[0]) || initialPoint;
+      const distFromField = Math.hypot(
+        (gpsLng - refPoint[1]) * (111320 * Math.cos(refPoint[0] * Math.PI / 180)),
+        (gpsLat - refPoint[0]) * 111320
+      );
+      if (distFromField <= 5000) {
+        initialPoint = [gpsLat, gpsLng];
+      }
+    } else {
+      initialPoint = [gpsLat, gpsLng];
     }
   }
 
@@ -506,15 +576,7 @@ function updateGpsAccuracyHud(accuracyMeters) {
 }
 function onTractorPosition(pos) {
   if (!tractorActive || !pos || !pos.coords) return;
-  // FIX (пауза демо блокирует реальный GPS/руки): tractorSimInterval — это
-  // булев флаг (true = демо едет, false = демо на паузе, null = демо не
-  // запускалось), а не ID таймера, несмотря на название. Старая проверка
-  // "!== null" считала демо активным и при true, и при false — то есть
-  // после постановки демо на паузу реальный GPS всё ещё игнорировался, и
-  // трактор "зависал": ни демо не едет, ни GPS/руки не берут управление.
-  // Игнорировать GPS нужно только пока демо реально едет (=== true).
-  if (tractorSimInterval === true) return; // Ignore GPS only while demo is actually running
-  
+
   const lat = pos.coords.latitude;
   const lng = pos.coords.longitude;
   const speedMs = pos.coords.speed || 0;
@@ -2858,7 +2920,7 @@ function start3DAnimationLoop() {
     const dt  = _lastFrameTime > 0 ? Math.min((now - _lastFrameTime) / 1000, 0.1) : 0.016;
     _lastFrameTime = now;
 
-    if (_3dGasActive !== 0 || _3dSteerActive !== 0 || vehicleState.speed !== 0 || vehicleState.steerRate !== 0 || tractorSimInterval) {
+    if (_3dGasActive !== 0 || _3dSteerActive !== 0 || vehicleState.speed !== 0 || vehicleState.steerRate !== 0) {
       vehiclePhysicsTick(dt);
     }
 
@@ -2899,7 +2961,7 @@ function start3DAnimationLoop() {
       // старой (спавн) точки к новой одним махом, потому что видит только
       // саму дистанцию, не зная, что это был телепорт, а не проезд.
       // Передаём resetOnly=true в этом кадре — "перо" переносится молча.
-      if (tractorActive && (tractorSimInterval || tractorWatchId || _3dGasActive !== 0 || Math.abs(vehicleState.speed) > 0)) {
+      if (tractorActive && (tractorWatchId || _3dGasActive !== 0 || Math.abs(vehicleState.speed) > 0)) {
         paint3DSoilCoverage(tractor3DRenderPos.x, tractor3DRenderPos.z, tractorWidth || 12, tractor3DRenderHeading, tractorTeleportPending);
       }
 
@@ -2971,71 +3033,13 @@ function sync3DCanvasSize() {
 function on3DWindowResize() {
   sync3DCanvasSize();
 }
-function toggleTractorSimulation() {
-  if (!tractorActive) return;
-  // FIX (баг): tractorSimInterval — флаг с ТРЕМЯ состояниями (true = едет,
-  // false = на паузе, null = не запускалось/остановлено), но раньше
-  // проверялось только `if (tractorSimInterval)`, что истинно лишь для
-  // true. При состоянии false (пауза) выполнение проваливалось в блок
-  // "первый запуск" ниже и сбрасывало весь прогресс демо (путь, площадь,
-  // 3D-след) плюс телепортировало трактор обратно на старт — то есть
-  // "продолжить после паузы" на деле начинало заезд заново. Три состояния
-  // явно разделены ниже.
-  if (tractorSimInterval === true) {
-    tractorSimInterval = false;
-    showToast(lang === 'ru' ? '<i data-lucide="pause" class="icon-sm"></i> Демо на паузе' : '<i data-lucide="pause" class="icon-sm"></i> Simulation paused');
-    return;
-  }
-  if (tractorSimInterval === false) {
-    // Возобновление после паузы — просто продолжаем с текущей позиции,
-    // без сброса пути/площади/следа и без телепорта на старт.
-    tractorSimInterval = true;
-    const accEl = document.getElementById('tractor-3d-stat-accuracy');
-    if (accEl) { accEl.textContent = lang === 'ru' ? 'демо' : 'demo'; accEl.style.color = '#90a4ae'; }
-    showToast(lang === 'ru' ? '<i data-lucide="arrow-right" class="icon-sm"></i> Демо продолжено' : '<i data-lucide="arrow-right" class="icon-sm"></i> Demo resumed');
-    return;
-  }
-
-  // tractorSimInterval === null: первый запуск демо в этом заезде.
-  showToast(lang === 'ru' ? '<i data-lucide="arrow-right" class="icon-sm"></i> Демо заезд запущен' : '<i data-lucide="arrow-right" class="icon-sm"></i> Demo running');
-
-  // ДОБАВЛЕНО: в демо-режиме реального GPS нет — показывать последнюю
-  // реальную точность было бы вводящей в заблуждение, поэтому явно гасим
-  // индикатор на время демо.
-  const accEl = document.getElementById('tractor-3d-stat-accuracy');
-  if (accEl) { accEl.textContent = lang === 'ru' ? 'демо' : 'demo'; accEl.style.color = '#90a4ae'; }
-
-  const demoStart = tractorSpawnPoint || fieldCenter3D;
-  if (demoStart) {
-    tractorPath = [];
-    tractorAreaHa = 0;
-    tractorCoverageUnion = null;
-    lastSoilPaintPos = null;
-    tractor3DBaseTrackX = null;
-    tractor3DBaseTrackZ = null;
-    if (tractor3DTrailGroup) {
-      disposeTrailGroup(tractor3DTrailGroup);
-      tractor3DTrailGroup.userData = {};
-    }
-    
-    let demoHeading = 0;
-    if (tractorActiveField) {
-      const coords = tractorActiveField.coordinates || tractorActiveField.coords;
-      if (coords && coords.length >= 2) {
-        const p0 = coords[0], p1 = coords[1];
-        const dLng = p1[1] - p0[1];
-        const dLat = p1[0] - p0[0];
-        demoHeading = Math.atan2(dLng, dLat) * (180 / Math.PI);
-        if (demoHeading < 0) demoHeading += 360;
-      }
-    }
-    vehicleState.heading = demoHeading;
-    tractor3DRenderHeading = demoHeading;
-    vehicleApplyGpsFix(demoStart.lat, demoStart.lng, Date.now());
-  }
-
-  tractorSimInterval = true; 
-}
+// REMOVED: toggleTractorSimulation() (демозаезд) удалена по требованию —
+// демо ехало строго прямо (не умело поворачивать) и вносило риск багов с
+// закраской при старте/паузе. Остаётся только ручное управление (D-pad,
+// start3DGas/start3DSteer) и реальный GPS-трекинг (onTractorPosition).
+// В index.html нужно убрать/скрыть кнопку "Демозаезд" (обычно
+// onclick="toggleTractorSimulation()") — вызов этой функции теперь ни на
+// что не ссылается и будет тихо падать в консоль, если кнопка останется.
 // ════════════════════════════════════════════════════
 // ════════════════════════════════════════════════════
 // REDESIGN: ПЛАВНОЕ РУЧНОЕ УПРАВЛЕНИЕ D-PAD (локальная физика).
@@ -3084,15 +3088,15 @@ let _manualLastSyncAt = 0;
 function vehiclePhysicsTick(dt) {
   if (!tractorActive) return;
 
-  const gas = tractorSimInterval ? 1 : _3dGasActive;
-  
+  const gas = _3dGasActive;
+
   const steerTarget = _3dSteerActive * MANUAL_MAX_STEER_DS;
   const steerDelta = steerTarget - vehicleState.steerRate;
   const steerStep = MANUAL_STEER_ACCEL_DS * dt;
   if (Math.abs(steerDelta) <= steerStep) vehicleState.steerRate = steerTarget;
   else vehicleState.steerRate += Math.sign(steerDelta) * steerStep;
 
-  const speedTarget = gas * (tractorSimInterval ? 4.16 : MANUAL_MAX_SPEED_MS);
+  const speedTarget = gas * MANUAL_MAX_SPEED_MS;
   const accelRate = Math.abs(speedTarget) > Math.abs(vehicleState.speed) ? MANUAL_ACCEL_MS2 : MANUAL_DECEL_MS2;
   const speedDelta = speedTarget - vehicleState.speed;
   const speedStep = accelRate * dt;
@@ -3189,17 +3193,15 @@ function _tickManual3DControl(dt) {
     vehiclePhysicsTick(dt);
 }
 // Запуск/остановка газа (кнопки ↑↓)
-// ДОБАВЛЕНО: общий переход в режим ручного управления — останавливает демо
-// и гасит индикатор точности GPS (реального сигнала при ручном вождении
-// не используется, показывать устаревшее значение было бы обманчиво).
+// Общий переход в режим ручного управления — гасит индикатор точности GPS
+// (реального сигнала при ручном вождении не используется, показывать
+// устаревшее значение было бы обманчиво).
 function _enterManualControlMode() {
-  if (tractorSimInterval) { tractorSimInterval = null; } // FIX: bool-флаг, не таймер
   const accEl = document.getElementById('tractor-3d-stat-accuracy');
   if (accEl) { accEl.textContent = lang === 'ru' ? 'ручн.' : 'manual'; accEl.style.color = '#90a4ae'; }
 }
 function start3DGas(dir) {
   if (!tractorActive) return;
-  // Останавливаем демо-интервал при ручном управлении.
   _enterManualControlMode();
   _3dGasActive = dir;   // +1 вперёд, -1 назад
   if (navigator.vibrate) navigator.vibrate(8);
@@ -3237,6 +3239,12 @@ function stopTractorTracking() {
   tractor3DBaseTrackZ = null;
   _3dGasActive = 0; _3dSteerActive = 0; _lastFrameTime = 0;
   _manualCurSpeed = 0; _manualCurSteerRate = 0; _manualLastSyncAt = 0;
+  // FIX (та же причина, что и в startTractorTracking): обнуляем и реальную
+  // физическую скорость/руление здесь тоже, а не только при старте
+  // следующего заезда — так остаточное движение не может "просочиться"
+  // ни в статистику после остановки, ни (если что-то ещё раз проверит
+  // vehicleState до следующего startTractorTracking()) в лишнюю покраску.
+  vehicleState.speed = 0; vehicleState.steerRate = 0;
   tractorLastFixAt = null;
   tractorTeleportPending = false;
   _gpsRawHistory = []; // сброс сглаживания GPS при завершении заезда
@@ -3250,7 +3258,6 @@ function stopTractorTracking() {
     navigator.geolocation.clearWatch(tractorWatchId);
     tractorWatchId = null;
   }
-  tractorSimInterval = null; // bool-флаг, не таймер — clearInterval() не требуется
   tractorActive = false;
 
   if (tractorMarker) {
