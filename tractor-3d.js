@@ -87,6 +87,13 @@ let tractorRadarTrail = [];
 
 let tractorWatchId = null;
 let tractorActive = false;
+// ДОБАВЛЕНО: пауза заезда. В отличие от stopTractorTracking(), пауза НЕ
+// останавливает GPS watch и НЕ закрывает 3D-сцену/модалку итогов — она
+// просто не даёт покраске/дистанции/площади обновляться, пока стоит на
+// паузе (трактор физически может продолжать стоять с работающим GPS,
+// например пока оператор решает проблему в поле). См. pauseTractorTracking()/
+// resumeTractorTracking().
+let tractorPaused = false;
 let tractorStartTime = null;
 let tractorPath = [];
 let tractorWidth = 12; // метры
@@ -331,6 +338,11 @@ async function startTractorTracking() {
   _gpsRawHistory = []; // сброс сглаживания GPS от предыдущего заезда
   _lastGpsAccuracyMeters = null; // FIX v3.0 п.2: сброс адаптивного окна сглаживания от предыдущего заезда
   updateGpsAccuracyHud(null); // сброс индикатора точности GPS от предыдущего заезда
+  resetGpsSignalStability(); // сброс статуса "устойчивый сигнал" от предыдущего заезда
+  tractorPaused = false; // сброс паузы от предыдущего заезда
+  _renderTractorPauseButton();
+  const pauseBtnEl = document.getElementById('tractor-pause-btn');
+  if (pauseBtnEl) pauseBtnEl.style.display = 'flex';
   _radarFieldBBoxCacheKey = null; _radarAdaptiveScale = null; // FIX v3.0 п.5: сброс кэша масштаба радара от предыдущего поля
   // FIX v3.0 п.6: сброс AB-линии предыдущего заезда — её координаты x/z
   // привязаны к СТАРОМУ fieldCenter3D, который сейчас будет пересчитан;
@@ -539,10 +551,18 @@ async function startTractorTracking() {
       { enableHighAccuracy: true, timeout: 4000 }
     );
 
+    // ИЗМЕНЕНО (максимальная точность GPS): maximumAge был 1000 (браузеру
+    // разрешалось отдавать закэшированный фикс не старше 1с вместо запроса
+    // нового у GPS-чипа). Для трактора, реально едущего по полю, даже
+    // секундной "свежести" достаточно, чтобы фикс успел устареть на
+    // несколько метров при обычной рабочей скорости — maximumAge:0 требует
+    // от браузера каждый раз спрашивать GPS-чип заново, а не отдавать кэш.
+    // Цена — чуть выше расход батареи и нагрузка на GPS-модуль, что для
+    // сессии активного заезда (обычно минуты, не часы) оправдано точностью.
     tractorWatchId = navigator.geolocation.watchPosition(
       onTractorPosition,
       (err) => { console.warn('GPS watch warning:', err); },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   } else {
     // Геолокация недоступна в браузере — сразу на край поля.
@@ -574,8 +594,109 @@ function updateGpsAccuracyHud(accuracyMeters) {
     el.style.color = '#ff5252'; // ненадёжно — предупреждаем цветом
   }
 }
+
+// ══════════════════════════════════════════════════════════════
+// ДОБАВЛЕНО: индикатор "устойчивый сигнал GPS"
+// ══════════════════════════════════════════════════════════════
+// Идея: точность одного фикса (accuracy) — это мгновенное "качество" сигнала,
+// но она может скакать от фикса к фиксу (спутник поймался/потерялся). Для
+// покраски/учёта площади важнее СТАБИЛЬНОСТЬ сигнала за последние несколько
+// секунд, а не разовое хорошее число. Индикатор держит короткую историю
+// последних фиксов и считает GPS "устойчивым", когда несколько подряд
+// фиксов укладываются в рабочий порог точности. Пока сигнал не устойчив —
+// показываем "Ищу сигнал…" и НЕ разрешаем покраску/учёт (см. gpsSignalIsStable()
+// и её использование в onTractorPosition/paint-условии в animate()).
+const GPS_STABLE_ACCURACY_THRESHOLD_M = 10; // фикс считается "хорошим" при accuracy <= 10м
+const GPS_STABLE_FIXES_REQUIRED = 3;        // столько подряд хороших фиксов нужно для статуса "устойчиво"
+let _gpsAccuracyStreak = [];                // последние accuracy (числа) в порядке поступления
+let _gpsSignalStable = false;
+
+// Создаёт (при первом вызове) или возвращает плавающий бейдж статуса GPS
+// внутри полноэкранного 3D-контейнера. Сделан через JS, а не через разметку
+// в index.html — чтобы не трогать HTML-файл проекта и не требовать правок
+// в другом файле для этой фичи (см. PROJECT-MAP.md, tractor-3d.js
+// "самый изолированный блок проекта").
+function _ensureGpsSignalBadge() {
+  let badge = document.getElementById('tractor-gps-signal-badge');
+  if (badge) return badge;
+  const host = document.getElementById('tractor-3d-view') || document.body;
+  badge = document.createElement('div');
+  badge.id = 'tractor-gps-signal-badge';
+  badge.style.cssText = [
+    'position:absolute', 'top:12px', 'left:50%', 'transform:translateX(-50%)',
+    'z-index:50', 'padding:6px 14px', 'border-radius:20px',
+    'font-size:13px', 'font-weight:600', 'font-family:inherit',
+    'background:rgba(0,0,0,0.55)', 'backdrop-filter:blur(4px)',
+    'color:#ffd600', 'display:none', 'pointer-events:none',
+    'white-space:nowrap', 'transition:opacity 0.2s'
+  ].join(';');
+  host.appendChild(badge);
+  return badge;
+}
+
+// Сбрасывает историю стабильности сигнала — вызывается при старте/остановке
+// заезда, чтобы статус нового заезда не наследовал сигнал предыдущего.
+function resetGpsSignalStability() {
+  _gpsAccuracyStreak = [];
+  _gpsSignalStable = false;
+  const badge = document.getElementById('tractor-gps-signal-badge');
+  if (badge) badge.style.display = 'none';
+}
+
+// Возвращает true, если GPS сейчас считается устойчивым (см. константы выше).
+// Используется как условие для разрешения покраски/учёта дистанции и площади.
+function gpsSignalIsStable() {
+  return _gpsSignalStable;
+}
+
+// Обновляет статус устойчивости по свежему accuracy и перерисовывает бейдж.
+// Вызывается из onTractorPosition() при каждом GPS-фиксе.
+function updateGpsSignalStability(accuracyMeters) {
+  const badge = _ensureGpsSignalBadge();
+
+  if (typeof accuracyMeters !== 'number' || !isFinite(accuracyMeters)) {
+    // Фикс без точности (редко, но бывает на некоторых устройствах) не
+    // считаем ни хорошим, ни плохим — не разрываем текущую серию.
+  } else if (accuracyMeters <= GPS_STABLE_ACCURACY_THRESHOLD_M) {
+    _gpsAccuracyStreak.push(accuracyMeters);
+    if (_gpsAccuracyStreak.length > GPS_STABLE_FIXES_REQUIRED) _gpsAccuracyStreak.shift();
+  } else {
+    // Плохой фикс сразу рвёт серию — стабильность должна быть уверенной,
+    // а не "почти всегда хорошо".
+    _gpsAccuracyStreak = [];
+  }
+
+  const wasStable = _gpsSignalStable;
+  _gpsSignalStable = _gpsAccuracyStreak.length >= GPS_STABLE_FIXES_REQUIRED;
+
+  if (!_gpsSignalStable) {
+    badge.style.display = '';
+    badge.style.color = '#ffd600';
+    badge.innerHTML = (lang === 'ru')
+      ? '<i data-lucide="loader" class="icon-sm"></i> Ищу устойчивый сигнал GPS…'
+      : '<i data-lucide="loader" class="icon-sm"></i> Acquiring stable GPS…';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  } else if (!wasStable && _gpsSignalStable) {
+    // Момент перехода в "устойчиво" — короткое зелёное подтверждение,
+    // затем бейдж прячется сам, чтобы не загораживать вид постоянно.
+    badge.style.display = '';
+    badge.style.color = '#00e676';
+    badge.innerHTML = (lang === 'ru')
+      ? '<i data-lucide="check" class="icon-sm"></i> Сигнал устойчив'
+      : '<i data-lucide="check" class="icon-sm"></i> Signal stable';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    setTimeout(() => { if (_gpsSignalStable) badge.style.display = 'none'; }, 1800);
+  }
+}
 function onTractorPosition(pos) {
   if (!tractorActive || !pos || !pos.coords) return;
+
+  // ДОБАВЛЕНО: на паузе продолжаем следить за точностью сигнала (полезно —
+  // фермер видит, устойчив ли GPS, пока думает/решает проблему), но НЕ
+  // двигаем трактор, не красим и не копим дистанцию/площадь.
+  updateGpsAccuracyHud(pos.coords.accuracy);
+  updateGpsSignalStability(pos.coords.accuracy);
+  if (tractorPaused) return;
 
   const lat = pos.coords.latitude;
   const lng = pos.coords.longitude;
@@ -585,14 +706,20 @@ function onTractorPosition(pos) {
   const speedEl = document.getElementById('tractor-3d-stat-speed');
   if (speedEl) speedEl.textContent = tractorCurrentSpeed.toFixed(1);
 
-  // ДОБАВЛЕНО (фермерский аудит): показываем точность сигнала в реальном
-  // времени, а не только по кнопке "найти меня".
-  updateGpsAccuracyHud(pos.coords.accuracy);
   // FIX v3.0 п.2: запоминаем последнюю заявленную точность GPS-фикса, чтобы
   // vehicleApplyGpsFix() мог подстроить силу сглаживания под неё (см.
   // currentGpsSmoothWindow()).
   _lastGpsAccuracyMeters = (typeof pos.coords.accuracy === 'number' && isFinite(pos.coords.accuracy))
     ? pos.coords.accuracy : null;
+
+  // ДОБАВЛЕНО: пока сигнал не признан устойчивым (см. GPS_STABLE_FIXES_REQUIRED),
+  // не даём этому фиксу двигать трактор/красить/считать дистанцию — только
+  // копим историю точности и ждём. Позиция и маркер обновятся, как только
+  // сигнал стабилизируется. Это отдельная, более строгая защита поверх
+  // фильтра GPS-шума ниже (gpsNoiseFloorM) — тот фильтрует шум ПОСЛЕ старта,
+  // а это не даёт вообще начать движение по невизвестно ещё нестабильному
+  // самому первому сигналу.
+  if (!gpsSignalIsStable()) return;
 
   // FIX: если реальный GPS находится далеко (>2км) от центра 3D-мира,
   // трактор улетает за пределы отрендеренной земли/границ поля — видно
@@ -792,6 +919,21 @@ function vehicleApplyGpsFix(lat, lng, tsMs) {
     tractor3DRenderPos.z = vehicleState.z;
     return;
   }
+
+  // FIX (закраска коричневым до реального движения — GPS-дрожание на месте):
+  // порог в 0.5м считал "проездом" любое смещение между фиксами, а обычная
+  // точность GPS телефона (pos.coords.accuracy) — 5-15м даже с
+  // enableHighAccuracy: true. Стоящий на месте трактор всё равно получает
+  // фиксы, немного "гуляющие" вокруг реальной точки — каждое такое дрожание
+  // раньше проходило порог 0.5м и красило ленту, будто трактор проехал,
+  // хотя оператор ещё не тронулся с места. Теперь смещение должно
+  // превышать заявленную точность фикса (с запасом x1.5) — то есть быть
+  // больше, чем сам GPS-шум, — иначе движение не засчитывается совсем
+  // (ни в покраску, ни в пройденную дистанцию/площадь).
+  const gpsNoiseFloorM = (typeof _lastGpsAccuracyMeters === 'number' && isFinite(_lastGpsAccuracyMeters))
+    ? _lastGpsAccuracyMeters * 1.5
+    : 8; // разумный дефолт, если accuracy не пришла в этом фиксе
+  if (segMetersRaw < Math.max(gpsNoiseFloorM, MIN_PAINT_STEP)) return;
 
   if (segKm >= 0.0005) {
     const dLng = lng - prevPoint[1];
@@ -2961,7 +3103,11 @@ function start3DAnimationLoop() {
       // старой (спавн) точки к новой одним махом, потому что видит только
       // саму дистанцию, не зная, что это был телепорт, а не проезд.
       // Передаём resetOnly=true в этом кадре — "перо" переносится молча.
-      if (tractorActive && (tractorWatchId || _3dGasActive !== 0 || Math.abs(vehicleState.speed) > 0)) {
+      // ДОБАВЛЕНО: !tractorPaused — на паузе не красим вообще, даже если
+      // tractorWatchId ещё активен (GPS watch намеренно не останавливается
+      // на паузе, см. pauseTractorTracking()) или рендер-позиция ещё
+      // доезжает (лерп) до последней точки перед паузой.
+      if (tractorActive && !tractorPaused && (tractorWatchId || _3dGasActive !== 0 || Math.abs(vehicleState.speed) > 0)) {
         paint3DSoilCoverage(tractor3DRenderPos.x, tractor3DRenderPos.z, tractorWidth || 12, tractor3DRenderHeading, tractorTeleportPending);
       }
 
@@ -3087,6 +3233,10 @@ let _manualLastSyncAt = 0;
 
 function vehiclePhysicsTick(dt) {
   if (!tractorActive) return;
+  // ДОБАВЛЕНО: на паузе ручное управление (D-pad/демо) тоже не должно
+  // двигать трактор — иначе пауза защищала бы только от GPS-покраски, но
+  // не от ручного вождения, что не соответствует ожиданию "всё встало".
+  if (tractorPaused) return;
 
   const gas = _3dGasActive;
 
@@ -3225,6 +3375,79 @@ function manualTractorControl(direction) {
   else if (direction === 'forward')  { start3DGas(1);   setTimeout(stop3DGas,   200); }
   else if (direction === 'backward') { start3DGas(-1);  setTimeout(stop3DGas,   200); }
 }
+// ══════════════════════════════════════════════════════════════
+// ДОБАВЛЕНО: пауза заезда
+// ══════════════════════════════════════════════════════════════
+// Создаёт (один раз) плавающую кнопку паузы внутри полноэкранного
+// 3D-контейнера — через JS, не через index.html, по той же причине, что и
+// _ensureGpsSignalBadge(): не трогать другой файл проекта ради этой фичи.
+function _ensureTractorPauseButton() {
+  let btn = document.getElementById('tractor-pause-btn');
+  if (btn) return btn;
+  const host = document.getElementById('tractor-3d-view') || document.body;
+  btn = document.createElement('button');
+  btn.id = 'tractor-pause-btn';
+  btn.type = 'button';
+  btn.style.cssText = [
+    'position:absolute', 'top:56px', 'right:12px', 'z-index:50',
+    'padding:8px 14px', 'border-radius:20px', 'border:none',
+    'font-size:13px', 'font-weight:600', 'font-family:inherit',
+    'display:flex', 'align-items:center', 'gap:6px', 'cursor:pointer',
+    'background:rgba(0,0,0,0.55)', 'backdrop-filter:blur(4px)', 'color:#fff'
+  ].join(';');
+  btn.addEventListener('click', toggleTractorPause);
+  host.appendChild(btn);
+  return btn;
+}
+function _renderTractorPauseButton() {
+  const btn = _ensureTractorPauseButton();
+  const isRu = lang === 'ru';
+  if (tractorPaused) {
+    btn.style.color = '#00e676';
+    btn.innerHTML = `<i data-lucide="play" class="icon-sm"></i> ${isRu ? 'Продолжить' : 'Resume'}`;
+  } else {
+    btn.style.color = '#fff';
+    btn.innerHTML = `<i data-lucide="pause" class="icon-sm"></i> ${isRu ? 'Пауза' : 'Pause'}`;
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+// Ставит заезд на паузу: GPS watch и 3D-сцена продолжают работать (чтобы
+// можно было мгновенно возобновить и видеть, где стоит трактор/как ведёт
+// себя сигнал), но покраска/дистанция/площадь/ручное управление замораживаются
+// (см. проверки tractorPaused в onTractorPosition() и vehiclePhysicsTick()).
+function pauseTractorTracking() {
+  if (!tractorActive || tractorPaused) return;
+  tractorPaused = true;
+  _3dGasActive = 0; _3dSteerActive = 0; // отпускаем "зажатый" газ/руль на паузе
+  vehicleState.speed = 0; vehicleState.steerRate = 0;
+  _renderTractorPauseButton();
+  if (typeof showToast === 'function') {
+    showToast(lang === 'ru'
+      ? '<i data-lucide="pause" class="icon-sm"></i> Заезд на паузе'
+      : '<i data-lucide="pause" class="icon-sm"></i> Drive paused');
+  }
+}
+// Снимает с паузы. Сбрасываем "перо" покраски на текущую позицию через
+// resetOnly (тот же механизм, что и tractorTeleportPending) — иначе первый
+// кадр после паузы нарисовал бы сегмент от точки, где перо было ДО паузы,
+// к текущей, даже если трактор всё это время физически стоял на месте.
+function resumeTractorTracking() {
+  if (!tractorActive || !tractorPaused) return;
+  tractorPaused = false;
+  tractorTeleportPending = true; // "молчаливый" перенос пера, без закраски отрезка простоя
+  tractorLastFixAt = null;       // не даём паузе засчитаться в implied-speed следующего фикса
+  _gpsRawHistory = [];           // сглаживание не должно тянуть точки "из-под паузы"
+  _renderTractorPauseButton();
+  if (typeof showToast === 'function') {
+    showToast(lang === 'ru'
+      ? '<i data-lucide="play" class="icon-sm"></i> Заезд продолжен'
+      : '<i data-lucide="play" class="icon-sm"></i> Drive resumed');
+  }
+}
+function toggleTractorPause() {
+  if (tractorPaused) resumeTractorTracking();
+  else pauseTractorTracking();
+}
 function stopTractorTracking() {
   toggleTractor3DView(false);
   // FIX: если заезд завершили, пока была открыта вложенная 2D мини-карта
@@ -3248,6 +3471,10 @@ function stopTractorTracking() {
   tractorLastFixAt = null;
   tractorTeleportPending = false;
   _gpsRawHistory = []; // сброс сглаживания GPS при завершении заезда
+  resetGpsSignalStability(); // сброс статуса "устойчивый сигнал" при завершении заезда
+  tractorPaused = false;
+  const pauseBtn = document.getElementById('tractor-pause-btn');
+  if (pauseBtn) pauseBtn.style.display = 'none';
   // FIX v3.0 п.6: сброс AB-линии при завершении заезда — её координаты
   // привязаны к текущему fieldCenter3D/vehicleState, которые обнуляются
   // ниже, и не должны "пережить" в следующий заезд.
